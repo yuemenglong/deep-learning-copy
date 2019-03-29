@@ -18,9 +18,17 @@ bitcoin:31mPd6DxPCzbpCMZk4k1koWAbErSyqkAXr
 
 - ### Manuals:
 
+[English (google translated)](doc/manual_en_google_translated.pdf)
+
 [На русском](doc/manual_ru.pdf)
 
 - ### [Prebuilt windows app](doc/doc_prebuilt_windows_app.md)
+
+- ### Forks
+
+[Google Colab fork](https://github.com/chervonij/DFL-Colab) by @chervonij
+
+[Linux fork](https://github.com/lbfs/DeepFaceLab_Linux) by @lbfs
 
 - ### [Ready to work facesets](doc/doc_ready_to_work_facesets.md)
 
