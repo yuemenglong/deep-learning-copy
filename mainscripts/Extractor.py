@@ -418,7 +418,13 @@ class ExtractSubprocessor(Subprocessor):
                         key_events = io.get_key_events(self.wnd_name)
                         key, = key_events[-1] if len(key_events) > 0 else (0,)
 
-                        if key == ord('o') and len(self.last_outer) != 0:
+                        if key == ord('o') and self.rect_locked:
+                            # confirm frame
+                            is_frame_done = True
+                            data_rects.append(self.rect)
+                            data_landmarks.append(self.landmarks)
+                            break
+                        elif key == ord('o') and len(self.last_outer) != 0:
                             last_mid = F.mid_point(self.last_outer)
                             last_border = np.linalg.norm(np.array(self.last_outer[0]) - np.array(self.last_outer[1]))
                             last_area = F.poly_area(self.last_outer)
@@ -426,9 +432,9 @@ class ExtractSubprocessor(Subprocessor):
                             new_x = np.clip(x, 0, w - 1) / self.view_scale
                             new_y = np.clip(y, 0, h - 1) / self.view_scale
                             new_rect_size = last_border / 2 / self.view_scale
-                            # 必须更新过一轮，这时候的rect和landmarks才是最新的
+                            # make sure rect and landmarks have been refreshed
                             if self.x == new_x and self.y == new_y and len(self.temp_outer) != 0:
-                                # 比较距离和面积
+                                # compare dist and area
                                 temp_mid = F.mid_point(self.temp_outer)
                                 dist = np.linalg.norm(np.array(temp_mid) - np.array(last_mid))
                                 dist_r = dist / last_border
