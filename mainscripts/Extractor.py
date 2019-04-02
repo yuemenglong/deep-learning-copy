@@ -300,7 +300,7 @@ class ExtractSubprocessor(Subprocessor):
             self.cache_image = (None, None)
             self.cache_text_lines_img = (None, None)
             self.hide_help = False
-            self.landmarks_accurate = False
+            self.landmarks_accurate = True
 
             self.landmarks = None
             self.x = 0
