@@ -388,7 +388,7 @@ class ExtractSubprocessor(Subprocessor):
                                                             '[Enter] / [Space] - confirm / skip frame',
                                                             '[,] [.]- prev frame, next frame. [Q] - skip remaining frames',
                                                             '[a] - accuracy on/off (more fps)',
-                                                            '[o] - auto mode'
+                                                            '[o] - auto mode',
                                                             '[h] - hide this help'
                                                         ], (1, 1, 1) )*255).astype(np.uint8)
 
@@ -425,7 +425,7 @@ class ExtractSubprocessor(Subprocessor):
                             x, y = last_mid
                             new_x = np.clip(x, 0, w - 1) / self.view_scale
                             new_y = np.clip(y, 0, h - 1) / self.view_scale
-                            new_rect_size = last_border / 2
+                            new_rect_size = last_border / 2 / self.view_scale
                             # 必须更新过一轮，这时候的rect和landmarks才是最新的
                             if self.x == new_x and self.y == new_y and len(self.temp_outer) != 0:
                                 # 比较距离和面积
