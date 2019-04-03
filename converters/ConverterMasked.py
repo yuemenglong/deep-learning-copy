@@ -89,8 +89,11 @@ class ConverterMasked(Converter):
             self.blur_mask_modifier = base_blur_mask_modifier + np.clip ( io.input_int ("Choose blur mask modifier [-200..200] (skip:%d) : " % (default_blur_mask_modifier), default_blur_mask_modifier), -200, 200)
 
         self.output_face_scale = np.clip ( 1.0 + io.input_int ("Choose output face scale modifier [-50..50] (skip:0) : ", 0)*0.01, 0.5, 1.5)
-        self.color_transfer_mode = io.input_str ("Apply color transfer to predicted face? Choose mode ( rct/lct skip:rct ) : ", "rct", ['rct','lct'])
-        self.super_resolution = io.input_bool("Apply super resolution? (y/n skip:y) : ", True, help_message="Enhance details by applying DCSCN network.")
+
+        if self.mode != 'raw':
+            self.color_transfer_mode = io.input_str ("Apply color transfer to predicted face? Choose mode ( rct/lct skip:None ) : ", "rct", ['rct','lct'])
+        
+        self.super_resolution = io.input_bool("Apply super resolution? (y/n ?:help skip:n) : ", False, help_message="Enhance details by applying DCSCN network.")
 
         if self.mode != 'raw':
             self.final_image_color_degrade_power = np.clip (  io.input_int ("Degrade color power of final image [0..100] (skip:0) : ", 0), 0, 100)
@@ -331,7 +334,7 @@ class ConverterMasked(Converter):
                     #mask used for cv2.seamlessClone
                     img_face_seamless_mask_a = None
                     img_face_mask_a = img_mask_blurry_aaa[...,0:1]
-                    for i in [5,6,4,7,3,8,2,9,1,0]:
+                    for i in range(1,10):
                         a = img_face_mask_a > i / 10.0
                         if len(np.argwhere(a)) == 0:
                             continue
