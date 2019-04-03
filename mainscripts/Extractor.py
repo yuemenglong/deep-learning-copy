@@ -19,6 +19,7 @@ from nnlib import nnlib
 from joblib import Subprocessor
 from interact import interact as io
 import F
+import math
 
 
 class ExtractSubprocessor(Subprocessor):
@@ -388,7 +389,7 @@ class ExtractSubprocessor(Subprocessor):
                                                             '[Enter] / [Space] - confirm / skip frame',
                                                             '[,] [.]- prev frame, next frame. [Q] - skip remaining frames',
                                                             '[a] - accuracy on/off (more fps)',
-                                                            '[o] - auto mode',
+                                                            '[f] - select face by last rect',
                                                             '[h] - hide this help'
                                                         ], (1, 1, 1) )*255).astype(np.uint8)
 
@@ -418,20 +419,20 @@ class ExtractSubprocessor(Subprocessor):
                         key_events = io.get_key_events(self.wnd_name)
                         key, = key_events[-1] if len(key_events) > 0 else (0,)
 
-                        if key == ord('o') and self.rect_locked:
+                        if key == ord('f') and self.rect_locked:
                             # confirm frame
                             is_frame_done = True
                             data_rects.append(self.rect)
                             data_landmarks.append(self.landmarks)
                             break
-                        elif key == ord('o') and len(self.last_outer) != 0:
+                        elif key == ord('f') and len(self.last_outer) != 0:
                             last_mid = F.mid_point(self.last_outer)
                             last_border = np.linalg.norm(np.array(self.last_outer[0]) - np.array(self.last_outer[1]))
                             last_area = F.poly_area(self.last_outer)
                             x, y = last_mid
                             new_x = np.clip(x, 0, w - 1) / self.view_scale
                             new_y = np.clip(y, 0, h - 1) / self.view_scale
-                            new_rect_size = last_border / 2 / self.view_scale
+                            new_rect_size = last_border / 2 / self.view_scale * 0.8
                             # make sure rect and landmarks have been refreshed
                             if self.x == new_x and self.y == new_y and len(self.temp_outer) != 0:
                                 # compare dist and area
@@ -440,7 +441,10 @@ class ExtractSubprocessor(Subprocessor):
                                 dist_r = dist / last_border
                                 temp_area = F.poly_area(self.temp_outer)
                                 area_r = temp_area / last_area
-                                if dist_r < 0.5 and 0.5 < area_r < 1.5:
+                                v0 = np.array(last_mid) - np.array(self.last_outer[0])
+                                v1 = np.array(temp_mid) - np.array(self.temp_outer[0])
+                                angle = math.fabs(F.angle_between(v0, v1))
+                                if dist_r < 0.5 and 0.5 < area_r < 1.5 and angle < 0.7:
                                     is_frame_done = True
                                     data_rects.append(self.rect)
                                     data_landmarks.append(self.landmarks)
