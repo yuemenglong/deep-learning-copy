@@ -12,7 +12,9 @@ import cv2
 import models
 from interact import interact as io
 
+
 def trainerThread (s2c, c2s, args, device_args):
+    last_loss = 1
     while True:
         try:
             start_time = time.time()
@@ -52,7 +54,21 @@ def trainerThread (s2c, c2s, args, device_args):
                 if not debug and not is_reached_goal:
                     io.log_info ("Saving....", end='\r')
                     model.save()
+                    backup()
                     shared_state['after_save'] = True
+
+            def backup():
+                io.log_info ("Backup....", end='\r')
+                if last_loss < 0.1:
+                    import os
+                    import shutil
+                    for file in os.listdir(model_path):
+                        if file.startswith(model_name) and not file.endswith(".bak"):
+                            src = os.path.join(model_path, file)
+                            dst = os.path.join(model_path, file + ".bak")
+                            shutil.copy(src, dst)
+
+
 
             def send_preview():
                 if not debug:
@@ -93,6 +109,7 @@ def trainerThread (s2c, c2s, args, device_args):
                         iter, iter_time = model.train_one_iter()
 
                         loss_history = model.get_loss_history()
+                        last_loss = loss_history[-1][0]
                         time_str = time.strftime("[%H:%M:%S]")
                         if iter_time >= 10:
                             loss_string = "{0}[#{1:06d}][{2:.5s}s]".format ( time_str, iter, '{:0.4f}'.format(iter_time) )
