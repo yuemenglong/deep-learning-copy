@@ -62,10 +62,13 @@ def trainerThread (s2c, c2s, args, device_args):
                 if last_loss < 0.1:
                     import os
                     import shutil
+                    backup_path = os.path.join(model_path, "backup")
+                    if not os.path.exists(backup_path):
+                        os.mkdir(backup_path)
                     for file in os.listdir(model_path):
-                        if file.startswith(model_name) and not file.endswith(".bak"):
+                        if file.startswith(model_name):
                             src = os.path.join(model_path, file)
-                            dst = os.path.join(model_path, file + ".bak")
+                            dst = os.path.join(backup_path, file)
                             shutil.copy(src, dst)
 
 
@@ -202,7 +205,10 @@ def main(args, device_args):
                 op = input.get('op','')
                 if op == 'close':
                     break
-            io.process_messages(0.1)
+            try:
+                io.process_messages(0.1)
+            except KeyboardInterrupt:
+                s2c.put ( {'op': 'close'} )
     else:
         wnd_name = "Training preview"
         io.named_window(wnd_name)
@@ -270,7 +276,7 @@ def main(args, device_args):
                 for i in range(0, len(head_lines)):
                     t = i*head_line_height
                     b = (i+1)*head_line_height
-                    head[t:b, 0:w] += imagelib.get_text_image (  (w,head_line_height,c) , head_lines[i], color=[0.8]*c )
+                    head[t:b, 0:w] += imagelib.get_text_image (  (head_line_height,w,c) , head_lines[i], color=[0.8]*c )
 
                 final = head
 
@@ -290,8 +296,8 @@ def main(args, device_args):
                 is_showing = True
 
             key_events = io.get_key_events(wnd_name)
-            key, = key_events[-1] if len(key_events) > 0 else (0,)
-
+            key, chr_key, ctrl_pressed, alt_pressed, shift_pressed = key_events[-1] if len(key_events) > 0 else (0,0,False,False,False)
+            
             if key == ord('\n') or key == ord('\r'):
                 s2c.put ( {'op': 'close'} )
             elif key == ord('s'):
