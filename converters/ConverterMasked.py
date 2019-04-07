@@ -25,7 +25,7 @@ class ConverterMasked(Converter):
                         predictor_input_size=0,
                         predictor_masked=True,
                         face_type=FaceType.FULL,
-                        default_mode = 4,
+                        default_mode = 1,
                         base_erode_mask_modifier = 0,
                         base_blur_mask_modifier = 0,
                         default_erode_mask_modifier = 0,
@@ -91,9 +91,9 @@ class ConverterMasked(Converter):
         self.output_face_scale = np.clip ( 1.0 + io.input_int ("Choose output face scale modifier [-50..50] (skip:0) : ", 0)*0.01, 0.5, 1.5)
 
         if self.mode != 'raw':
-            self.color_transfer_mode = io.input_str ("Apply color transfer to predicted face? Choose mode ( rct/lct skip:None ) : ", "rct", ['rct','lct'])
+            self.color_transfer_mode = io.input_str ("Apply color transfer to predicted face? Choose mode ( rct/lct skip:rct ) : ", "rct", ['rct','lct'])
         
-        self.super_resolution = io.input_bool("Apply super resolution? (y/n ?:help skip:n) : ", False, help_message="Enhance details by applying DCSCN network.")
+        self.super_resolution = io.input_bool("Apply super resolution? (y/n ?:help skip:y) : ", True, help_message="Enhance details by applying DCSCN network.")
 
         if self.mode != 'raw':
             self.final_image_color_degrade_power = np.clip (  io.input_int ("Degrade color power of final image [0..100] (skip:0) : ", 0), 0, 100)
