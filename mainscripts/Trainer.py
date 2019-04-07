@@ -59,7 +59,7 @@ def trainerThread (s2c, c2s, args, device_args):
 
             def backup():
                 io.log_info ("Backup....", end='\r')
-                if last_loss < 0.1:
+                if last_loss < 0.3:
                     import os
                     import shutil
                     backup_path = os.path.join(model_path, "backup")
