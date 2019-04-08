@@ -166,7 +166,8 @@ def video_from_sequence( input_dir, output_file, reference_file=None, ext=None, 
         fps = max (1, io.input_int ("FPS ? (default:25) : ", 25) )
 
     if not lossless and bitrate is None:
-        bitrate = max (1, io.input_int ("Bitrate of output file in MB/s ? (default:16) : ", 16) )
+        bitrate = 16
+        # bitrate = max (1, io.input_int ("Bitrate of output file in MB/s ? (default:16) : ", 16) )
 
     i_in = ffmpeg.input(str (input_path / ('%5d.'+ext)), r=fps)
 
