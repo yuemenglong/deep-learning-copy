@@ -276,6 +276,7 @@ class ExtractSubprocessor(Subprocessor):
         self.result = []
         self.last_outer = []
         self.temp_outer = []
+        self.auto = False
 
         self.devices = ExtractSubprocessor.get_devices_for_config(self.manual, self.type, multi_gpu, cpu_only)
 
@@ -424,8 +425,9 @@ class ExtractSubprocessor(Subprocessor):
                             is_frame_done = True
                             data_rects.append(self.rect)
                             data_landmarks.append(self.landmarks)
+                            self.auto = True
                             break
-                        elif key == ord('f') and len(self.last_outer) != 0:
+                        elif (key == ord('f') or self.auto) and len(self.last_outer) != 0:
                             last_mid = F.mid_point(self.last_outer)
                             last_border = np.linalg.norm(np.array(self.last_outer[0]) - np.array(self.last_outer[1]))
                             last_area = F.poly_area(self.last_outer)
@@ -448,7 +450,10 @@ class ExtractSubprocessor(Subprocessor):
                                     is_frame_done = True
                                     data_rects.append(self.rect)
                                     data_landmarks.append(self.landmarks)
+                                    self.auto = True
                                     break
+                                else:
+                                    self.auto = False
                         elif key == ord('\r') or key == ord('\n'):
                             # confirm frame
                             is_frame_done = True
