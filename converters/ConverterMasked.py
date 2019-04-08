@@ -26,8 +26,8 @@ class ConverterMasked(Converter):
                         predictor_masked=True,
                         face_type=FaceType.FULL,
                         default_mode = 1,
-                        base_erode_mask_modifier = 50,
-                        base_blur_mask_modifier = 100,
+                        base_erode_mask_modifier = 0,
+                        base_blur_mask_modifier = 0,
                         default_erode_mask_modifier = 0,
                         default_blur_mask_modifier = 0,
                         clip_hborder_mask_per = 0):
