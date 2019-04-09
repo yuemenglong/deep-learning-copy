@@ -1,5 +1,6 @@
 import traceback
 
+import face_recognition
 import numpy as np
 import cv2
 
@@ -60,6 +61,59 @@ def skip_no_face(dir, pat="%05d"):
             shutil.move(src, dst)
 
 
+def face_encodings(image):
+    import numpy as np
+    res = face_recognition.face_encodings(image)
+    if len(res) == 1:
+        return res[0]
+    else:
+        return np.ones(128)
+
+
+def face_distance(known_enc, unknown_enc):
+    if not isinstance(known_enc, list):
+        known_enc = [known_enc]
+    score = face_recognition.face_distance(known_enc, unknown_enc)
+    return np.min(score)
+
+
+def cpu_count():
+    from multiprocessing import cpu_count as cs
+    return cs()
+
+
+def sort_by_face_similarity(known_dir, target_dir):
+    import os
+    import shutil
+    known_imgs = [cv2.imread(os.path.join(known_dir, f)) for f in os.listdir(known_dir)]
+    known_enc = [face_encodings(i) for i in known_imgs]
+    files = os.listdir(target_dir)
+    imgs = [cv2.imread(os.path.join(target_dir, f)) for f in files]
+    jobs = list(zip(files, imgs))
+
+    for job in jobs:
+        f, img = job
+        img = cv2.imread(os.path.join(target_dir, f))
+        enc = face_encodings(img)
+        score = face_distance(known_enc, enc)
+        ext = os.path.splitext(f)[-1]
+        name = "%08d" % (score * 1e7) + ext
+        src = os.path.join(target_dir, f)
+        dst = os.path.join(target_dir, name)
+        shutil.move(src, dst)
+        print(src, dst)
+
+
 if __name__ == '__main__':
-    dir = "D:/DeepFaceLabCUDA9SSE/workspace/data_dst"
-    skip_no_face(dir)
+    import sys
+
+    arg = sys.argv[-1]
+    if arg == '--skip_no_face':
+        dir = "D:/DeepFaceLabCUDA9SSE/workspace/data_dst"
+        skip_no_face(dir)
+    elif arg == '--sort_by_face_similarity':
+        dir = "D:/DeepFaceLabCUDA9SSE/temp"
+        sort_by_face_similarity(dir + "/known", dir + "/aligned_")
+    else:
+        dir = "D:/DeepFaceLabCUDA9SSE/workspace/data_dst"
+        skip_no_face(dir)
