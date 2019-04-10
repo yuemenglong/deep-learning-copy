@@ -126,7 +126,9 @@ class Model(ModelBase):
                                predictor_input_size=128,
                                face_type=FaceType.FULL,
                                base_erode_mask_modifier=30,
-                               base_blur_mask_modifier=0)
+                               base_blur_mask_modifier=0,
+                               default_erode_mask_modifier=50,
+                               default_blur_mask_modifier=100)
 
     def Build(self, input_layer):
         exec(nnlib.code_import_all, locals(), globals())
