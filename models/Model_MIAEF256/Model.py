@@ -72,14 +72,22 @@ class Model(ModelBase):
         self.inter_B = self.Intermediate()
 
         if not self.is_first_run():
-            self.encoder.load_weights(self.get_strpath_storage_for_file(self.encoderH5))
-            self.decoderMask.load_weights(self.get_strpath_storage_for_file(self.decoderMaskH5))
-            self.decoderCommonA.load_weights(self.get_strpath_storage_for_file(self.decoderCommonAH5))
-            self.decoderCommonB.load_weights(self.get_strpath_storage_for_file(self.decoderCommonBH5))
-            self.decoderRGB.load_weights(self.get_strpath_storage_for_file(self.decoderRGBH5))
-            self.decoderBW.load_weights(self.get_strpath_storage_for_file(self.decoderBWH5))
-            self.inter_A.load_weights(self.get_strpath_storage_for_file(self.inter_AH5))
-            self.inter_B.load_weights(self.get_strpath_storage_for_file(self.inter_BH5))
+            self.load_weights_safe([[self.encoder, self.encoderH5],
+                                    [self.decoderMask, self.decoderMaskH5],
+                                    [self.decoderCommonA, self.decoderCommonAH5],
+                                    [self.decoderCommonB, self.decoderCommonBH5],
+                                    [self.decoderRGB, self.decoderRGBH5],
+                                    [self.decoderBW, self.decoderBWH5],
+                                    [self.inter_A, self.inter_AH5],
+                                    [self.inter_B, self.inter_BH5]])
+            # self.encoder.load_weights(self.get_strpath_storage_for_file(self.encoderH5))
+            # self.decoderMask.load_weights(self.get_strpath_storage_for_file(self.decoderMaskH5))
+            # self.decoderCommonA.load_weights(self.get_strpath_storage_for_file(self.decoderCommonAH5))
+            # self.decoderCommonB.load_weights(self.get_strpath_storage_for_file(self.decoderCommonBH5))
+            # self.decoderRGB.load_weights(self.get_strpath_storage_for_file(self.decoderRGBH5))
+            # self.decoderBW.load_weights(self.get_strpath_storage_for_file(self.decoderBWH5))
+            # self.inter_A.load_weights(self.get_strpath_storage_for_file(self.inter_AH5))
+            # self.inter_B.load_weights(self.get_strpath_storage_for_file(self.inter_BH5))
 
         code = self.encoder(ae_input_layer)
         A = self.inter_A(code)
@@ -146,14 +154,14 @@ class Model(ModelBase):
 
     # override
     def onSave(self):
-        self.save_weights_safe([[self.encoder, self.get_strpath_storage_for_file(self.encoderH5)],
-                                [self.decoderMask, self.get_strpath_storage_for_file(self.decoderMaskH5)],
-                                [self.decoderCommonA, self.get_strpath_storage_for_file(self.decoderCommonAH5)],
-                                [self.decoderCommonB, self.get_strpath_storage_for_file(self.decoderCommonBH5)],
-                                [self.decoderRGB, self.get_strpath_storage_for_file(self.decoderRGBH5)],
-                                [self.decoderBW, self.get_strpath_storage_for_file(self.decoderBWH5)],
-                                [self.inter_A, self.get_strpath_storage_for_file(self.inter_AH5)],
-                                [self.inter_B, self.get_strpath_storage_for_file(self.inter_BH5)]])
+        self.save_weights_safe([[self.encoder, self.encoderH5],
+                                [self.decoderMask, self.decoderMaskH5],
+                                [self.decoderCommonA, self.decoderCommonAH5],
+                                [self.decoderCommonB, self.decoderCommonBH5],
+                                [self.decoderRGB, self.decoderRGBH5],
+                                [self.decoderBW, self.decoderBWH5],
+                                [self.inter_A, self.inter_AH5],
+                                [self.inter_B, self.inter_BH5]])
 
     # override
     def onTrainOneEpoch(self, sample):
