@@ -28,6 +28,9 @@ class Sample(object):
         self.mirror = mirror
         self.close_target_list = close_target_list
 
+    def __str__(self):
+        return "Sample: %s" % self.filename
+
     def copy_and_set(self, sample_type=None, filename=None, face_type=None, shape=None, landmarks=None, ie_polys=None, pitch=None, yaw=None, mirror=None, close_target_list=None):
         return Sample(
             sample_type=sample_type if sample_type is not None else self.sample_type,
