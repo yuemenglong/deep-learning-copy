@@ -49,7 +49,7 @@ class Model(ModelBase):
 
         self.batch_size = batch_size
         if self.batch_size <= 0:
-            self.batch_size = 4
+            self.batch_size = 8
             # if self.gpu_total_vram_gb == 5:
             #     self.batch_size = 4
             # elif self.gpu_total_vram_gb == 6:
@@ -118,9 +118,8 @@ class Model(ModelBase):
                                                         ])
 
         # if self.is_training_mode:
-            # self.autoencoder_src, self.autoencoder_dst = self.to_multi_gpu_model_if_possible(
-            #     [self.autoencoder_src, self.autoencoder_dst])
-
+        # self.autoencoder_src, self.autoencoder_dst = self.to_multi_gpu_model_if_possible(
+        #     [self.autoencoder_src, self.autoencoder_dst])
         optimizer = self.keras.optimizers.Adam(lr=5e-5, beta_1=0.5, beta_2=0.999)
         # dssimloss = nnlib.DSSIMMSEMaskLoss(self.tf)([mask_layer])
         dssimloss = nnlib.DSSIMMSEMaskLoss(mask_layer)
@@ -210,8 +209,8 @@ class Model(ModelBase):
 
         x, mx = self.autoencoder_src_RGB.predict([np.expand_dims(face_128_bgr, 0), np.expand_dims(face_128_mask, 0)])
         x, mx = x[0], mx[0]
-
-        return np.concatenate((x, mx), -1)
+        return x, mx
+        # return np.concatenate((x, mx), -1)
 
     # override
     def get_converter(self, **in_options):
@@ -224,8 +223,16 @@ class Model(ModelBase):
         if 'blur_mask_modifier' not in in_options.keys():
             in_options['blur_mask_modifier'] = 0
 
-        return ConverterMasked(self.predictor_func, predictor_input_size=256, output_size=256, face_type=FaceType.FULL,
-                               clip_border_mask_per=0.046875, **in_options)
+        # return ConverterMasked(self.predictor_func, predictor_input_size=256, output_size=256, face_type=FaceType.FULL,
+            #                        clip_border_mask_per=0.046875, **in_options)
+        return ConverterMasked(self.predictor_func,
+                               predictor_input_size=256,
+                               face_type=FaceType.FULL,
+                               base_erode_mask_modifier=30,
+                               base_blur_mask_modifier=0,
+                               default_erode_mask_modifier=50,
+                               default_blur_mask_modifier=100)
+
 
     def Encoder(self, input_layer, ):
         x = input_layer
