@@ -164,7 +164,7 @@ class Model(ModelBase):
                                 [self.inter_B, self.inter_BH5]])
 
     # override
-    def onTrainOneEpoch(self, sample):
+    def onTrainOneIter(self, sample, generators_list):
         warped_src, target_src, target_src_mask, target_src_GGG = sample[0]
         warped_dst, target_dst, target_dst_mask = sample[1]
 
