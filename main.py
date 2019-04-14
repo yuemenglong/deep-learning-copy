@@ -33,7 +33,8 @@ if __name__ == "__main__":
                         face_type=arguments.face_type,
                         device_args={'cpu_only'  : arguments.cpu_only,
                                      'multi_gpu' : arguments.multi_gpu,
-                                    }
+                                    },
+                        min_pixel=arguments.min_pixel
                       )
 
     p = subparsers.add_parser( "extract", help="Extract the faces from a pictures.")
@@ -47,6 +48,7 @@ if __name__ == "__main__":
     p.add_argument('--manual-output-debug-fix', action="store_true", dest="manual_output_debug_fix", default=False, help="Performs manual reextract input-dir frames which were deleted from [output_dir]_debug\ dir.")
     p.add_argument('--manual-window-size', type=int, dest="manual_window_size", default=1368, help="Manual fix window size. Default: 1368.")
     p.add_argument('--cpu-only', action="store_true", dest="cpu_only", default=False, help="Extract on CPU. Forces to use MT extractor.")
+    p.add_argument('--min-pixel', dest="min_pixel", default=0, help="Filter Small Face Rect")
     p.set_defaults (func=process_extract)
 
     def process_sort(arguments):

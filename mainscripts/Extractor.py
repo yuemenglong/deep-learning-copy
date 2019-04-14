@@ -44,6 +44,7 @@ class ExtractSubprocessor(Subprocessor):
             self.cpu_only     = client_dict['device_type'] == 'CPU'
             self.final_output_path  = Path(client_dict['final_output_dir']) if 'final_output_dir' in client_dict.keys() else None
             self.debug_dir    = client_dict['debug_dir']
+            self.min_pixel    = client_dict['min_pixel'] if 'min_pixel' in client_dict.keys() else 0
 
             self.cached_image = (None, None)
 
@@ -229,7 +230,10 @@ class ExtractSubprocessor(Subprocessor):
                                 continue
 
                         if self.debug_dir is not None:
-                            LandmarksProcessor.draw_rect_landmarks (debug_image, rect, image_landmarks, self.image_size, self.face_type, transparent_mask=True)
+                            outer_points = LandmarksProcessor.draw_rect_landmarks (debug_image, rect, image_landmarks, self.image_size, self.face_type, transparent_mask=True)
+                            dist = np.sqrt(np.sum(np.square(outer_points[0]-outer_points[1])))
+                            if dist < int(self.min_pixel):
+                                continue
 
                         if src_dflimg is not None:
                             #if extracting from dflimg copy it in order not to lose quality
@@ -264,7 +268,7 @@ class ExtractSubprocessor(Subprocessor):
             return data.filename
 
     #override
-    def __init__(self, input_data, type, image_size, face_type, debug_dir=None, multi_gpu=False, cpu_only=False, manual=False, manual_window_size=0, final_output_path=None):
+    def __init__(self, input_data, type, image_size, face_type, debug_dir=None, multi_gpu=False, cpu_only=False, manual=False, manual_window_size=0, final_output_path=None, min_pixel=0):
         self.input_data = input_data
         self.type = type
         self.image_size = image_size
@@ -277,6 +281,7 @@ class ExtractSubprocessor(Subprocessor):
         self.last_outer = []
         self.temp_outer = []
         self.auto = False
+        self.min_pixel = min_pixel
 
         self.devices = ExtractSubprocessor.get_devices_for_config(self.manual, self.type, multi_gpu, cpu_only)
 
@@ -326,7 +331,8 @@ class ExtractSubprocessor(Subprocessor):
                      'image_size': self.image_size,
                      'face_type': self.face_type,
                      'debug_dir': self.debug_dir,
-                     'final_output_dir': str(self.final_output_path)}
+                     'final_output_dir': str(self.final_output_path),
+                     'min_pixel': self.min_pixel}
 
 
         for (device_idx, device_type, device_name, device_total_vram_gb) in self.devices:
@@ -711,7 +717,8 @@ def main(input_dir,
          manual_window_size=1368,
          image_size=256,
          face_type='full_face',
-         device_args={}):
+         device_args={},
+         min_pixel=0):
 
     input_path = Path(input_dir)
     output_path = Path(output_dir)
@@ -771,7 +778,7 @@ def main(input_dir,
             data = ExtractSubprocessor (data, 'landmarks', image_size, face_type, debug_dir, multi_gpu=multi_gpu, cpu_only=cpu_only, manual=False).run()
 
         io.log_info ('Performing 3rd pass...')
-        data = ExtractSubprocessor (data, 'final', image_size, face_type, debug_dir, multi_gpu=multi_gpu, cpu_only=cpu_only, manual=False, final_output_path=output_path).run()
+        data = ExtractSubprocessor (data, 'final', image_size, face_type, debug_dir, multi_gpu=multi_gpu, cpu_only=cpu_only, manual=False, final_output_path=output_path, min_pixel=min_pixel).run()
         faces_detected += sum([d.faces_detected for d in data])
 
         if manual_fix:
