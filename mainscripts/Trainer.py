@@ -59,13 +59,15 @@ def trainerThread (s2c, c2s, args, device_args):
 
             def backup():
                 io.log_info ("Backup....", end='\r')
-                if last_loss < 1:
+                if last_loss < 0.5:
                     import os
                     import shutil
                     backup_path = os.path.join(model_path, "backup")
                     if not os.path.exists(backup_path):
                         os.mkdir(backup_path)
                     for file in os.listdir(model_path):
+                        if os.path.isdir(os.path.join(model_path, file)):
+                            continue
                         if file.startswith(model_name):
                             src = os.path.join(model_path, file)
                             dst = os.path.join(backup_path, file)
