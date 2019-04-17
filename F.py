@@ -1,6 +1,4 @@
-import traceback
 
-import face_recognition
 import numpy as np
 import cv2
 
@@ -12,6 +10,7 @@ def cv_sharp(img):
 
 
 def print_stack():
+    import traceback
     for line in traceback.format_stack():
         print(line.strip())
 
@@ -62,6 +61,7 @@ def skip_no_face(dir, pat="%05d"):
 
 
 def face_encodings(image):
+    import face_recognition
     import numpy as np
     res = face_recognition.face_encodings(image)
     if len(res) == 1:
@@ -71,6 +71,7 @@ def face_encodings(image):
 
 
 def face_distance(known_enc, unknown_enc):
+    import face_recognition
     if not isinstance(known_enc, list):
         known_enc = [known_enc]
     score = face_recognition.face_distance(known_enc, unknown_enc)
