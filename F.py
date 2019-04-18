@@ -1,4 +1,3 @@
-
 import numpy as np
 import cv2
 
@@ -105,16 +104,74 @@ def sort_by_face_similarity(known_dir, target_dir):
         print(src, dst)
 
 
+def get_root_path():
+    path = __file__
+    for _ in range(4):
+        path = os.path.dirname(path)
+    return path
+
+
+def extract():
+    import os
+    import time
+    import shutil
+    from mainscripts import VideoEd
+    from mainscripts import Extractor
+    from interact import interact as io
+
+    root_dir = get_root_path()
+    extract_workspace = os.path.join(root_dir, "extract_workspace")
+    target_dir = os.path.join(extract_workspace, "aligned_")
+
+    valid_exts = [".mp4", ".avi", ".wmv", ".mkv"]
+
+    fps = io.input_int("Enter FPS ( ?:help skip:fullfps ) : ", 0,
+                       help_message="How many frames of every second of the video will be extracted.")
+
+    files = os.listdir(extract_workspace)
+    files.sort()
+    for file in files:
+        if os.path.isdir(os.path.join(extract_workspace, file)):
+            continue
+        ext = os.path.splitext(file)[-1]
+        if ext not in valid_exts:
+            continue
+        print("Start Process " + file)
+        # 提取图片
+        input_file = os.path.join(extract_workspace, file)
+        output_dir = os.path.join(extract_workspace, "extract_images")
+        for f in os.listdir(output_dir):
+            os.remove(os.path.join(output_dir, f))
+        VideoEd.extract_video(input_file, output_dir, output_ext="png", fps=fps)
+        # 提取人脸
+        input_dir = output_dir
+        output_dir = os.path.join(extract_workspace, "_current")
+        debug_dir = os.path.join(extract_workspace, "debug")
+        min_pixel = 512
+        Extractor.main(input_dir, output_dir, debug_dir, "s3fd", min_pixel=min_pixel)
+        # 复制到结果集
+        print("Start Move " + file)
+        if not os.path.exists(target_dir):
+            os.mkdir(target_dir)
+        ts = time.strftime('%Y_%m_%d_%H_%M_%S', time.localtime(time.time()))
+        for f in os.listdir(output_dir):
+            src = os.path.join(output_dir, f)
+            dst = os.path.join(target_dir, "%s_%s" % (ts, f))
+            shutil.move(src, dst)
+        # 全部做完，删除该文件
+        print("Finish " + file)
+        os.remove(os.path.join(extract_workspace, file))
+        os.rmdir(output_dir)
+
+
 if __name__ == '__main__':
     import sys
+    import os
 
     arg = sys.argv[-1]
-    if arg == '--skip_no_face':
-        dir = "D:/DeepFaceLabCUDA9SSE/workspace/data_dst"
-        skip_no_face(dir)
-    elif arg == '--sort_by_face_similarity':
-        dir = "D:/DeepFaceLabCUDA9SSE/temp"
-        sort_by_face_similarity(dir + "/known", dir + "/aligned_")
+    if arg == '--skip-no-face':
+        skip_no_face(os.path.join(get_root_path(), "workspace", "data_dst"))
+    elif arg == '--extract':
+        extract()
     else:
-        dir = "D:/DeepFaceLabCUDA9SSE/workspace/data_dst"
-        skip_no_face(dir)
+        raise Exception("Only Support: --skip-no-face, --sort-by-face-similarity")
