@@ -128,21 +128,27 @@ def extract():
     fps = io.input_int("Enter FPS ( ?:help skip:fullfps ) : ", 0,
                        help_message="How many frames of every second of the video will be extracted.")
 
-    files = os.listdir(extract_workspace)
-    files.sort()
-    for file in files:
+    def file_filter(file):
         if os.path.isdir(os.path.join(extract_workspace, file)):
-            continue
+            return False
         ext = os.path.splitext(file)[-1]
         if ext not in valid_exts:
-            continue
-        print("Start Process " + file)
+            return False
+        return True
+
+    files = list(filter(file_filter, os.listdir(extract_workspace)))
+    files.sort()
+    pos = 0
+    for file in files:
+        pos += 1
+        print("@@@@@  Start Process " + file, "%d / %d" % (pos, len(files)))
         # 提取图片
         input_file = os.path.join(extract_workspace, file)
         output_dir = os.path.join(extract_workspace, "extract_images")
         for f in os.listdir(output_dir):
             os.remove(os.path.join(output_dir, f))
         VideoEd.extract_video(input_file, output_dir, output_ext="png", fps=fps)
+        print("@@@@@  Start Extract " + file, "%d / %d" % (pos, len(files)))
         # 提取人脸
         input_dir = output_dir
         output_dir = os.path.join(extract_workspace, "_current")
@@ -150,7 +156,7 @@ def extract():
         min_pixel = 512
         Extractor.main(input_dir, output_dir, debug_dir, "s3fd", min_pixel=min_pixel)
         # 复制到结果集
-        print("Start Move " + file)
+        print("@@@@@  Start Move " + file, "%d / %d" % (pos, len(files)))
         if not os.path.exists(target_dir):
             os.mkdir(target_dir)
         ts = time.strftime('%Y_%m_%d_%H_%M_%S', time.localtime(time.time()))
@@ -159,7 +165,7 @@ def extract():
             dst = os.path.join(target_dir, "%s_%s" % (ts, f))
             shutil.move(src, dst)
         # 全部做完，删除该文件
-        print("Finish " + file)
+        print("@@@@@  Finish " + file, "%d / %d" % (pos, len(files)))
         os.remove(os.path.join(extract_workspace, file))
         os.rmdir(output_dir)
 
