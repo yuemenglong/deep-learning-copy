@@ -460,6 +460,7 @@ class ExtractSubprocessor(Subprocessor):
                                     break
                                 else:
                                     self.auto = False
+                                    print('\a')
                         elif key == ord('\r') or key == ord('\n'):
                             # confirm frame
                             is_frame_done = True
