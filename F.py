@@ -106,7 +106,7 @@ def sort_by_face_similarity(known_dir, target_dir):
 
 def get_root_path():
     path = __file__
-    for _ in range(4):
+    for _ in range(3):
         path = os.path.dirname(path)
     return path
 
@@ -145,6 +145,8 @@ def extract():
         # 提取图片
         input_file = os.path.join(extract_workspace, file)
         output_dir = os.path.join(extract_workspace, "extract_images")
+        if not os.path.exists(output_dir):
+            os.mkdir(output_dir)
         for f in os.listdir(output_dir):
             os.remove(os.path.join(output_dir, f))
         VideoEd.extract_video(input_file, output_dir, output_ext="png", fps=fps)
