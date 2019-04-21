@@ -653,7 +653,7 @@ class ExtractSubprocessor(Subprocessor):
                         for i in range ( int (max (1, dev_vram / 2) ) ):
                             result += [ (idx, 'GPU', '%s #%d' % (dev_name,i) , dev_vram) ]
                     else:
-                        result += [(idx, 'GPU', dev_name, dev_vram)]
+                        result += [ (idx, 'GPU', dev_name, dev_vram) ]
 
                 return result
 
