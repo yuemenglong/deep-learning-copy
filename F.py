@@ -36,36 +36,29 @@ def angle_between(v1, v2):
     return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
 
-def skip_no_face(data_dst_dir, pat="%05d"):
+def skip_no_face(dir, pat="%05d"):
     import os
     import shutil
-    # 当前aligned最大下标
-    extracts = []
-    for f in os.listdir(data_dst_dir):
-        if not os.path.isdir(os.path.join(data_dst_dir, f)) and f.endswith(".png"):
-            extracts.append(f)
-    aligned_dir = os.path.join(data_dst_dir, "aligned")
-    aligend = os.listdir(aligned_dir)
-    aligned_set = set([f.split("_")[0] for f in aligend])
-    if len(aligend) != len(aligned_set):
-        raise Exception("Contains Multi Face")
-    pos = 1
-    for i in range(1, len(extracts) + 1):
-        no = "%05d" % i
-        if no in aligned_set:
-            src = os.path.join(data_dst_dir, "%05d.png" % i)
-            dst = os.path.join(data_dst_dir, "%05d.png" % pos)
-            print("Move %s -> %s" % (src, dst))
+    import sys
+    aligend_dir = os.path.join(dir, "aligned")
+    aligend = set([f.split("_")[0] for f in os.listdir(aligend_dir)])
+    merged_dir = os.path.join(dir, "merged")
+    merged_dir_bak = os.path.join(dir, "merged_bak")
+    if os.path.exists(merged_dir_bak):
+        raise Exception("Merge Dir Bak Exists")
+    shutil.move(merged_dir, merged_dir_bak)
+    os.mkdir(merged_dir)
+    idx = 0
+    for f in os.listdir(merged_dir_bak):
+        name = os.path.splitext(f)[0]
+        ext = os.path.splitext(f)[-1]
+        if name in aligend:
+            idx += 1
+            sys.stdout.write("Skip No Face Proc: %d\r" % idx)
+            sys.stdout.flush()
+            src = os.path.join(merged_dir_bak, f)
+            dst = os.path.join(merged_dir, "%05d" % idx + ext)
             shutil.move(src, dst)
-            src = os.path.join(aligned_dir, "%05d_0.jpg" % i)
-            dst = os.path.join(aligned_dir, "%05d_0.jpg" % pos)
-            print("Move %s -> %s" % (src, dst))
-            shutil.move(src, dst)
-            pos += 1
-    for i in range(pos, len(extracts) + 1):
-        path = os.path.join(data_dst_dir, "%05d.png" % i)
-        if os.path.exists(path):
-            os.remove(path)
 
 
 def face_encodings(image):
