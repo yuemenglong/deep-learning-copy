@@ -445,11 +445,12 @@ class ExtractSubprocessor(Subprocessor):
                         if key == ord('f') and self.rect_locked:
                             # confirm frame
                             is_frame_done = True
+                            self.last_outer = self.temp_outer
                             data_rects.append(self.rect)
                             data_landmarks.append(self.landmarks)
                             self.auto = True
                             break
-                        elif (key == ord('f') or self.auto) and len(self.last_outer) != 0:
+                        elif (key == ord('f') or key == ord('s') or self.auto) and len(self.last_outer) != 0:
                             last_mid = F.mid_point(self.last_outer)
                             last_border = np.linalg.norm(np.array(self.last_outer[0]) - np.array(self.last_outer[1]))
                             last_area = F.poly_area(self.last_outer)
@@ -470,9 +471,13 @@ class ExtractSubprocessor(Subprocessor):
                                 angle = math.fabs(F.angle_between(v0, v1))
                                 if dist_r < 0.5 and 0.5 < area_r < 1.5 and angle < 0.7:
                                     is_frame_done = True
+                                    self.last_outer = self.temp_outer
                                     data_rects.append(self.rect)
                                     data_landmarks.append(self.landmarks)
                                     self.auto = True
+                                    break
+                                elif key == ord('s'):
+                                    is_frame_done = True
                                     break
                                 else:
                                     self.auto = False
@@ -563,7 +568,6 @@ class ExtractSubprocessor(Subprocessor):
                     io.progress_bar_inc(1)
                     self.extract_needed = True
                     self.rect_locked = False
-                    self.last_outer = self.temp_outer
                     self.temp_outer = []
 
         return None
