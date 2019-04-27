@@ -23,7 +23,7 @@ def trainerThread (s2c, c2s, args, device_args):
             training_data_dst_path = Path( args.get('training_data_dst_dir', '') )
             model_path = Path( args.get('model_path', '') )
             model_name = args.get('model_name', '')
-            save_interval_min = 15
+            save_interval_min = 5
             debug = args.get('debug', '')
             execute_programs = args.get('execute_programs', [])
 
