@@ -113,9 +113,13 @@ def get_root_path():
     return path
 
 
+def get_time_str():
+    import time
+    return time.strftime('%Y_%m_%d_%H_%M_%S', time.localtime(time.time()))
+
+
 def extract():
     import os
-    import time
     import shutil
     from mainscripts import VideoEd
     from mainscripts import Extractor
@@ -166,7 +170,7 @@ def extract():
         print("@@@@@  Start Move " + file, "%d / %d" % (pos, len(files)))
         if not os.path.exists(target_dir):
             os.mkdir(target_dir)
-        ts = time.strftime('%Y_%m_%d_%H_%M_%S', time.localtime(time.time()))
+        ts = get_time_str()
         for f in os.listdir(output_dir):
             src = os.path.join(output_dir, f)
             dst = os.path.join(target_dir, "%s_%s" % (ts, f))
