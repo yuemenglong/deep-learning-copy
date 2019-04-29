@@ -14,7 +14,6 @@ from interact import interact as io
 
 
 def trainerThread (s2c, c2s, args, device_args):
-    last_loss = 1
     while True:
         try:
             start_time = time.time()
@@ -57,22 +56,25 @@ def trainerThread (s2c, c2s, args, device_args):
                     backup()
                     shared_state['after_save'] = True
 
-            def backup():
-                io.log_info ("Backup....", end='\r')
-                if last_loss < 0.5:
-                    import os
-                    import shutil
-                    backup_path = os.path.join(model_path, "backup")
-                    if not os.path.exists(backup_path):
-                        os.mkdir(backup_path)
-                    for file in os.listdir(model_path):
-                        if os.path.isdir(os.path.join(model_path, file)):
-                            continue
-                        if file.startswith(model_name):
-                            src = os.path.join(model_path, file)
-                            dst = os.path.join(backup_path, file)
-                            shutil.copy(src, dst)
 
+            def backup():
+                import F
+                has_backup = F.has_backup(model_name, model_path)
+                io.log_info ("Backup....", end='\r')
+                loss_src_mean, loss_dst_mean = np.mean([np.array(loss_history[i]) for i in range(save_iter, iter)], axis=0)
+                loss_src, loss_dst = loss_history[-1]
+                if has_backup and (loss_src_mean > 0.5 or loss_dst_mean > 0.5 or loss_src > 0.5 or loss_dst > 0.5):
+                    if model_name == "SAE" and model.options['archi'] == 'df':
+                        F.restore_model(model_name, model_path)
+                        weights_to_load = [[model.encoder, 'encoder.h5'],
+                                           [model.decoder_src, 'decoder_src.h5'],
+                                           [model.decoder_dst, 'decoder_dst.h5'],
+                                           [model.decoder_srcm, 'decoder_srcm.h5'],
+                                           [model.decoder_dstm, 'decoder_dstm.h5']]
+                        model.load_weights_safe(weights_to_load)
+                        io.log_info("Crash And Try Restore....")
+                if loss_src_mean <= 0.5 and loss_dst_mean <= 0.5 and loss_src <= 0.5 and loss_dst <= 0.5:
+                    F.backup_model(model_name, model_path)
 
 
             def send_preview():
@@ -114,7 +116,6 @@ def trainerThread (s2c, c2s, args, device_args):
                         iter, iter_time = model.train_one_iter()
 
                         loss_history = model.get_loss_history()
-                        last_loss = loss_history[-1][0]
                         time_str = time.strftime("[%H:%M:%S]")
                         if iter_time >= 10:
                             loss_string = "{0}[#{1:06d}][{2:.5s}s]".format ( time_str, iter, '{:0.4f}'.format(iter_time) )

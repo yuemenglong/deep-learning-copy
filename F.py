@@ -118,6 +118,49 @@ def get_time_str():
     return time.strftime('%Y_%m_%d_%H_%M_%S', time.localtime(time.time()))
 
 
+def backup_model(model_name, model_path):
+    import os
+    import shutil
+    backup_path = os.path.join(model_path, "backup")
+    if not os.path.exists(backup_path):
+        os.mkdir(backup_path)
+    for file in os.listdir(model_path):
+        if os.path.isdir(os.path.join(model_path, file)):
+            continue
+        if file.startswith(model_name):
+            src = os.path.join(model_path, file)
+            dst = os.path.join(backup_path, file)
+            shutil.copy(src, dst)
+
+
+def has_backup(model_name, model_path):
+    import os
+    backup_path = os.path.join(model_path, "backup")
+    if not os.path.exists(backup_path):
+        return False
+    for file in os.listdir(model_path):
+        if os.path.isdir(os.path.join(model_path, file)):
+            continue
+        if file.startswith(model_name):
+            return True
+    return False
+
+
+def restore_model(model_name, model_path):
+    import os
+    import shutil
+    backup_path = os.path.join(model_path, "backup")
+    if not os.path.exists(backup_path):
+        return
+    for file in os.listdir(backup_path):
+        if os.path.isdir(os.path.join(model_path, file)):
+            continue
+        if file.startswith(model_name):
+            src = os.path.join(backup_path, file)
+            dst = os.path.join(model_path, file)
+            shutil.copy(src, dst)
+
+
 def extract():
     import os
     import shutil
