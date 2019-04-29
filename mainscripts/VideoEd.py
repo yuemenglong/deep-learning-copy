@@ -197,5 +197,11 @@ def video_from_sequence( input_dir, output_file, reference_file=None, ext=None, 
     job = ( ffmpeg.output(*output_args, **output_kwargs).overwrite_output() )
     try:
         job = job.run()
+        import os
+        import F
+        import shutil
+        file_name, ext = os.path.splitext(output_file)
+        dst = "%s_%s%s" % (file_name, F.get_time_str(), ext)
+        shutil.move(output_file, dst)
     except:
         io.log_err ("ffmpeg fail, job commandline:" + str(job.compile()) )
