@@ -63,7 +63,7 @@ def trainerThread (s2c, c2s, args, device_args):
                 io.log_info ("Backup....", end='\r')
                 loss_src_mean, loss_dst_mean = np.mean([np.array(loss_history[i]) for i in range(save_iter, iter)], axis=0)
                 loss_src, loss_dst = loss_history[-1]
-                if has_backup and (loss_src_mean > 0.5 or loss_dst_mean > 0.5 or loss_src > 0.5 or loss_dst > 0.5):
+                if has_backup and (iter > 10000 and loss_src_mean > 0.5 or loss_dst_mean > 0.5 or loss_src > 0.5 or loss_dst > 0.5):
                     if model_name == "SAE" and model.options['archi'] == 'df':
                         F.restore_model(model_name, model_path)
                         weights_to_load = [[model.encoder, 'encoder.h5'],
