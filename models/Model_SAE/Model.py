@@ -51,49 +51,52 @@ class SAEModel(ModelBase):
             self.options['optimizer_mode'] = self.options.get('optimizer_mode', 1)
 
         if is_first_run:
-            self.options['archi'] = io.input_str ("AE architecture (df, liae ?:help skip:%s) : " % (default_archi) , default_archi, ['df','liae'], help_message="'df' keeps faces more natural. 'liae' can fix overly different face shapes.").lower()
+            self.options['archi'] = io.input_str ("AE architecture (df, liae ?:help skip:%s) : " % (default_archi) , default_archi, ['df','liae'], help_message="'df' keeps faces more natural. 'liae' can fix overly different face shapes.").lower() #-s version is slower, but has decreased change to collapse.
         else:
             self.options['archi'] = self.options.get('archi', default_archi)
 
-        default_ae_dims = 256 if self.options['archi'] == 'liae' else 512
+        default_ae_dims = 256 if 'liae' in self.options['archi'] else 512
         default_e_ch_dims = 42
         default_d_ch_dims = default_e_ch_dims // 2
-
+        def_ca_weights = False
+        
         if is_first_run:
             self.options['ae_dims'] = np.clip ( io.input_int("AutoEncoder dims (32-1024 ?:help skip:%d) : " % (default_ae_dims) , default_ae_dims, help_message="All face information will packed to AE dims. If amount of AE dims are not enough, then for example closed eyes will not be recognized. More dims are better, but require more VRAM. You can fine-tune model size to fit your GPU." ), 32, 1024 )
             self.options['e_ch_dims'] = np.clip ( io.input_int("Encoder dims per channel (21-85 ?:help skip:%d) : " % (default_e_ch_dims) , default_e_ch_dims, help_message="More encoder dims help to recognize more facial features, but require more VRAM. You can fine-tune model size to fit your GPU." ), 21, 85 )
             default_d_ch_dims = self.options['e_ch_dims'] // 2
             self.options['d_ch_dims'] = np.clip ( io.input_int("Decoder dims per channel (10-85 ?:help skip:%d) : " % (default_d_ch_dims) , default_d_ch_dims, help_message="More decoder dims help to get better details, but require more VRAM. You can fine-tune model size to fit your GPU." ), 10, 85 )
-            self.options['remove_gray_border'] = io.input_bool ("Remove gray border? (y/n, ?:help skip:n) : ", False, help_message="Removes gray border of predicted face, but requires more computing resources.")
+            self.options['multiscale_decoder'] = io.input_bool ("Use multiscale decoder? (y/n, ?:help skip:n) : ", False, help_message="Multiscale decoder helps to get better details.")
+            self.options['ca_weights'] = io.input_bool ("Use CA weights? (y/n, ?:help skip: %s ) : " % (yn_str[def_ca_weights]), def_ca_weights, help_message="Initialize network with 'Convolution Aware' weights. This may help to achieve a higher accuracy model, but consumes a time at first run.")
         else:
             self.options['ae_dims'] = self.options.get('ae_dims', default_ae_dims)
             self.options['e_ch_dims'] = self.options.get('e_ch_dims', default_e_ch_dims)
             self.options['d_ch_dims'] = self.options.get('d_ch_dims', default_d_ch_dims)
-            self.options['remove_gray_border'] = self.options.get('remove_gray_border', False)
-
-        if is_first_run:
-            self.options['multiscale_decoder'] = io.input_bool ("Use multiscale decoder? (y/n, ?:help skip:n) : ", False, help_message="Multiscale decoder helps to get better details.")
-        else:
             self.options['multiscale_decoder'] = self.options.get('multiscale_decoder', False)
+            self.options['ca_weights'] = self.options.get('ca_weights', def_ca_weights)
 
         default_face_style_power = 0.0
         default_bg_style_power = 0.0
         if is_first_run or ask_override:
             def_pixel_loss = self.options.get('pixel_loss', False)
-            self.options['pixel_loss'] = io.input_bool ("Use pixel loss? (y/n, ?:help skip: %s ) : " % (yn_str[def_pixel_loss]), def_pixel_loss, help_message="Pixel loss may help to enhance fine details and stabilize face color. Use it only if quality does not improve over time.")
+            self.options['pixel_loss'] = io.input_bool ("Use pixel loss? (y/n, ?:help skip: %s ) : " % (yn_str[def_pixel_loss]), def_pixel_loss, help_message="Pixel loss may help to enhance fine details and stabilize face color. Use it only if quality does not improve over time. Enabling this option too early increases the chance of model collapse.")
 
             default_face_style_power = default_face_style_power if is_first_run else self.options.get('face_style_power', default_face_style_power)
             self.options['face_style_power'] = np.clip ( io.input_number("Face style power ( 0.0 .. 100.0 ?:help skip:%.2f) : " % (default_face_style_power), default_face_style_power,
-                                                                               help_message="Learn to transfer face style details such as light and color conditions. Warning: Enable it only after 10k iters, when predicted face is clear enough to start learn style. Start from 0.1 value and check history changes."), 0.0, 100.0 )
+                                                                               help_message="Learn to transfer face style details such as light and color conditions. Warning: Enable it only after 10k iters, when predicted face is clear enough to start learn style. Start from 0.1 value and check history changes. Enabling this option increases the chance of model collapse."), 0.0, 100.0 )
 
             default_bg_style_power = default_bg_style_power if is_first_run else self.options.get('bg_style_power', default_bg_style_power)
             self.options['bg_style_power'] = np.clip ( io.input_number("Background style power ( 0.0 .. 100.0 ?:help skip:%.2f) : " % (default_bg_style_power), default_bg_style_power,
-                                                                               help_message="Learn to transfer image around face. This can make face more like dst."), 0.0, 100.0 )
+                                                                               help_message="Learn to transfer image around face. This can make face more like dst. Enabling this option increases the chance of model collapse."), 0.0, 100.0 )
         else:
             self.options['pixel_loss'] = self.options.get('pixel_loss', False)
             self.options['face_style_power'] = self.options.get('face_style_power', default_face_style_power)
             self.options['bg_style_power'] = self.options.get('bg_style_power', default_bg_style_power)
-
+            
+        if is_first_run:
+            self.options['pretrain'] = io.input_bool ("Pretrain the model? (y/n, ?:help skip:n) : ", False, help_message="Pretrain the model with large amount of various faces. This technique may help to train the fake with overly different face shapes and light conditions of src/dst data. Face will be look more like a morphed. To reduce the morph effect, some model files will be initialized but not be updated after pretrain: LIAE: inter_AB.h5 DF: encoder.h5. The longer you pretrain the model the more morphed face will look. After that, save and run the training again.")
+        else:
+            self.options['pretrain'] = False 
+            
     #override
     def onInitialize(self):
         exec(nnlib.import_all(), locals(), globals())
@@ -104,6 +107,10 @@ class SAEModel(ModelBase):
         ae_dims = self.options['ae_dims']
         e_ch_dims = self.options['e_ch_dims']
         d_ch_dims = self.options['d_ch_dims']
+        self.pretrain = self.options['pretrain'] = self.options.get('pretrain', False)
+        if not self.pretrain:
+            self.options.pop('pretrain')
+            
         d_residual_blocks = True
         bgr_shape = (resolution, resolution, 3)
         mask_shape = (resolution, resolution, 1)
@@ -125,13 +132,12 @@ class SAEModel(ModelBase):
         target_dst_ar  = [ Input ( ( bgr_shape[0] // (2**i) ,)*2 + (bgr_shape[-1],) ) for i in range(ms_count-1, -1, -1)]
         target_dstm_ar = [ Input ( ( mask_shape[0] // (2**i) ,)*2 + (mask_shape[-1],) ) for i in range(ms_count-1, -1, -1)]
 
-        padding = 'reflect' if self.options['remove_gray_border'] else 'zero'
-        common_flow_kwargs = { 'padding': padding,
-                               'norm': 'bn',
-                               'act':'prelu' }
-
+        common_flow_kwargs = { 'padding': 'zero',
+                               'norm': 'norm',
+                               'act':'' }                               
+        models_list = []
         weights_to_load = []
-        if self.options['archi'] == 'liae':
+        if 'liae' in self.options['archi']:
             self.encoder = modelify(SAEModel.LIAEEncFlow(resolution, ch_dims=e_ch_dims, **common_flow_kwargs)  ) (Input(bgr_shape))
 
             enc_output_Inputs = [ Input(K.int_shape(x)[1:]) for x in self.encoder.outputs ]
@@ -142,10 +148,12 @@ class SAEModel(ModelBase):
             inter_output_Inputs = [ Input( np.array(K.int_shape(x)[1:])*(1,1,2) ) for x in self.inter_B.outputs ]
 
             self.decoder = modelify(SAEModel.LIAEDecFlow (bgr_shape[2],ch_dims=d_ch_dims, multiscale_count=self.ms_count, add_residual_blocks=d_residual_blocks, **common_flow_kwargs)) (inter_output_Inputs)
-
+            models_list += [self.encoder, self.inter_B, self.inter_AB, self.decoder]
+            
             if self.options['learn_mask']:
                 self.decoderm = modelify(SAEModel.LIAEDecFlow (mask_shape[2],ch_dims=d_ch_dims, **common_flow_kwargs)) (inter_output_Inputs)
-
+                models_list += [self.decoderm]
+                
             if not self.is_first_run():
                 weights_to_load += [  [self.encoder , 'encoder.h5'],
                                       [self.inter_B , 'inter_B.h5'],
@@ -175,18 +183,20 @@ class SAEModel(ModelBase):
                 pred_dst_dstm = self.decoderm(warped_dst_inter_code)
                 pred_src_dstm = self.decoderm(warped_src_dst_inter_code)
 
-        elif self.options['archi'] == 'df':
+        elif 'df' in self.options['archi']:
             self.encoder = modelify(SAEModel.DFEncFlow(resolution, ae_dims=ae_dims, ch_dims=e_ch_dims, **common_flow_kwargs)  ) (Input(bgr_shape))
 
             dec_Inputs = [ Input(K.int_shape(x)[1:]) for x in self.encoder.outputs ]
 
             self.decoder_src = modelify(SAEModel.DFDecFlow (bgr_shape[2],ch_dims=d_ch_dims, multiscale_count=self.ms_count, add_residual_blocks=d_residual_blocks, **common_flow_kwargs )) (dec_Inputs)
             self.decoder_dst = modelify(SAEModel.DFDecFlow (bgr_shape[2],ch_dims=d_ch_dims, multiscale_count=self.ms_count, add_residual_blocks=d_residual_blocks, **common_flow_kwargs )) (dec_Inputs)
-
+            models_list += [self.encoder, self.decoder_src, self.decoder_dst]
+            
             if self.options['learn_mask']:
                 self.decoder_srcm = modelify(SAEModel.DFDecFlow (mask_shape[2],ch_dims=d_ch_dims, **common_flow_kwargs )) (dec_Inputs)
                 self.decoder_dstm = modelify(SAEModel.DFDecFlow (mask_shape[2],ch_dims=d_ch_dims, **common_flow_kwargs )) (dec_Inputs)
-
+                models_list += [self.decoder_srcm, self.decoder_dstm]
+                
             if not self.is_first_run():
                 weights_to_load += [  [self.encoder    , 'encoder.h5'],
                                       [self.decoder_src, 'decoder_src.h5'],
@@ -207,7 +217,18 @@ class SAEModel(ModelBase):
                 pred_src_srcm = self.decoder_srcm(warped_src_code)
                 pred_dst_dstm = self.decoder_dstm(warped_dst_code)
                 pred_src_dstm = self.decoder_srcm(warped_dst_code)
-
+                
+        if self.is_first_run():
+            if self.options.get('ca_weights',False):
+                conv_weights_list = []
+                for model in models_list:
+                    for layer in model.layers:
+                        if type(layer) == keras.layers.Conv2D:
+                            conv_weights_list += [layer.weights[0]] #Conv2D kernel_weights            
+                CAInitializerMP ( conv_weights_list )
+        else:
+            self.load_weights_safe(weights_to_load)
+        
         pred_src_src, pred_dst_dst, pred_src_dst, = [ [x] if type(x) != list else x for x in [pred_src_src, pred_dst_dst, pred_src_dst, ] ]
 
         if self.options['learn_mask']:
@@ -243,12 +264,12 @@ class SAEModel(ModelBase):
 
         psd_target_dst_masked_ar = [ pred_src_dst_sigm_ar[i]*target_dstm_sigm_ar[i]  for i in range(len(pred_src_dst_sigm_ar))]
         psd_target_dst_anti_masked_ar = [ pred_src_dst_sigm_ar[i]*target_dstm_anti_sigm_ar[i]  for i in range(len(pred_src_dst_sigm_ar))]
-
+        
         if self.is_training_mode:
             self.src_dst_opt      = Adam(lr=5e-5, beta_1=0.5, beta_2=0.999, tf_cpu_mode=self.options['optimizer_mode']-1)
             self.src_dst_mask_opt = Adam(lr=5e-5, beta_1=0.5, beta_2=0.999, tf_cpu_mode=self.options['optimizer_mode']-1)
 
-            if self.options['archi'] == 'liae':
+            if 'liae' in self.options['archi']:
                 src_dst_loss_train_weights = self.encoder.trainable_weights + self.inter_B.trainable_weights + self.inter_AB.trainable_weights + self.decoder.trainable_weights
                 if self.options['learn_mask']:
                     src_dst_mask_loss_train_weights = self.encoder.trainable_weights + self.inter_B.trainable_weights + self.inter_AB.trainable_weights + self.decoderm.trainable_weights
@@ -258,9 +279,9 @@ class SAEModel(ModelBase):
                     src_dst_mask_loss_train_weights = self.encoder.trainable_weights + self.decoder_srcm.trainable_weights + self.decoder_dstm.trainable_weights
 
             if not self.options['pixel_loss']:
-                src_loss_batch = sum([ (  100*K.square( dssim(kernel_size=int(resolution/11.6),max_value=1.0)( target_src_masked_ar_opt[i],  pred_src_src_masked_ar_opt[i] ) )) for i in range(len(target_src_masked_ar_opt)) ])
+                src_loss_batch = sum([ 10*dssim(kernel_size=int(resolution/11.6),max_value=1.0)( target_src_masked_ar_opt[i], pred_src_src_masked_ar_opt[i])  for i in range(len(target_src_masked_ar_opt)) ])
             else:
-                src_loss_batch = sum([ K.mean ( 100*K.square( target_src_masked_ar_opt[i] - pred_src_src_masked_ar_opt[i] ), axis=[1,2,3]) for i in range(len(target_src_masked_ar_opt)) ])
+                src_loss_batch = sum([ K.mean ( 50*K.square( target_src_masked_ar_opt[i] - pred_src_src_masked_ar_opt[i] ), axis=[1,2,3]) for i in range(len(target_src_masked_ar_opt)) ])
 
             src_loss = K.mean(src_loss_batch)
 
@@ -272,15 +293,15 @@ class SAEModel(ModelBase):
             bg_style_power = self.options['bg_style_power'] / 100.0
             if bg_style_power != 0:
                 if not self.options['pixel_loss']:
-                    bg_loss = K.mean( (100*bg_style_power)*K.square(dssim(kernel_size=int(resolution/11.6),max_value=1.0)( psd_target_dst_anti_masked_ar[-1], target_dst_anti_masked_ar[-1] )))
+                    bg_loss = K.mean( (10*bg_style_power)*dssim(kernel_size=int(resolution/11.6),max_value=1.0)( psd_target_dst_anti_masked_ar[-1], target_dst_anti_masked_ar[-1] ))
                 else:
-                    bg_loss = K.mean( (100*bg_style_power)*K.square( psd_target_dst_anti_masked_ar[-1] - target_dst_anti_masked_ar[-1] ))
+                    bg_loss = K.mean( (50*bg_style_power)*K.square( psd_target_dst_anti_masked_ar[-1] - target_dst_anti_masked_ar[-1] ))
                 src_loss += bg_loss
 
             if not self.options['pixel_loss']:
-                dst_loss_batch = sum([ (  100*K.square(dssim(kernel_size=int(resolution/11.6),max_value=1.0)( target_dst_masked_ar_opt[i],  pred_dst_dst_masked_ar_opt[i] ) )) for i in range(len(target_dst_masked_ar_opt)) ])
+                dst_loss_batch = sum([ 10*dssim(kernel_size=int(resolution/11.6),max_value=1.0)(target_dst_masked_ar_opt[i], pred_dst_dst_masked_ar_opt[i]) for i in range(len(target_dst_masked_ar_opt)) ])
             else:
-                dst_loss_batch = sum([ K.mean ( 100*K.square( target_dst_masked_ar_opt[i] - pred_dst_dst_masked_ar_opt[i] ), axis=[1,2,3]) for i in range(len(target_dst_masked_ar_opt)) ])
+                dst_loss_batch = sum([ K.mean ( 50*K.square( target_dst_masked_ar_opt[i] - pred_dst_dst_masked_ar_opt[i] ), axis=[1,2,3]) for i in range(len(target_dst_masked_ar_opt)) ])
 
             dst_loss = K.mean(dst_loss_batch)
 
@@ -307,9 +328,8 @@ class SAEModel(ModelBase):
             else:
                 self.AE_view = K.function ([warped_src, warped_dst], [pred_src_src[-1], pred_dst_dst[-1], pred_src_dst[-1] ] )
 
-            self.load_weights_safe(weights_to_load)#, [ [self.src_dst_opt, 'src_dst_opt'], [self.src_dst_mask_opt, 'src_dst_mask_opt']])
+            
         else:
-            self.load_weights_safe(weights_to_load)
             if self.options['learn_mask']:
                 self.AE_convert = K.function ([warped_dst],[ pred_src_dst[-1], pred_dst_dstm[-1], pred_src_dstm[-1] ])
             else:
@@ -320,20 +340,31 @@ class SAEModel(ModelBase):
             self.src_sample_losses = []
             self.dst_sample_losses = []
 
-            f = SampleProcessor.TypeFlags
-            face_type = f.FACE_TYPE_FULL if self.options['face_type'] == 'f' else f.FACE_TYPE_HALF
+            t = SampleProcessor.Types
+            face_type = t.FACE_TYPE_FULL if self.options['face_type'] == 'f' else t.FACE_TYPE_HALF
 
-            output_sample_types=[ [f.WARPED_TRANSFORMED | face_type | f.MODE_BGR, resolution] ]
-            output_sample_types += [ [f.TRANSFORMED | face_type | f.MODE_BGR, resolution // (2**i) ] for i in range(ms_count)]
-            output_sample_types += [ [f.TRANSFORMED | face_type | f.MODE_M | f.FACE_MASK_FULL, resolution // (2**i) ] for i in range(ms_count)]
+            t_mode_bgr = t.MODE_BGR if not self.pretrain else t.MODE_BGR_SHUFFLE
 
+            output_sample_types =  [ {'types' : (t.IMG_WARPED_TRANSFORMED, face_type, t_mode_bgr), 'resolution':resolution} ]
+            output_sample_types += [ {'types' : (t.IMG_TRANSFORMED, face_type, t_mode_bgr), 'resolution': resolution // (2**i) } for i in range(ms_count)]
+            output_sample_types += [ {'types' : (t.IMG_TRANSFORMED, face_type, t.MODE_M, t.FACE_MASK_FULL), 'resolution': resolution // (2**i) } for i in range(ms_count)]
+
+            training_data_src_path = self.training_data_src_path
+            training_data_dst_path = self.training_data_dst_path
+            sort_by_yaw = self.sort_by_yaw
+            
+            if self.pretrain and self.pretraining_data_path is not None:
+                training_data_src_path = self.pretraining_data_path
+                training_data_dst_path = self.pretraining_data_path
+                sort_by_yaw = False
+            
             self.set_training_data_generators ([
-                    SampleGeneratorFace(self.training_data_src_path, sort_by_yaw_target_samples_path=self.training_data_dst_path if self.sort_by_yaw else None,
+                    SampleGeneratorFace(training_data_src_path, sort_by_yaw_target_samples_path=training_data_dst_path if sort_by_yaw else None,
                                                                      debug=self.is_debug(), batch_size=self.batch_size,
                         sample_process_options=SampleProcessor.Options(random_flip=self.random_flip, scale_range=np.array([-0.05, 0.05])+self.src_scale_mod / 100.0 ),
                         output_sample_types=output_sample_types ),
 
-                    SampleGeneratorFace(self.training_data_dst_path, debug=self.is_debug(), batch_size=self.batch_size,
+                    SampleGeneratorFace(training_data_dst_path, debug=self.is_debug(), batch_size=self.batch_size,
                         sample_process_options=SampleProcessor.Options(random_flip=self.random_flip, ),
                         output_sample_types=output_sample_types )
                 ])
@@ -344,20 +375,29 @@ class SAEModel(ModelBase):
                    [self.src_dst_mask_opt, 'src_dst_mask_opt']
                  ]
         ar = []
-        if self.options['archi'] == 'liae':
+        if 'liae' in self.options['archi']:
             ar += [[self.encoder, 'encoder.h5'],
-                  [self.inter_B, 'inter_B.h5'],
-                  [self.inter_AB, 'inter_AB.h5'],
-                  [self.decoder, 'decoder.h5']
-                 ]
+                   [self.inter_B, 'inter_B.h5'],
+                   [self.decoder, 'decoder.h5']
+                  ]
+                 
+            if not self.pretrain or self.iter == 0:
+                ar += [ [self.inter_AB, 'inter_AB.h5'],
+                      ]
+                
             if self.options['learn_mask']:
                  ar += [ [self.decoderm, 'decoderm.h5'] ]
-        elif self.options['archi'] == 'df':
-           ar += [[self.encoder, 'encoder.h5'],
-                 [self.decoder_src, 'decoder_src.h5'],
-                 [self.decoder_dst, 'decoder_dst.h5']
-                ]
-           if self.options['learn_mask']:
+                 
+        elif 'df' in self.options['archi']:
+            if not self.pretrain or self.iter == 0:
+                ar += [ [self.encoder, 'encoder.h5'],
+                      ]
+                      
+            ar += [ [self.decoder_src, 'decoder_src.h5'],
+                    [self.decoder_dst, 'decoder_dst.h5']
+                  ]            
+                
+            if self.options['learn_mask']:
                 ar += [ [self.decoder_srcm, 'decoder_srcm.h5'],
                         [self.decoder_dstm, 'decoder_dstm.h5'] ]
 
@@ -370,8 +410,8 @@ class SAEModel(ModelBase):
         dst_samples  = generators_samples[1]
 
         feed = [src_samples[0], dst_samples[0] ] + \
-               src_samples[1:1+self.ms_count*2] + \
-               dst_samples[1:1+self.ms_count*2]
+                src_samples[1:1+self.ms_count*2] + \
+                dst_samples[1:1+self.ms_count*2]
 
         src_loss, dst_loss, = self.src_dst_train (feed)
 
@@ -445,7 +485,7 @@ class SAEModel(ModelBase):
                                base_blur_mask_modifier=base_blur_mask_modifier,
                                default_erode_mask_modifier=default_erode_mask_modifier,
                                default_blur_mask_modifier=default_blur_mask_modifier,
-                               clip_hborder_mask_per=0.0625 if (not self.options['remove_gray_border'] and self.options['face_type'] == 'f') else 0)
+                               clip_hborder_mask_per=0.0625 if (self.options['face_type'] == 'f') else 0)
 
     @staticmethod
     def initialize_nn_functions():
@@ -467,7 +507,7 @@ class SAEModel(ModelBase):
                 return LeakyReLU(alpha=lrelu_alpha)
 
         class ResidualBlock(object):
-            def __init__(self, filters, kernel_size=3, padding='zero', use_reflection_padding=False, norm='', act='', **kwargs):
+            def __init__(self, filters, kernel_size=3, padding='zero', norm='', act='', **kwargs):
                 self.filters = filters
                 self.kernel_size = kernel_size
                 self.padding = padding
@@ -509,7 +549,7 @@ class SAEModel(ModelBase):
         exec (nnlib.import_all(), locals(), globals())
         upscale = partial(SAEModel.upscale, **kwargs)
         downscale = partial(SAEModel.downscale, **kwargs)
-
+        
         def func(input):
             dims = K.int_shape(input)[-1]*ch_dims
 
@@ -531,7 +571,7 @@ class SAEModel(ModelBase):
 
         def func(input):
             x = input[0]
-            x = Dense(ae_dims)(x)
+            x = Dense(ae_dims)(x)     
             x = Dense(lowest_dense_res * lowest_dense_res * ae_dims*2)(x)
             x = Reshape((lowest_dense_res, lowest_dense_res, ae_dims*2))(x)
             x = upscale(ae_dims*2)(x)
@@ -539,7 +579,7 @@ class SAEModel(ModelBase):
         return func
 
     @staticmethod
-    def LIAEDecFlow(output_nc,ch_dims, multiscale_count=1, add_residual_blocks=False, padding='zero', norm='', **kwargs):
+    def LIAEDecFlow(output_nc,ch_dims, multiscale_count=1, add_residual_blocks=False, **kwargs):
         exec (nnlib.import_all(), locals(), globals())
         upscale = partial(SAEModel.upscale, **kwargs)
         to_bgr = partial(SAEModel.to_bgr, **kwargs)
@@ -580,37 +620,35 @@ class SAEModel(ModelBase):
         return func
 
     @staticmethod
-    def DFEncFlow(resolution, ae_dims, ch_dims, padding='zero', **kwargs):
+    def DFEncFlow(resolution, ae_dims, ch_dims, **kwargs):
         exec (nnlib.import_all(), locals(), globals())
-        upscale = partial(SAEModel.upscale, padding=padding)
-        downscale = partial(SAEModel.downscale, padding=padding)
+        upscale = partial(SAEModel.upscale, **kwargs)
+        downscale = partial(SAEModel.downscale, **kwargs)#, kernel_regularizer=keras.regularizers.l2(0.0),
         lowest_dense_res = resolution // 16
 
         def func(input):
             x = input
 
             dims = K.int_shape(input)[-1]*ch_dims
-
             x = downscale(dims)(x)
             x = downscale(dims*2)(x)
             x = downscale(dims*4)(x)
             x = downscale(dims*8)(x)
 
-            x = Dense(ae_dims)(Flatten()(x))
-            x = Dense(lowest_dense_res * lowest_dense_res * ae_dims)(x)
+            x = Dense(ae_dims)(Flatten()(x))   
+            x = Dense(lowest_dense_res * lowest_dense_res * ae_dims)(x)            
             x = Reshape((lowest_dense_res, lowest_dense_res, ae_dims))(x)
             x = upscale(ae_dims)(x)
-
             return x
         return func
 
     @staticmethod
-    def DFDecFlow(output_nc, ch_dims, multiscale_count=1, add_residual_blocks=False, padding='zero', **kwargs):
+    def DFDecFlow(output_nc, ch_dims, multiscale_count=1, add_residual_blocks=False, **kwargs):
         exec (nnlib.import_all(), locals(), globals())
-        upscale = partial(SAEModel.upscale, padding=padding)
-        to_bgr = partial(SAEModel.to_bgr, padding=padding)
+        upscale = partial(SAEModel.upscale, **kwargs)
+        to_bgr = partial(SAEModel.to_bgr, **kwargs)
         dims = output_nc * ch_dims
-        ResidualBlock = partial(SAEModel.ResidualBlock, padding=padding)
+        ResidualBlock = partial(SAEModel.ResidualBlock, **kwargs)
 
         def func(input):
             x = input[0]
