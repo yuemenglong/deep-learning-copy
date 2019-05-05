@@ -64,6 +64,8 @@ def trainerThread (s2c, c2s, args, device_args):
 
             def backup():
                 import F
+                if model.is_first_run():
+                    return
                 has_backup = F.has_backup(model_name, model_path)
                 io.log_info ("Backup....", end='\r')
                 loss_src_mean, loss_dst_mean = np.mean([np.array(loss_history[i]) for i in range(save_iter, iter)], axis=0)
