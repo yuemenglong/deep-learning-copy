@@ -12,20 +12,23 @@ output_sample_types = [
                         ...
                       ]
 '''
-class SampleGeneratorImageTemporal(SampleGeneratorBase):
-    def __init__ (self, samples_path, debug, batch_size, temporal_image_count, sample_process_options=SampleProcessor.Options(), output_sample_types=[], **kwargs):
+class SampleGeneratorFaceTemporal(SampleGeneratorBase):
+    def __init__ (self, samples_path, debug, batch_size, temporal_image_count, sample_process_options=SampleProcessor.Options(), output_sample_types=[], generators_count=2, **kwargs):
         super().__init__(samples_path, debug, batch_size)
 
         self.temporal_image_count = temporal_image_count
         self.sample_process_options = sample_process_options
         self.output_sample_types = output_sample_types
 
-        self.samples = SampleLoader.load (SampleType.IMAGE, self.samples_path)
+        self.samples = SampleLoader.load (SampleType.FACE_TEMPORAL_SORTED, self.samples_path)
 
-        self.generator_samples = [ self.samples ]
-        self.generators = [iter_utils.ThisThreadGenerator ( self.batch_func, 0 )] if self.debug else \
-                          [iter_utils.SubprocessGenerator ( self.batch_func, 0 )]
-
+        if self.debug:
+            self.generators_count = 1
+            self.generators = [iter_utils.ThisThreadGenerator ( self.batch_func, 0 )]
+        else:
+            self.generators_count = min ( generators_count, len(self.samples) )
+            self.generators = [iter_utils.SubprocessGenerator ( self.batch_func, i ) for i in range(self.generators_count) ]
+            
         self.generator_counter = -1
 
     def __iter__(self):
@@ -37,25 +40,28 @@ class SampleGeneratorImageTemporal(SampleGeneratorBase):
         return next(generator)
 
     def batch_func(self, generator_id):
-        samples = self.generator_samples[generator_id]
+        samples = self.samples
         samples_len = len(samples)
         if samples_len == 0:
             raise ValueError('No training data provided.')
+            
+        mult_max = 1
+        l = samples_len - (self.temporal_image_count-1)*mult_max + 1
 
-        mult_max = 4
-        samples_sub_len = samples_len - (self.temporal_image_count-1)*mult_max 
-        if samples_sub_len <= 0:
+        samples_idxs = [ *range(l) ] [generator_id::self.generators_count]
+        
+        if len(samples_idxs) - self.temporal_image_count < 0:
             raise ValueError('Not enough samples to fit temporal line.')
-
+            
         shuffle_idxs = []
-
+        
         while True:
 
             batches = None
             for n_batch in range(self.batch_size):
 
                 if len(shuffle_idxs) == 0:
-                    shuffle_idxs = [ *range(samples_sub_len) ]
+                    shuffle_idxs = samples_idxs.copy()
                     np.random.shuffle (shuffle_idxs)
 
                 idx = shuffle_idxs.pop()

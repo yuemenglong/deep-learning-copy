@@ -20,9 +20,13 @@ You can implement your own model. Check examples.
 class ModelBase(object):
 
 
-    def __init__(self, model_path, training_data_src_path=None, training_data_dst_path=None, debug = False, device_args = None,
-                 ask_write_preview_history=True, ask_target_iter=True, ask_batch_size=True, ask_sort_by_yaw=True,
-                 ask_random_flip=True, ask_src_scale_mod=True):
+    def __init__(self, model_path, training_data_src_path=None, training_data_dst_path=None, pretraining_data_path=None, debug = False, device_args = None,
+                 ask_write_preview_history=True, 
+                 ask_target_iter=True, 
+                 ask_batch_size=True, 
+                 ask_sort_by_yaw=True,
+                 ask_random_flip=True, 
+                 ask_src_scale_mod=True):
 
         device_args['force_gpu_idx'] = device_args.get('force_gpu_idx',-1)
         device_args['cpu_only'] = device_args.get('cpu_only',False)
@@ -46,7 +50,8 @@ class ModelBase(object):
 
         self.training_data_src_path = training_data_src_path
         self.training_data_dst_path = training_data_dst_path
-
+        self.pretraining_data_path = pretraining_data_path
+        
         self.src_images_paths = None
         self.dst_images_paths = None
         self.src_yaw_images_paths = None
@@ -72,7 +77,7 @@ class ModelBase(object):
                 self.loss_history = model_data['loss_history'] if 'loss_history' in model_data.keys() else []
                 self.sample_for_preview = model_data['sample_for_preview']  if 'sample_for_preview' in model_data.keys() else None
 
-        ask_override = self.is_training_mode and self.iter != 0 and io.input_in_time ("Press enter in 2 seconds to override model settings.", 2)
+        ask_override = self.is_training_mode and self.iter != 0 and io.input_in_time ("Press enter in 2 seconds to override model settings.", 5 if io.is_colab() else 2 )
 
         yn_str = {True:'y',False:'n'}
 
@@ -85,6 +90,11 @@ class ModelBase(object):
         else:
             self.options['write_preview_history'] = self.options.get('write_preview_history', False)
 
+        if (self.iter == 0 or ask_override) and self.options['write_preview_history'] and io.is_support_windows():
+            choose_preview_history = io.input_bool("Choose image for the preview history? (y/n skip:%s) : " % (yn_str[False]) , False)
+        else:
+            choose_preview_history = False
+        
         if ask_target_iter:
             if (self.iter == 0 or ask_override):
                 self.options['target_iter'] = max(0, io.input_int("Target iteration (skip:unlimited/default) : ", 0))
@@ -95,7 +105,7 @@ class ModelBase(object):
 
         if ask_batch_size and (self.iter == 0 or ask_override):
             default_batch_size = 0 if self.iter == 0 else self.options.get('batch_size',0)
-            self.options['batch_size'] = max(0, io.input_int("Batch_size (?:help skip:%d) : " % (default_batch_size), default_batch_size, help_message="Larger batch size is always better for NN's generalization, but it can cause Out of Memory error. Tune this value for your videocard manually."))
+            self.options['batch_size'] = max(0, io.input_int("Batch_size (?:help skip:%d) : " % (default_batch_size), default_batch_size, help_message="Larger batch size is better for NN's generalization, but it can cause Out of Memory error. Tune this value for your videocard manually."))
         else:
             self.options['batch_size'] = self.options.get('batch_size', 0)
 
@@ -117,12 +127,12 @@ class ModelBase(object):
             else:
                 self.options['src_scale_mod'] = self.options.get('src_scale_mod', 0)
 
-        self.write_preview_history = self.options['write_preview_history']
-        if not self.options['write_preview_history']:
+        self.write_preview_history = self.options.get('write_preview_history', False)
+        if not self.write_preview_history and 'write_preview_history' in self.options:
             self.options.pop('write_preview_history')
 
-        self.target_iter = self.options['target_iter']
-        if self.options['target_iter'] == 0:
+        self.target_iter = self.options.get('target_iter',0)
+        if self.target_iter == 0 and 'target_iter' in self.options:
             self.options.pop('target_iter')
 
         self.batch_size = self.options.get('batch_size',0)
@@ -168,7 +178,35 @@ class ModelBase(object):
                         raise ValueError('training data generator is not subclass of SampleGeneratorBase')
 
             if (self.sample_for_preview is None) or (self.iter == 0):
-                self.sample_for_preview = self.generate_next_sample()
+                
+                if self.iter == 0:
+                    if choose_preview_history and io.is_support_windows():
+                        wnd_name = "[p] - next. [enter] - confirm."
+                        io.named_window(wnd_name)
+                        io.capture_keys(wnd_name)
+                        choosed = False
+                        while not choosed:
+                            self.sample_for_preview = self.generate_next_sample()
+                            preview = self.get_static_preview()
+                            io.show_image( wnd_name, (preview*255).astype(np.uint8) )
+  
+                            while True:
+                                key_events = io.get_key_events(wnd_name)
+                                key, chr_key, ctrl_pressed, alt_pressed, shift_pressed = key_events[-1] if len(key_events) > 0 else (0,0,False,False,False)
+                                if key == ord('\n') or key == ord('\r'):
+                                    choosed = True
+                                    break
+                                elif key == ord('p'):
+                                    break
+                                    
+                                try:
+                                    io.process_messages(0.1)
+                                except KeyboardInterrupt:
+                                    choosed = True
+                                         
+                        io.destroy_window(wnd_name)
+                    else:    
+                        self.sample_for_preview = self.generate_next_sample()
 
         model_summary_text = []
 
@@ -373,7 +411,10 @@ class ModelBase(object):
             plist = []
 
             if io.is_colab():
-                plist += [ (self.get_previews()[0][1], self.get_strpath_storage_for_file('preview.jpg') ) ]
+                previews = self.get_previews()
+                for i in range(len(previews)):
+                    name, bgr = previews[i]
+                    plist += [ (bgr, self.get_strpath_storage_for_file('preview_%s.jpg' % (name) ) ) ]
 
             if self.write_preview_history:
                 plist += [ (self.get_static_preview(), str (self.preview_history_path / ('%.6d.jpg' % (self.iter))) ) ]

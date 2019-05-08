@@ -2,11 +2,9 @@
 
 ![](doc/logo_cuda.jpg)![](doc/logo_opencl.jpg)![](doc/logo_keras.jpg)![](doc/logo_tensorflow.jpg)![](doc/logo_plaidml.jpg)
 
-## **DeepFaceLab** is a tool that utilizes deep learning to recognize and swap faces in pictures and videos.
+## **DeepFaceLab** is a tool that utilizes machine learning to replace faces in videos.
 
 If you like this software, please consider a donation.
-
-Goal: RTX 2080 TI
 
 [Donate via Yandex.Money](https://money.yandex.ru/to/41001142318065)
 
@@ -28,7 +26,7 @@ bitcoin:31mPd6DxPCzbpCMZk4k1koWAbErSyqkAXr
 
 [Google Colab fork](https://github.com/chervonij/DFL-Colab) by @chervonij
 
-[Linux fork](https://github.com/lbfs/DeepFaceLab_Linux) by @lbfs
+[Linux fork](https://github.com/lbfs/DeepFaceLab_Linux) by @lbfs - may be outdated
 
 - ### [Ready to work facesets](doc/doc_ready_to_work_facesets.md)
 

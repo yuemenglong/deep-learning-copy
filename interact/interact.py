@@ -1,8 +1,9 @@
+import multiprocessing
 import os
 import sys
 import time
 import types
-import multiprocessing
+
 import cv2
 from tqdm import tqdm
 
@@ -21,7 +22,7 @@ class InteractBase(object):
     EVENT_MBUTTONDOWN = 3
     EVENT_MBUTTONUP = 4
     EVENT_RBUTTONDOWN = 5
-    EVENT_RBUTTONUP = 6    
+    EVENT_RBUTTONUP = 6
     EVENT_MOUSEWHEEL = 10
 
     def __init__(self):
@@ -31,6 +32,10 @@ class InteractBase(object):
         self.mouse_events = {}
         self.key_events = {}
         self.pg_bar = None
+        self.focus_wnd_name = None
+
+    def is_support_windows(self):
+        return False
 
     def is_colab(self):
         return False
@@ -39,6 +44,9 @@ class InteractBase(object):
         raise NotImplemented
 
     def on_create_window (self, wnd_name):
+        raise NotImplemented
+
+    def on_destroy_window (self, wnd_name):
         raise NotImplemented
 
     def on_show_image (self, wnd_name, img):
@@ -66,6 +74,7 @@ class InteractBase(object):
         if wnd_name not in self.named_windows:
             #we will show window only on first show_image
             self.named_windows[wnd_name] = 0
+            self.focus_wnd_name = wnd_name
         else: print("named_window: ", wnd_name, " already created.")
 
     def destroy_all_windows(self):
@@ -76,6 +85,27 @@ class InteractBase(object):
             self.capture_keys_windows = {}
             self.mouse_events = {}
             self.key_events = {}
+            self.focus_wnd_name = None
+
+    def destroy_window(self, wnd_name):
+        if wnd_name in self.named_windows:
+            self.on_destroy_window(wnd_name)
+            self.named_windows.pop(wnd_name)
+
+            if wnd_name == self.focus_wnd_name:
+                self.focus_wnd_name = list(self.named_windows.keys())[-1] if len( self.named_windows ) != 0 else None
+
+            if wnd_name in self.capture_mouse_windows:
+                self.capture_mouse_windows.pop(wnd_name)
+
+            if wnd_name in self.capture_keys_windows:
+                self.capture_keys_windows.pop(wnd_name)
+
+            if wnd_name in self.mouse_events:
+                self.mouse_events.pop(wnd_name)
+
+            if wnd_name in self.key_events:
+                self.key_events.pop(wnd_name)
 
     def show_image(self, wnd_name, img):
         if wnd_name in self.named_windows:
@@ -249,18 +279,24 @@ class InteractBase(object):
 
 class InteractDesktop(InteractBase):
 
+    def is_support_windows(self):
+        return True
+
     def on_destroy_all_windows(self):
         cv2.destroyAllWindows()
 
     def on_create_window (self, wnd_name):
         cv2.namedWindow(wnd_name)
 
+    def on_destroy_window (self, wnd_name):
+        cv2.destroyWindow(wnd_name)
+
     def on_show_image (self, wnd_name, img):
         cv2.imshow (wnd_name, img)
 
     def on_capture_mouse (self, wnd_name):
         self.last_xy = (0,0)
-        
+
         def onMouse(event, x, y, flags, param):
             (inst, wnd_name) = param
             if event == cv2.EVENT_LBUTTONDOWN: ev = InteractBase.EVENT_LBUTTONDOWN
@@ -269,11 +305,11 @@ class InteractDesktop(InteractBase):
             elif event == cv2.EVENT_RBUTTONUP: ev = InteractBase.EVENT_RBUTTONUP
             elif event == cv2.EVENT_MBUTTONDOWN: ev = InteractBase.EVENT_MBUTTONDOWN
             elif event == cv2.EVENT_MBUTTONUP: ev = InteractBase.EVENT_MBUTTONUP
-            elif event == cv2.EVENT_MOUSEWHEEL: 
+            elif event == cv2.EVENT_MOUSEWHEEL:
                 ev = InteractBase.EVENT_MOUSEWHEEL
                 x,y = self.last_xy #fix opencv bug when window size more than screen size
             else: ev = 0
-                
+
             self.last_xy = (x,y)
             inst.add_mouse_event (wnd_name, x, y, ev, flags)
         cv2.setMouseCallback(wnd_name, onMouse, (self,wnd_name) )
@@ -305,13 +341,15 @@ class InteractDesktop(InteractBase):
                 time.sleep(sleep_time)
 
         if has_capture_keys and ord_key != -1:
-            for wnd_name in self.capture_keys_windows:
-                self.add_key_event (wnd_name, ord_key, False, False, shift_pressed)
+            self.add_key_event ( self.focus_wnd_name, ord_key, False, False, shift_pressed)
 
     def on_wait_any_key(self):
         cv2.waitKey(0)
 
 class InteractColab(InteractBase):
+
+    def is_support_windows(self):
+        return False
 
     def is_colab(self):
         return True
@@ -323,6 +361,9 @@ class InteractColab(InteractBase):
     def on_create_window (self, wnd_name):
         pass
         #clear_output()
+
+    def on_destroy_window (self, wnd_name):
+        pass
 
     def on_show_image (self, wnd_name, img):
         pass
