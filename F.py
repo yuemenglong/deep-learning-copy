@@ -107,6 +107,7 @@ def sort_by_face_similarity(known_dir, target_dir):
 
 
 def get_root_path():
+    import os
     path = __file__
     for _ in range(3):
         path = os.path.dirname(path)
@@ -224,7 +225,63 @@ def extract():
         os.rmdir(output_dir)
 
 
-if __name__ == '__main__':
+# noinspection PyUnresolvedReferences
+def sort_by_hist(input_path):
+    import mainscripts.Sorter as Sorter
+    Sorter.sort_by_hist(input_path)
+
+
+# noinspection PyUnresolvedReferences
+def sort_by_pitch(input_path):
+    import mainscripts.Sorter as Sorter
+    Sorter.sort_by_face_pitch(input_path)
+
+
+# noinspection PyUnresolvedReferences
+def get_pitch_yaw_roll(input_path):
+    import os
+    import numpy as np
+    import cv2
+    from shutil import copyfile
+    from pathlib import Path
+    from utils import Path_utils
+    from utils.DFLPNG import DFLPNG
+    from utils.DFLJPG import DFLJPG
+    from facelib import LandmarksProcessor
+    from joblib import Subprocessor
+    import multiprocessing
+    from interact import interact as io
+    from imagelib import estimate_sharpness
+    io.log_info("Sorting by face yaw...")
+    img_list = []
+    trash_img_list = []
+    for filepath in io.progress_bar_generator(Path_utils.get_image_paths(input_path), "Loading"):
+        filepath = Path(filepath)
+
+        if filepath.suffix == '.png':
+            dflimg = DFLPNG.load(str(filepath))
+        elif filepath.suffix == '.jpg':
+            dflimg = DFLJPG.load(str(filepath))
+        else:
+            dflimg = None
+
+        if dflimg is None:
+            io.log_err("%s is not a dfl image file" % (filepath.name))
+            trash_img_list.append([str(filepath)])
+            continue
+
+        pitch, yaw, roll = LandmarksProcessor.estimate_pitch_yaw_roll(dflimg.get_landmarks())
+
+        img_list.append([str(filepath), pitch, yaw, roll])
+
+    with open(os.path.join(input_path, "_pitch_yaw_roll.csv"), "w") as f:
+        for i in img_list:
+            f.write("%s,%f,%f,%f\n" % (i[0], i[1], i[2],i[3]))
+
+    return img_list
+
+
+def main():
     import sys
     import os
 
@@ -234,4 +291,9 @@ if __name__ == '__main__':
     elif arg == '--extract':
         extract()
     else:
-        raise Exception("Only Support: --skip-no-face, --sort-by-face-similarity")
+        get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace", "aligned_ym_4k_01_08"))
+        pass
+
+
+if __name__ == '__main__':
+    main()
