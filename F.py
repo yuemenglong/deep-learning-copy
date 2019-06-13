@@ -84,7 +84,7 @@ def cpu_count():
     return cs()
 
 
-def sort_by_face_similarity(known_dir, target_dir):
+def _sort_by_face_similarity(known_dir, target_dir):
     import os
     import shutil
     known_imgs = [cv2.imread(os.path.join(known_dir, f)) for f in os.listdir(known_dir)]
@@ -257,28 +257,63 @@ def get_pitch_yaw_roll(input_path):
     trash_img_list = []
     for filepath in io.progress_bar_generator(Path_utils.get_image_paths(input_path), "Loading"):
         filepath = Path(filepath)
-
         if filepath.suffix == '.png':
             dflimg = DFLPNG.load(str(filepath))
         elif filepath.suffix == '.jpg':
             dflimg = DFLJPG.load(str(filepath))
         else:
             dflimg = None
-
         if dflimg is None:
             io.log_err("%s is not a dfl image file" % (filepath.name))
             trash_img_list.append([str(filepath)])
             continue
-
         pitch, yaw, roll = LandmarksProcessor.estimate_pitch_yaw_roll(dflimg.get_landmarks())
-
         img_list.append([str(filepath), pitch, yaw, roll])
 
+    img_list.sort(key=lambda item: item[1])
     with open(os.path.join(input_path, "_pitch_yaw_roll.csv"), "w") as f:
         for i in img_list:
-            f.write("%s,%f,%f,%f\n" % (i[0], i[1], i[2],i[3]))
+            f.write("%s,%f,%f,%f\n" % (i[0], i[1], i[2], i[3]))
+
+    import cv
+    width = 800
+    trans = lambda x: int((x + 1) * width / 2)
+    img = cv.cv_new((width, width))
+    min = trans(-1)
+    max = trans(1)
+    # border
+    for i in range(-10, 10, 2):
+        x = trans(i / 10)
+        thick = 1 if i != 0 else 2
+        cv.cv_line(img, (min, x), (max, x), (0, 0, 0), thick)
+        cv.cv_line(img, (x, min), (x, max), (0, 0, 0), thick)
+    # points
+    for l in img_list:
+        pitch = trans(l[1])
+        yaw = trans(l[2])
+        cv.cv_point(img, (pitch, yaw), (0xcc, 0x66, 0x33), 2, 2)
+    cv.cv_save(img, os.path.join(input_path, "_pitch_yaw_roll.bmp"))
 
     return img_list
+
+
+def get_image_var(img_path):
+    import cv2
+    image = cv2.imread(img_path)
+    img_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    image_var = cv2.Laplacian(img_gray, cv2.CV_64F).var()
+    return image_var
+
+
+def show_landmarks(path):
+    import cv
+    from utils.DFLJPG import DFLJPG
+    jpg = DFLJPG.load(path)
+    img = cv.cv_load(path)
+    lm = jpg.get_landmarks()
+    for (x, y) in lm:
+        cv.cv_point(img, (x, y), (255, 0, 0))
+    cv.cv_show(img)
 
 
 def main():
@@ -291,7 +326,7 @@ def main():
     elif arg == '--extract':
         extract()
     else:
-        get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace", "aligned_ym_4k_01_08"))
+        get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace", "data_dst/aligned"))
         pass
 
 
