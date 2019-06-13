@@ -1,11 +1,5 @@
 import numpy as np
-import cv2
-
-
-def cv_sharp(img):
-    kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]], np.float32)  # 锐化
-    img = cv2.filter2D(img, -1, kernel=kernel)
-    return img
+import os
 
 
 def print_stack():
@@ -23,7 +17,6 @@ def mid_point(points):
 def poly_area(points):
     x = [p[0] for p in points]
     y = [p[1] for p in points]
-    import numpy as np
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
 
@@ -61,49 +54,9 @@ def skip_no_face(dir, pat="%05d"):
             shutil.move(src, dst)
 
 
-def face_encodings(image):
-    import face_recognition
-    import numpy as np
-    res = face_recognition.face_encodings(image)
-    if len(res) == 1:
-        return res[0]
-    else:
-        return np.ones(128)
-
-
-def face_distance(known_enc, unknown_enc):
-    import face_recognition
-    if not isinstance(known_enc, list):
-        known_enc = [known_enc]
-    score = face_recognition.face_distance(known_enc, unknown_enc)
-    return np.min(score)
-
-
 def cpu_count():
     from multiprocessing import cpu_count as cs
     return cs()
-
-
-def _sort_by_face_similarity(known_dir, target_dir):
-    import os
-    import shutil
-    known_imgs = [cv2.imread(os.path.join(known_dir, f)) for f in os.listdir(known_dir)]
-    known_enc = [face_encodings(i) for i in known_imgs]
-    files = os.listdir(target_dir)
-    imgs = [cv2.imread(os.path.join(target_dir, f)) for f in files]
-    jobs = list(zip(files, imgs))
-
-    for job in jobs:
-        f, img = job
-        img = cv2.imread(os.path.join(target_dir, f))
-        enc = face_encodings(img)
-        score = face_distance(known_enc, enc)
-        ext = os.path.splitext(f)[-1]
-        name = "%08d" % (score * 1e7) + ext
-        src = os.path.join(target_dir, f)
-        dst = os.path.join(target_dir, name)
-        shutil.move(src, dst)
-        print(src, dst)
 
 
 def get_root_path():
@@ -205,7 +158,7 @@ def extract():
         input_dir = output_dir
         output_dir = os.path.join(extract_workspace, "_current")
         debug_dir = os.path.join(extract_workspace, "debug")
-        min_pixel = 512
+        min_pixel = 512 if fps == 5 else 0
         Extractor.main(input_dir, output_dir, debug_dir, "s3fd", min_pixel=min_pixel)
         # fanseg
         print("@@@@@  Start FanSeg " + file, "%d / %d" % (pos, len(files)))
@@ -281,19 +234,25 @@ def get_pitch_yaw_roll(input_path):
     img = cv.cv_new((width, width))
     min = trans(-1)
     max = trans(1)
-    # border
-    for i in range(-10, 10, 2):
-        x = trans(i / 10)
-        thick = 1 if i != 0 else 2
-        cv.cv_line(img, (min, x), (max, x), (0, 0, 0), thick)
-        cv.cv_line(img, (x, min), (x, max), (0, 0, 0), thick)
     # points
     for l in img_list:
         pitch = trans(l[1])
         yaw = trans(l[2])
         cv.cv_point(img, (pitch, yaw), (0xcc, 0x66, 0x33), 2, 2)
+    # border
+    for i in range(-10, 10, 2):
+        x = trans(i / 10)
+        thick = 1
+        if i % 4 == 0:
+            thick = 2
+        if i == 0:
+            thick = 3
+        cv.cv_line(img, (min, x), (max, x), (0, 0, 0), thick)
+        cv.cv_line(img, (x, min), (x, max), (0, 0, 0), thick)
     cv.cv_save(img, os.path.join(input_path, "_pitch_yaw_roll.bmp"))
-
+    import shutil
+    shutil.copy(os.path.join(input_path, "_pitch_yaw_roll.csv"), "C:/users/yml/desktop")
+    shutil.copy(os.path.join(input_path, "_pitch_yaw_roll.bmp"), "C:/users/yml/desktop")
     return img_list
 
 
@@ -318,7 +277,6 @@ def show_landmarks(path):
 
 def main():
     import sys
-    import os
 
     arg = sys.argv[-1]
     if arg == '--skip-no-face':
@@ -326,7 +284,7 @@ def main():
     elif arg == '--extract':
         extract()
     else:
-        get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace", "data_dst/aligned"))
+        get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace", "data_src/aligned"))
         pass
 
 
