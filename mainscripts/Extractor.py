@@ -218,6 +218,10 @@ class ExtractSubprocessor(Subprocessor):
                 else:
                     face_idx = 0
                     for rect, image_landmarks in zip( rects, landmarks ):
+                        if src_dflimg is not None and face_idx > 1:
+                            #cannot extract more than 1 face from dflimg
+                            break
+                                
                         if image_landmarks is None:
                             continue
 
@@ -245,8 +249,8 @@ class ExtractSubprocessor(Subprocessor):
                             if dist < int(self.min_pixel):
                                 continue
 
-                        if src_dflimg is not None:
-                            #if extracting from dflimg copy it in order not to lose quality
+                        if src_dflimg is not None and filename_path.suffix == '.jpg':
+                            #if extracting from dflimg and jpg copy it in order not to lose quality
                             output_file = str(self.final_output_path / filename_path.name)
                             if str(filename_path) != str(output_file):
                                 shutil.copy ( str(filename_path), str(output_file) )
