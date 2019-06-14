@@ -1,3 +1,5 @@
+from typing import Any, Callable
+
 import numpy as np
 import os
 
@@ -179,18 +181,6 @@ def extract():
 
 
 # noinspection PyUnresolvedReferences
-def sort_by_hist(input_path):
-    import mainscripts.Sorter as Sorter
-    Sorter.sort_by_hist(input_path)
-
-
-# noinspection PyUnresolvedReferences
-def sort_by_pitch(input_path):
-    import mainscripts.Sorter as Sorter
-    Sorter.sort_by_face_pitch(input_path)
-
-
-# noinspection PyUnresolvedReferences
 def get_pitch_yaw_roll(input_path):
     import os
     import numpy as np
@@ -308,6 +298,77 @@ def pick_spec_pitch(input_path, output_path):
             shutil.copy(path, output_path)
 
 
+def get_desktop_path():
+    return "C:/users/yml/desktop"
+
+
+def csv_name():
+    return "_pitch_yaw_roll.csv"
+
+
+def skip_by_pitch(src_path, dst_path):
+    import os
+    import shutil
+    import cv
+    src_csv = os.path.join(src_path, csv_name())
+    dst_csv = os.path.join(dst_path, csv_name())
+    if not os.path.exists(src_csv):
+        get_pitch_yaw_roll(src_path)
+    if not os.path.exists(dst_csv):
+        get_pitch_yaw_roll(dst_path)
+    src_img_list = []
+    dst_img_list = []
+    with open(src_csv) as f:
+        for line in f.readlines():
+            [path, pitch, yaw, roll] = line.strip().split(",")
+            src_img_list.append([path, float(pitch), float(yaw), float(roll)])
+    with open(dst_csv) as f:
+        for line in f.readlines():
+            [path, pitch, yaw, roll] = line.strip().split(",")
+            dst_img_list.append([path, float(pitch), float(yaw), float(roll)])
+    trash_path = dst_path + "_trash"
+    if not os.path.exists(trash_path):
+        os.makedirs(trash_path)
+    size = 800
+    r = 20
+    img = cv.cv_new((size, size))
+    trans: Callable[[Any], int] = lambda v: int((v + 1) * size / 2)
+    count = 0
+    for [_, pitch, yaw, _] in src_img_list:
+        x = trans(pitch)
+        y = trans(yaw)
+        cv.cv_point(img, (x, y), (128, 128, 128), r)
+    # cv.cv_show(img)
+    xys = []
+    for [path, pitch, yaw, _] in dst_img_list:
+        x = trans(pitch)
+        y = trans(yaw)
+        c = img[y, x]
+        if sum(c) == 255 * 3:
+            count += 1
+            xys.append((x, y))
+            if not os.path.exists(path) or os.path.exists(trash_path):
+                continue
+            shutil.move(path, trash_path)
+    for xy in xys:
+        cv.cv_point(img, xy, (0xcc, 0x66, 0x33), 2)
+    # border
+    delta = int(size / 10)
+    for i in range(0, size, delta):
+        x = i
+        thick = 1
+        if i in [delta, 3 * delta, 7 * delta, 9 * delta]:
+            thick = 2
+        if i == delta * 5:
+            thick = 3
+        cv.cv_line(img, (0, x), (size, x), (0, 0, 0), thick)
+        cv.cv_line(img, (x, 0), (x, size), (0, 0, 0), thick)
+    # cv.cv_show(img)
+    print("Out Of Pitch", len(dst_img_list), count)
+    save_path = os.path.join(get_desktop_path(), "skip_by_pitch.bmp")
+    cv.cv_save(img, save_path)
+
+
 def main():
     import sys
 
@@ -316,13 +377,16 @@ def main():
         skip_no_face(os.path.join(get_root_path(), "workspace", "data_dst"))
     elif arg == '--extract':
         extract()
-    elif arg == '--skip-spec-pitch':
-        skip_spec_pitch(os.path.join(get_root_path(), "workspace", "data_dst", "aligned"))
+    elif arg == '--skip-by-pitch':
+        skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
+                      os.path.join(get_root_path(), "workspace/data_dst/aligned"))
     else:
+        # skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
+        #               os.path.join(get_root_path(), "workspace/data_dst/aligned"))
         # get_data_src_pitch_yaw_roll()
         # get_data_dst_pitch_yaw_roll()
         # get_extract_pitch_yaw_roll()
-        get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace", "aligned_ym_4k_01_16"))
+        # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace", "aligned_ym_4k_01_16"))
         # pick_spec_pitch(os.path.join(get_root_path(), "extract_workspace/aligned_"),
         #                 os.path.join(get_root_path(), "extract_workspace/ym_bili_pick"))
         pass

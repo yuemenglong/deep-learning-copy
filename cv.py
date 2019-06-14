@@ -74,7 +74,7 @@ def cv_circle(img, center, color, radius, thick=1):
 
 
 def cv_point(img, center, color, r=1):
-    cv_circle(img, center, color, r, r)
+    cv_circle(img, center, color, r, -1)
 
 
 def cv_size(img):
