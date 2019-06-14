@@ -158,7 +158,7 @@ def extract():
         input_dir = output_dir
         output_dir = os.path.join(extract_workspace, "_current")
         debug_dir = os.path.join(extract_workspace, "debug")
-        min_pixel = 512 if fps == 5 else 0
+        min_pixel = 512 if fps % 5 == 0 and fps != 0 else 256
         Extractor.main(input_dir, output_dir, debug_dir, "s3fd", min_pixel=min_pixel)
         # fanseg
         print("@@@@@  Start FanSeg " + file, "%d / %d" % (pos, len(files)))
@@ -238,7 +238,7 @@ def get_pitch_yaw_roll(input_path):
     for l in img_list:
         pitch = trans(l[1])
         yaw = trans(l[2])
-        cv.cv_point(img, (pitch, yaw), (0xcc, 0x66, 0x33), 2, 2)
+        cv.cv_point(img, (pitch, yaw), (0xcc, 0x66, 0x33), 2)
     # border
     for i in range(-10, 10, 2):
         x = trans(i / 10)
@@ -275,6 +275,39 @@ def show_landmarks(path):
     cv.cv_show(img)
 
 
+def get_extract_pitch_yaw_roll():
+    get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace", "aligned_"))
+
+
+def get_data_src_pitch_yaw_roll():
+    get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace", "data_src", "aligned"))
+
+
+def get_data_dst_pitch_yaw_roll():
+    get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace", "data_dst", "aligned"))
+
+
+def skip_spec_pitch(input_path):
+    import os
+    img_list = get_pitch_yaw_roll(input_path)
+    for [path, pitch, _, _] in img_list:
+        if pitch > 0.2:
+            print(path)
+            os.remove(path)
+
+
+def pick_spec_pitch(input_path, output_path):
+    import shutil
+    import os
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+    img_list = get_pitch_yaw_roll(input_path)
+    for [path, pitch, _yaw, _roll] in img_list:
+        if pitch > 0:
+            print(path)
+            shutil.copy(path, output_path)
+
+
 def main():
     import sys
 
@@ -283,8 +316,15 @@ def main():
         skip_no_face(os.path.join(get_root_path(), "workspace", "data_dst"))
     elif arg == '--extract':
         extract()
+    elif arg == '--skip-spec-pitch':
+        skip_spec_pitch(os.path.join(get_root_path(), "workspace", "data_dst", "aligned"))
     else:
-        get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace", "data_src/aligned"))
+        # get_data_src_pitch_yaw_roll()
+        # get_data_dst_pitch_yaw_roll()
+        # get_extract_pitch_yaw_roll()
+        get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace", "aligned_ym_4k_01_16"))
+        # pick_spec_pitch(os.path.join(get_root_path(), "extract_workspace/aligned_"),
+        #                 os.path.join(get_root_path(), "extract_workspace/ym_bili_pick"))
         pass
 
 

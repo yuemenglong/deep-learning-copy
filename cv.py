@@ -1,4 +1,6 @@
 import traceback
+from typing import Any, Callable
+
 import numpy as np
 
 import cv2
@@ -66,13 +68,35 @@ def cv_rect(img, p1, p2, color, thick=1):
     cv2.rectangle(img, (int(l), int(t)), (int(r), int(b)), color, thick)
 
 
-def cv_circle(img, center, radius, color, thick=1):
+def cv_circle(img, center, color, radius, thick=1):
     (x, y) = center
     cv2.circle(img, (int(x), int(y)), radius, color, thick)
 
 
-def cv_point(img, center, color, radius=1, thick=1):
-    cv_circle(img, center, radius, color, thick)
+def cv_point(img, center, color, r=1):
+    cv_circle(img, center, color, r, r)
+
+
+def cv_size(img):
+    return img.shape
+
+
+def cv_scatter(img, xs, ys, xr=None, yr=None, c=None, r=None):
+    size = cv_size(img)
+    if not c:
+        c = [(128, 128, 128)] * len(xs)
+    if not r:
+        r = [(size[0] + size[1]) / 800] * len(xs)
+    if not xr:
+        xr = [min(xs), max(xs)]
+    if not yr:
+        yr = [min(ys), max(ys)]
+    trans_x: Callable[[Any], Any] = lambda v: (v - xr[0]) / (xr[1] - xr[0]) * size[0]
+    trans_y: Callable[[Any], Any] = lambda v: (v - yr[0]) / (yr[1] - yr[0]) * size[1]
+    for [x, y, color, radius] in zip(xs, ys, c, r):
+        cv_point(img, (trans_x(x), trans_y(y)), color, radius)
+    # cv_show(img)
+    return img
 
 
 def main():
