@@ -38,7 +38,7 @@ def skip_no_face(dir, pat="%05d"):
     aligend_dir = os.path.join(dir, "aligned")
     aligend = set([f.split("_")[0] for f in os.listdir(aligend_dir)])
     merged_dir = os.path.join(dir, "merged")
-    merged_dir_bak = os.path.join(dir, "merged_bak")
+    merged_dir_bak = os.path.join(dir, "merged_trash")
     if os.path.exists(merged_dir_bak):
         raise Exception("Merge Dir Bak Exists")
     shutil.move(merged_dir, merged_dir_bak)
@@ -241,8 +241,8 @@ def get_pitch_yaw_roll(input_path):
         cv.cv_line(img, (x, min), (x, max), (0, 0, 0), thick)
     cv.cv_save(img, os.path.join(input_path, "_pitch_yaw_roll.bmp"))
     import shutil
-    shutil.copy(os.path.join(input_path, "_pitch_yaw_roll.csv"), "C:/users/yml/desktop")
-    shutil.copy(os.path.join(input_path, "_pitch_yaw_roll.bmp"), "C:/users/yml/desktop")
+    shutil.copy(os.path.join(input_path, "_pitch_yaw_roll.csv"), get_desktop_path())
+    shutil.copy(os.path.join(input_path, "_pitch_yaw_roll.bmp"), get_desktop_path())
     return img_list
 
 
@@ -310,22 +310,22 @@ def skip_by_pitch(src_path, dst_path):
     import os
     import shutil
     import cv
-    src_csv = os.path.join(src_path, csv_name())
-    dst_csv = os.path.join(dst_path, csv_name())
-    if not os.path.exists(src_csv):
-        get_pitch_yaw_roll(src_path)
-    if not os.path.exists(dst_csv):
-        get_pitch_yaw_roll(dst_path)
-    src_img_list = []
-    dst_img_list = []
-    with open(src_csv) as f:
-        for line in f.readlines():
-            [path, pitch, yaw, roll] = line.strip().split(",")
-            src_img_list.append([path, float(pitch), float(yaw), float(roll)])
-    with open(dst_csv) as f:
-        for line in f.readlines():
-            [path, pitch, yaw, roll] = line.strip().split(",")
-            dst_img_list.append([path, float(pitch), float(yaw), float(roll)])
+    # src_csv = os.path.join(src_path, csv_name())
+    # dst_csv = os.path.join(dst_path, csv_name())
+    # if not os.path.exists(src_csv):
+    #     get_pitch_yaw_roll(src_path)
+    # if not os.path.exists(dst_csv):
+    #     get_pitch_yaw_roll(dst_path)
+    src_img_list = get_pitch_yaw_roll(src_path)
+    dst_img_list = get_pitch_yaw_roll(dst_path)
+    # with open(src_csv) as f:
+    #     for line in f.readlines():
+    #         [path, pitch, yaw, roll] = line.strip().split(",")
+    #         src_img_list.append([path, float(pitch), float(yaw), float(roll)])
+    # with open(dst_csv) as f:
+    #     for line in f.readlines():
+    #         [path, pitch, yaw, roll] = line.strip().split(",")
+    #         dst_img_list.append([path, float(pitch), float(yaw), float(roll)])
     trash_path = dst_path + "_trash"
     if not os.path.exists(trash_path):
         os.makedirs(trash_path)
@@ -385,8 +385,8 @@ def main():
         #               os.path.join(get_root_path(), "workspace/data_dst/aligned"))
         # get_data_src_pitch_yaw_roll()
         # get_data_dst_pitch_yaw_roll()
-        # get_extract_pitch_yaw_roll()
-        # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace", "aligned_ym_4k_01_16"))
+        get_extract_pitch_yaw_roll()
+        # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace", "_ym", "aligned_ym_bili_pick"))
         # pick_spec_pitch(os.path.join(get_root_path(), "extract_workspace/aligned_"),
         #                 os.path.join(get_root_path(), "extract_workspace/ym_bili_pick"))
         pass
