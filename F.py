@@ -39,8 +39,8 @@ def skip_no_face(dir, pat="%05d"):
     aligend = set([f.split("_")[0] for f in os.listdir(aligend_dir)])
     merged_dir = os.path.join(dir, "merged")
     merged_dir_bak = os.path.join(dir, "merged_trash")
-    if os.path.exists(merged_dir_bak):
-        raise Exception("Merge Dir Bak Exists")
+    # if os.path.exists(merged_dir_bak):
+    #     raise Exception("Merge Dir Bak Exists")
     shutil.move(merged_dir, merged_dir_bak)
     os.mkdir(merged_dir)
     idx = 0
@@ -369,6 +369,24 @@ def skip_by_pitch(src_path, dst_path):
     cv.cv_save(img, save_path)
 
 
+def split_aligned():
+    import os
+    import shutil
+    aligned_path = os.path.join(get_root_path(), "extract_workspace", "aligned_")
+    count = 0
+    dst_dir = os.path.join(get_root_path(), "extract_workspace", "split_%02d" % int(count / 10000))
+    for f in os.listdir(aligned_path):
+        if not f.endswith(".jpg") and not f.endswith(".png"):
+            continue
+        if count % 10000 == 0:
+            print(count)
+            dst_dir = os.path.join(get_root_path(), "extract_workspace", "split_%02d" % int(count / 10000))
+            os.mkdir(dst_dir)
+        src = os.path.join(aligned_path, f)
+        shutil.move(src, dst_dir)
+        count += 1
+
+
 def main():
     import sys
 
@@ -381,12 +399,13 @@ def main():
         skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
                       os.path.join(get_root_path(), "workspace/data_dst/aligned"))
     else:
+        split_aligned()
         # skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
         #               os.path.join(get_root_path(), "workspace/data_dst/aligned"))
         # get_data_src_pitch_yaw_roll()
         # get_data_dst_pitch_yaw_roll()
-        get_extract_pitch_yaw_roll()
-        # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace", "_ym", "aligned_ym_bili_pick"))
+        # get_extract_pitch_yaw_roll()
+        # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace", "_ym", "aligned_ym_4k_17_24"))
         # pick_spec_pitch(os.path.join(get_root_path(), "extract_workspace/aligned_"),
         #                 os.path.join(get_root_path(), "extract_workspace/ym_bili_pick"))
         pass
