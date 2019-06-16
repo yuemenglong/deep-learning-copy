@@ -39,8 +39,9 @@ def skip_no_face(dir, pat="%05d"):
     aligend = set([f.split("_")[0] for f in os.listdir(aligend_dir)])
     merged_dir = os.path.join(dir, "merged")
     merged_dir_bak = os.path.join(dir, "merged_trash")
-    # if os.path.exists(merged_dir_bak):
-    #     raise Exception("Merge Dir Bak Exists")
+    if os.path.exists(merged_dir_bak):
+        # raise Exception("Merge Dir Bak Exists")
+        shutil.rmtree(merged_dir_bak)
     shutil.move(merged_dir, merged_dir_bak)
     os.mkdir(merged_dir)
     idx = 0
@@ -331,7 +332,7 @@ def skip_by_pitch(src_path, dst_path):
         os.makedirs(trash_path)
     size = 800
     r = 20
-    img = cv.cv_new((size, size))
+    img = cv.cv_new((size + 1, size + 1))
     trans: Callable[[Any], int] = lambda v: int((v + 1) * size / 2)
     count = 0
     for [_, pitch, yaw, _] in src_img_list:
@@ -345,13 +346,15 @@ def skip_by_pitch(src_path, dst_path):
         y = trans(yaw)
         c = img[y, x]
         if sum(c) == 255 * 3:
-            count += 1
-            xys.append((x, y))
-            if not os.path.exists(path) or os.path.exists(trash_path):
+            xys.append((x, y, (0, 0, 0xff)))
+            if not os.path.exists(path) or not os.path.exists(trash_path):
                 continue
+            count += 1
             shutil.move(path, trash_path)
-    for xy in xys:
-        cv.cv_point(img, xy, (0xcc, 0x66, 0x33), 2)
+        else:
+            xys.append((x, y, (0xcc, 0x66, 0x33)))
+    for (x, y, color) in xys:
+        cv.cv_point(img, (x, y), color, 2)
     # border
     delta = int(size / 10)
     for i in range(0, size, delta):
@@ -399,13 +402,13 @@ def main():
         skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
                       os.path.join(get_root_path(), "workspace/data_dst/aligned"))
     else:
-        split_aligned()
-        # skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
-        #               os.path.join(get_root_path(), "workspace/data_dst/aligned"))
+        # split_aligned()
+        skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
+                      os.path.join(get_root_path(), "workspace/data_dst/aligned"))
         # get_data_src_pitch_yaw_roll()
         # get_data_dst_pitch_yaw_roll()
         # get_extract_pitch_yaw_roll()
-        # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace", "_ym", "aligned_ym_4k_17_24"))
+        # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace", "aligned_ab_01_30"))
         # pick_spec_pitch(os.path.join(get_root_path(), "extract_workspace/aligned_"),
         #                 os.path.join(get_root_path(), "extract_workspace/ym_bili_pick"))
         pass
