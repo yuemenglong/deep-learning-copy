@@ -2,6 +2,7 @@ from typing import Any, Callable
 
 import numpy as np
 import os
+from interact import interact as io
 
 
 def print_stack():
@@ -147,7 +148,7 @@ def extract():
     pos = 0
     for file in files:
         pos += 1
-        print("@@@@@  Start Process " + file, "%d / %d" % (pos, len(files)))
+        io.log_info("@@@@@  Start Process %s, %d / %d" % (file, pos, len(files)))
         # 提取图片
         input_file = os.path.join(extract_workspace, file)
         output_dir = os.path.join(extract_workspace, "extract_images")
@@ -156,7 +157,7 @@ def extract():
         for f in os.listdir(output_dir):
             os.remove(os.path.join(output_dir, f))
         VideoEd.extract_video(input_file, output_dir, output_ext="png", fps=fps)
-        print("@@@@@  Start Extract " + file, "%d / %d" % (pos, len(files)))
+        io.log_info("@@@@@  Start Extract %s, %d / %d" % (file, pos, len(files)))
         # 提取人脸
         input_dir = output_dir
         output_dir = os.path.join(extract_workspace, "_current")
@@ -164,10 +165,10 @@ def extract():
         min_pixel = 512 if fps % 5 == 0 and fps != 0 else 256
         Extractor.main(input_dir, output_dir, debug_dir, "s3fd", min_pixel=min_pixel)
         # fanseg
-        print("@@@@@  Start FanSeg " + file, "%d / %d" % (pos, len(files)))
+        io.log_info("@@@@@  Start FanSeg %s, %d / %d" % (file, pos, len(files)))
         Extractor.extract_fanseg(output_dir)
         # 复制到结果集
-        print("@@@@@  Start Move " + file, "%d / %d" % (pos, len(files)))
+        io.log_info("@@@@@  Start Move %s, %d / %d" % (file, pos, len(files)))
         if not os.path.exists(target_dir):
             os.mkdir(target_dir)
         ts = get_time_str()
@@ -176,7 +177,7 @@ def extract():
             dst = os.path.join(target_dir, "%s_%s" % (ts, f))
             shutil.move(src, dst)
         # 全部做完，删除该文件
-        print("@@@@@  Finish " + file, "%d / %d" % (pos, len(files)))
+        io.log_info("@@@@@  Finish %s, %d / %d" % (file, pos, len(files)))
         os.remove(os.path.join(extract_workspace, file))
         os.rmdir(output_dir)
 
@@ -390,6 +391,125 @@ def split_aligned():
         count += 1
 
 
+def match_by_pitch(data_src_path, data_dst_path):
+    r = 0.05
+    mn = 1
+    mx = 5
+    import cv
+    import shutil
+    # 准备各种路径
+    src_aligned_store = os.path.join(data_src_path, "aligned_store")
+    if not os.path.exists(src_aligned_store):
+        raise Exception("No Src Aligned Store")
+    src_aligned = os.path.join(data_src_path, "aligned")
+    if os.path.exists(src_aligned):
+        shutil.rmtree(src_aligned)
+    os.mkdir(src_aligned)
+    dst_aligned = os.path.join(data_dst_path, "aligned")
+    dst_aligned_trash = os.path.join(data_dst_path, "aligned_trash")
+    if not os.path.exists(dst_aligned_trash):
+        os.mkdir(dst_aligned_trash)
+    # 读取角度信息
+    src_img_list = get_pitch_yaw_roll(src_aligned_store)
+    dst_img_list = get_pitch_yaw_roll(dst_aligned)
+    src_pitch = list([i[1] for i in src_img_list])
+    src_yaw = list([i[2] for i in src_img_list])
+    dst_pitch = list([i[1] for i in dst_img_list])
+    dst_yaw = list([i[2] for i in dst_img_list])
+    src_ps = np.array(list(zip(src_pitch, src_yaw)), "float")
+    dst_ps = np.array(list(zip(dst_pitch, dst_yaw)), "float")
+
+    # 计算最近的n个点
+    src_match = set()
+    dst_match = set()
+    for p, i in io.progress_bar_generator(zip(dst_ps, range(len(dst_ps))), "Calculating"):
+        ds = np.linalg.norm(src_ps - p, axis=1, keepdims=True)
+        idxs = np.argsort(ds, axis=0)
+        min_idx = idxs[mn - 1][0]
+        # 极端情况所有距离都不满足半径范围
+        if ds[min_idx] > r:
+            continue
+        # 至少有一个满足半径条件了,dst_point可以留下
+        dst_match.add(i)
+        # 所有满足条件的加入到src_match
+        for idx in idxs[:mx]:
+            idx = idx[0]
+            if ds[idx] > r:
+                break
+            src_match.add(idx)
+    if not os.path.exists(src_aligned):
+        os.mkdir(src_aligned)
+    io.log_info("%s, %s, %s, %s" % ("Src Match", len(src_match), "Src All", len(src_img_list)))
+    io.log_info("%s, %s, %s, %s" % ("Dst Match", len(dst_match), "Dst All", len(dst_img_list)))
+
+    # 画图
+    xycr = []
+    for idx in range(len(src_img_list)):
+        t = src_img_list[idx]
+        if idx in src_match:
+            xycr.append([t[1], t[2], (128, 128, 128), int(r * 400)])  # 蓝色，匹配到的
+            shutil.copy(t[0], src_aligned)
+        else:
+            xycr.append([t[1], t[2], (128, 128, 128), 2])  # 灰色，没匹配到
+    for idx in range(len(dst_img_list)):
+        t = dst_img_list[idx]
+        if idx in dst_match:
+            xycr.append([t[1], t[2], (0, 255, 0), 2])  # 绿色，保留
+        else:
+            xycr.append([t[1], t[2], (0, 0, 255), 2])  # 红色，删除
+            shutil.move(t[0], dst_aligned_trash)
+    img = cv.cv_new((800 + 1, 800 + 1))
+    xs = [i[0] for i in xycr]
+    ys = [i[1] for i in xycr]
+    cs = [i[2] for i in xycr]
+    rs = [i[3] for i in xycr]
+    cv.cv_scatter(img, xs, ys, [-1, 1], [-1, 1], cs, rs)
+    cv.cv_save(img, os.path.join(dst_aligned, "_match_by_pitch.bmp"))
+
+
+# noinspection PyUnresolvedReferences
+def sort_by_hist(input_path):
+    import mainscripts.Sorter as Sorter
+    img_list = Sorter.sort_by_hist(input_path)
+    Sorter.final_process(input_path, img_list, [])
+
+
+def prepare_train(workspace):
+    import os
+    import shutil
+    from mainscripts import Extractor
+    from mainscripts import VideoEd
+    for f in os.listdir(workspace):
+        ext = os.path.splitext(f)[-1]
+        if ext not in ['.mp4', '.avi']:
+            continue
+        if f.startswith("result"):
+            continue
+        # 获取所有的data_dst文件
+        tmp_dir = os.path.join(workspace, "_tmp")
+        if os.path.exists(tmp_dir):
+            shutil.rmtree(tmp_dir)
+        if not os.path.exists(tmp_dir):
+            os.mkdir(tmp_dir)
+        video = os.path.join(workspace, f)
+        # 提取帧
+        VideoEd.extract_video(video, tmp_dir, "png", 0)
+        # 提取人脸
+        Extractor.main(tmp_dir, os.path.join(tmp_dir, "aligned"), detector='s3fd')
+        # 两组人脸匹配
+        match_by_pitch(os.path.join(workspace, "data_src"), tmp_dir)
+        # 排序
+        sort_by_hist(os.path.join(tmp_dir, "aligned"))
+        # 重命名
+        fname = f.replace(ext, "")
+        dst_dir = os.path.join(workspace, "data_dst_%s_%s" % (get_time_str(), fname))
+        shutil.move(tmp_dir, dst_dir)
+        data_trash = os.path.join(workspace, "data_trash")
+        if not os.path.exists(data_trash):
+            os.mkdir(data_trash)
+        shutil.move(video, data_trash)
+
+
 def main():
     import sys
 
@@ -404,9 +524,14 @@ def main():
     elif arg == '--split-aligned':
         split_aligned()
     else:
+        prepare_train(os.path.join(get_root_path(), "workspace"))
+        # sort_by_hist(os.path.join(get_root_path(), "workspace/data_src/aligned"))
+        # match_by_pitch(os.path.join(get_root_path(), "workspace/data_src"),
+        #                os.path.join(get_root_path(), "workspace/data_dst")
+        #                )
         # split_aligned()
-        skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
-                      os.path.join(get_root_path(), "workspace/data_dst/aligned"))
+        # skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
+        #               os.path.join(get_root_path(), "workspace/data_dst/aligned"))
         # get_data_src_pitch_yaw_roll()
         # get_data_dst_pitch_yaw_roll()
         # get_extract_pitch_yaw_roll()
