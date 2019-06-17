@@ -20,13 +20,15 @@ def trainerThread (s2c, c2s, args, device_args):
 
             training_data_src_path = Path( args.get('training_data_src_dir', '') )
             training_data_dst_path = Path( args.get('training_data_dst_dir', '') )
-            
+
             pretraining_data_path = args.get('pretraining_data_dir', '')
             pretraining_data_path = Path(pretraining_data_path) if pretraining_data_path is not None else None
-            
+
             model_path = Path( args.get('model_path', '') )
             model_name = args.get('model_name', '')
             save_interval_min = 5
+            loop = 0
+            target_loop = args.get("loop", 9999999999)
             debug = args.get('debug', '')
             execute_programs = args.get('execute_programs', [])
 
@@ -117,11 +119,11 @@ def trainerThread (s2c, c2s, args, device_args):
                         exec_prog = False
                         if prog_time > 0 and (cur_time - start_time) >= prog_time:
                             x[0] = 0
-                            exec_prog = True                            
-                        elif prog_time < 0 and (cur_time - last_time)  >= -prog_time:
-                            x[2] = cur_time                            
                             exec_prog = True
-                            
+                        elif prog_time < 0 and (cur_time - last_time)  >= -prog_time:
+                            x[2] = cur_time
+                            exec_prog = True
+
                         if exec_prog:
                             try:
                                 exec(prog)
@@ -159,11 +161,14 @@ def trainerThread (s2c, c2s, args, device_args):
                             else:
                                 io.log_info (loss_string, end='\r')
 
-                        if model.get_target_iter() != 0 and model.is_reached_iter_goal():
+                        loop += 1
+                        if model.get_target_iter() != 0 and model.is_reached_iter_goal() or loop >= target_loop:
                             io.log_info ('Reached target iteration.')
                             model_save()
                             is_reached_goal = True
                             io.log_info ('You can use preview now.')
+                            if args.get('break', False):
+                                break
 
                 if not is_reached_goal and (time.time() - last_save_time) >= save_interval_min*60:
                     model_save()
@@ -316,7 +321,7 @@ def main(args, device_args):
 
             key_events = io.get_key_events(wnd_name)
             key, chr_key, ctrl_pressed, alt_pressed, shift_pressed = key_events[-1] if len(key_events) > 0 else (0,0,False,False,False)
-            
+
             if key == ord('\n') or key == ord('\r'):
                 s2c.put ( {'op': 'close'} )
             elif key == ord('s'):
