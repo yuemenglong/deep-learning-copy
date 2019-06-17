@@ -760,7 +760,8 @@ def final_process(input_path, img_list, trash_img_list):
     if len(img_list) != 0:
         for i in io.progress_bar_generator( [*range(len(img_list))], "Renaming", leave=False):
             src = Path (img_list[i][0])
-            dst = input_path / ('%.5d_%s' % (i, src.name ))
+            dst = "%s/%.5d_%s" % (input_path, i, src.name)
+            # dst = input_path / ('%.5d_%s' % (i, src.name ))
             try:
                 src.rename (dst)
             except:
@@ -768,8 +769,11 @@ def final_process(input_path, img_list, trash_img_list):
 
         for i in io.progress_bar_generator( [*range(len(img_list))], "Renaming"):
             src = Path (img_list[i][0])
-            src = input_path / ('%.5d_%s' % (i, src.name))
-            dst = input_path / ('%.5d%s' % (i, src.suffix))
+            src = "%s/%.5d_%s" % (input_path, i, src.name)
+            src = Path (src)
+            dst = "%s/%.5d%s" % (input_path, i, src.suffix)
+            # src = input_path / ('%.5d_%s' % (i, src.name))
+            # dst = input_path / ('%.5d%s' % (i, src.suffix))
             try:
                 src.rename (dst)
             except:
