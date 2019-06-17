@@ -401,6 +401,8 @@ def main():
     elif arg == '--skip-by-pitch':
         skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
                       os.path.join(get_root_path(), "workspace/data_dst/aligned"))
+    elif arg == '--split-aligned':
+        split_aligned()
     else:
         # split_aligned()
         skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
