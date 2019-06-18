@@ -22,7 +22,18 @@ default_mode = {1:'overlay',
              6:'raw'}
 '''
 class ConverterMasked(Converter):
-
+    predef = {
+        'mode': 1,
+        'mask_mode': 4,
+        'erode': 0,
+        'blur': 200,
+        'face_scale': 0,
+        'color_transfer_mode': 'rct',
+        'super_resolution': True,
+        'degrade_color_power': 0,
+        'alpha': False
+    }
+    enable_predef = False
     #override
     def __init__(self,  predictor_func,
                         predictor_input_size=0,
@@ -51,7 +62,11 @@ class ConverterMasked(Converter):
         self.face_type = face_type
         self.clip_hborder_mask_per = clip_hborder_mask_per
 
-        mode = io.input_int ("Choose mode: (1) overlay, (2) hist match, (3) hist match bw, (4) seamless, (5) raw. Default - %d : " % (default_mode) , default_mode)
+        if self.enable_predef:
+            mode = self.predef['mode']
+            # mode = io.input_int ("Choose mode: (1) overlay, (2) hist match, (3) hist match bw, (4) seamless, (5) raw. Default - %d : " % (default_mode) , default_mode)
+        else:
+            mode = io.input_int ("Choose mode: (1) overlay, (2) hist match, (3) hist match bw, (4) seamless, (5) raw. Default - %d : " % (default_mode) , default_mode)
 
         mode_dict = {1:'overlay',
                      2:'hist-match',
@@ -84,7 +99,11 @@ class ConverterMasked(Converter):
             self.mask_mode = force_mask_mode
         else:
             if face_type == FaceType.FULL:
-                self.mask_mode = np.clip ( io.input_int ("Mask mode: (1) learned, (2) dst, (3) FAN-prd, (4) FAN-dst , (5) FAN-prd*FAN-dst (6) learned*FAN-prd*FAN-dst (?) help. Default - %d : " % (1) , 1, help_message="If you learned mask, then option 1 should be choosed. 'dst' mask is raw shaky mask from dst aligned images. 'FAN-prd' - using super smooth mask by pretrained FAN-model from predicted face. 'FAN-dst' - using super smooth mask by pretrained FAN-model from dst face. 'FAN-prd*FAN-dst' or 'learned*FAN-prd*FAN-dst' - using multiplied masks."), 1, 6 )
+                if self.enable_predef:
+                    self.mask_mode = self.predef['mask_mode']
+                    # self.mask_mode = np.clip ( io.input_int ("Mask mode: (1) learned, (2) dst, (3) FAN-prd, (4) FAN-dst , (5) FAN-prd*FAN-dst (6) learned*FAN-prd*FAN-dst (?) help. Default - %d : " % (1) , 1, help_message="If you learned mask, then option 1 should be choosed. 'dst' mask is raw shaky mask from dst aligned images. 'FAN-prd' - using super smooth mask by pretrained FAN-model from predicted face. 'FAN-dst' - using super smooth mask by pretrained FAN-model from dst face. 'FAN-prd*FAN-dst' or 'learned*FAN-prd*FAN-dst' - using multiplied masks."), 1, 6 )
+                else:
+                    self.mask_mode = np.clip ( io.input_int ("Mask mode: (1) learned, (2) dst, (3) FAN-prd, (4) FAN-dst , (5) FAN-prd*FAN-dst (6) learned*FAN-prd*FAN-dst (?) help. Default - %d : " % (1) , 1, help_message="If you learned mask, then option 1 should be choosed. 'dst' mask is raw shaky mask from dst aligned images. 'FAN-prd' - using super smooth mask by pretrained FAN-model from predicted face. 'FAN-dst' - using super smooth mask by pretrained FAN-model from dst face. 'FAN-prd*FAN-dst' or 'learned*FAN-prd*FAN-dst' - using multiplied masks."), 1, 6 )
             else:
                 self.mask_mode = np.clip ( io.input_int ("Mask mode: (1) learned, (2) dst . Default - %d : " % (1) , 1), 1, 2 )
 
@@ -92,19 +111,43 @@ class ConverterMasked(Converter):
             self.fan_seg = None
 
         if self.mode != 'raw':
-            self.erode_mask_modifier = base_erode_mask_modifier + np.clip ( io.input_int ("Choose erode mask modifier [-200..200] (skip:%d) : " % (default_erode_mask_modifier), default_erode_mask_modifier), -200, 200)
-            self.blur_mask_modifier = base_blur_mask_modifier + np.clip ( io.input_int ("Choose blur mask modifier [-200..200] (skip:%d) : " % (default_blur_mask_modifier), default_blur_mask_modifier), -200, 200)
+            if self.enable_predef:
+                self.erode_mask_modifier = base_erode_mask_modifier + self.predef['erode']
+                self.blur_mask_modifier = base_blur_mask_modifier + self.predef['blur']
+                # self.erode_mask_modifier = base_erode_mask_modifier + np.clip ( io.input_int ("Choose erode mask modifier [-200..200] (skip:%d) : " % (default_erode_mask_modifier), default_erode_mask_modifier), -200, 200)
+                # self.blur_mask_modifier = base_blur_mask_modifier + np.clip ( io.input_int ("Choose blur mask modifier [-200..200] (skip:%d) : " % (default_blur_mask_modifier), default_blur_mask_modifier), -200, 200)
+            else:
+                self.erode_mask_modifier = base_erode_mask_modifier + np.clip ( io.input_int ("Choose erode mask modifier [-200..200] (skip:%d) : " % (default_erode_mask_modifier), default_erode_mask_modifier), -200, 200)
+                self.blur_mask_modifier = base_blur_mask_modifier + np.clip ( io.input_int ("Choose blur mask modifier [-200..200] (skip:%d) : " % (default_blur_mask_modifier), default_blur_mask_modifier), -200, 200)
 
-        self.output_face_scale = np.clip ( 1.0 + io.input_int ("Choose output face scale modifier [-50..50] (skip:0) : ", 0)*0.01, 0.5, 1.5)
+        if self.enable_predef:
+            self.output_face_scale = 1.0 + self.predef['face_scale']
+            # self.output_face_scale = np.clip ( 1.0 + io.input_int ("Choose output face scale modifier [-50..50] (skip:0) : ", 0)*0.01, 0.5, 1.5)
+        else:
+            self.output_face_scale = np.clip ( 1.0 + io.input_int ("Choose output face scale modifier [-50..50] (skip:0) : ", 0)*0.01, 0.5, 1.5)
 
         if self.mode != 'raw':
-            self.color_transfer_mode = io.input_str ("Apply color transfer to predicted face? Choose mode ( rct/lct skip:None ) : ", None, ['rct','lct'])
+            if self.enable_predef:
+                self.color_transfer_mode = self.predef['color_transfer_mode']
+                # self.color_transfer_mode = io.input_str ("Apply color transfer to predicted face? Choose mode ( rct/lct skip:None ) : ", None, ['rct','lct'])
+            else:
+                self.color_transfer_mode = io.input_str ("Apply color transfer to predicted face? Choose mode ( rct/lct skip:None ) : ", None, ['rct','lct'])
 
-        self.super_resolution = io.input_bool("Apply super resolution? (y/n ?:help skip:n) : ", False, help_message="Enhance details by applying DCSCN network.")
+        if self.enable_predef:
+            self.super_resolution = self.predef['super_resolution']
+            # self.super_resolution = io.input_bool("Apply super resolution? (y/n ?:help skip:n) : ", False, help_message="Enhance details by applying DCSCN network.")
+        else:
+            self.super_resolution = io.input_bool("Apply super resolution? (y/n ?:help skip:n) : ", False, help_message="Enhance details by applying DCSCN network.")
 
         if self.mode != 'raw':
-            self.final_image_color_degrade_power = np.clip (  io.input_int ("Degrade color power of final image [0..100] (skip:0) : ", 0), 0, 100)
-            self.alpha = io.input_bool("Export png with alpha channel? (y/n skip:n) : ", False)
+            if self.enable_predef:
+                self.final_image_color_degrade_power = self.predef['degrade_color_power']
+                self.alpha = self.predef['alpha']
+                # self.final_image_color_degrade_power = np.clip (  io.input_int ("Degrade color power of final image [0..100] (skip:0) : ", 0), 0, 100)
+                # self.alpha = io.input_bool("Export png with alpha channel? (y/n skip:n) : ", False)
+            else:
+                self.final_image_color_degrade_power = np.clip (  io.input_int ("Degrade color power of final image [0..100] (skip:0) : ", 0), 0, 100)
+                self.alpha = io.input_bool("Export png with alpha channel? (y/n skip:n) : ", False)
 
         io.log_info ("")
 

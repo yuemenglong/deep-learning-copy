@@ -32,28 +32,25 @@ def angle_between(v1, v2):
     return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
 
-def skip_no_face(dir, pat="%05d"):
+def skip_no_face(data_dst_dir):
     import os
     import shutil
-    import sys
-    aligend_dir = os.path.join(dir, "aligned")
-    aligend = set([f.split("_")[0] for f in os.listdir(aligend_dir)])
-    merged_dir = os.path.join(dir, "merged")
-    merged_dir_bak = os.path.join(dir, "merged_trash")
-    if os.path.exists(merged_dir_bak):
+    data_dst_aligned_dir = os.path.join(data_dst_dir, "aligned")
+    aligend = set([f.split("_")[0] for f in os.listdir(data_dst_aligned_dir)])
+    merged_dir = os.path.join(data_dst_dir, "merged")
+    merged_trash_dir = os.path.join(data_dst_dir, "merged_trash")
+    if os.path.exists(merged_trash_dir):
         # raise Exception("Merge Dir Bak Exists")
-        shutil.rmtree(merged_dir_bak)
-    shutil.move(merged_dir, merged_dir_bak)
+        shutil.rmtree(merged_trash_dir)
+    shutil.move(merged_dir, merged_trash_dir)
     os.mkdir(merged_dir)
     idx = 0
-    for f in os.listdir(merged_dir_bak):
+    for f in io.progress_bar_generator(os.listdir(merged_trash_dir), "Skip No Face"):
         name = os.path.splitext(f)[0]
         ext = os.path.splitext(f)[-1]
         if name in aligend:
             idx += 1
-            sys.stdout.write("Skip No Face Proc: %d\r" % idx)
-            sys.stdout.flush()
-            src = os.path.join(merged_dir_bak, f)
+            src = os.path.join(merged_trash_dir, f)
             dst = os.path.join(merged_dir, "%05d" % idx + ext)
             shutil.move(src, dst)
 
@@ -474,6 +471,13 @@ def sort_by_hist(input_path):
     Sorter.final_process(input_path, img_list, [])
 
 
+# noinspection PyUnresolvedReferences
+def sort_by_origname(input_path):
+    import mainscripts.Sorter as Sorter
+    img_list, _ = Sorter.sort_by_origname(input_path)
+    Sorter.final_process(input_path, img_list, [])
+
+
 def prepare_train(workspace):
     import os
     import shutil
@@ -510,6 +514,67 @@ def prepare_train(workspace):
         shutil.move(video, data_trash)
 
 
+def train_and_convert(workspace, loop=100):
+    import os
+    import sys
+    import time
+    import argparse
+    import multiprocessing
+    from utils import Path_utils
+    from utils import os_utils
+    from pathlib import Path
+    import os
+    import shutil
+    from mainscripts import Trainer
+    from mainscripts import Converter
+    from converters import ConverterMasked
+    data_src_aligned = os.path.join(workspace, "data_src", "aligned")
+    model_path = os.path.join(workspace, "model")
+    train_args = {
+        'training_data_src_dir': data_src_aligned,
+        'training_data_dst_dir': '',
+        'pretraining_data_dir': None,
+        'model_path': model_path,
+        'model_name': 'SAE',
+        'no_preview': False,
+        'debug': False,
+        'execute_programs': [],
+        'loop': loop,
+        'break': True
+    }
+    convert_args = {
+        'input_dir': 'D:\\DeepFaceLabCUDA10.1AVX\\workspace\\data_dst',
+        'output_dir': 'D:\\DeepFaceLabCUDA10.1AVX\\workspace\\data_dst\\merged',
+        'aligned_dir': 'D:\\DeepFaceLabCUDA10.1AVX\\workspace\\data_dst\\aligned',
+        'avaperator_aligned_dir': None,
+        'model_dir': 'D:\\DeepFaceLabCUDA10.1AVX\\workspace\\model',
+        'model_name': 'SAE',
+        'debug': False
+    }
+    device_args = {'cpu_only': False, 'force_gpu_idx': -1}
+    for f in os.listdir(workspace):
+        if not os.path.isdir(os.path.join(workspace, f)) or not f.startswith("data_dst_"):
+            continue
+        data_dst = os.path.join(workspace, "data_dst")
+        data_dst_merged = os.path.join(data_dst, "merged")
+        data_dst_aligned = os.path.join(data_dst, "aligned")
+        # 训练
+        train_args['training_data_dst_dir'] = data_dst_aligned
+        # Trainer.main(train_args, device_args)
+        # 恢复排序
+        # sort_by_origname(data_dst_aligned)
+        # 转换
+        # convert_args['input_dir'] = data_dst
+        # convert_args['output_dir'] = data_dst_merged
+        # convert_args['aligned_dir'] = data_dst_aligned
+        ConverterMasked.enable_predef = True
+        Converter.main(convert_args, device_args)
+        # 去掉没有脸的
+        skip_no_face(data_dst)
+        break
+        pass
+
+
 def main():
     import sys
 
@@ -524,7 +589,7 @@ def main():
     elif arg == '--split-aligned':
         split_aligned()
     else:
-        prepare_train(os.path.join(get_root_path(), "workspace"))
+        train_and_convert(os.path.join(get_root_path(), "workspace"))
         # sort_by_hist(os.path.join(get_root_path(), "workspace/data_src/aligned"))
         # match_by_pitch(os.path.join(get_root_path(), "workspace/data_src"),
         #                os.path.join(get_root_path(), "workspace/data_dst")
