@@ -1,7 +1,8 @@
+import os
 from typing import Any, Callable
 
 import numpy as np
-import os
+
 from interact import interact as io
 
 
@@ -36,7 +37,7 @@ def skip_no_face(data_dst_dir):
     import os
     import shutil
     data_dst_aligned_dir = os.path.join(data_dst_dir, "aligned")
-    aligend = set([f.split("_")[0] for f in os.listdir(data_dst_aligned_dir)])
+    aligend = set([f.split(".")[0].split("_")[0] for f in os.listdir(data_dst_aligned_dir)])
     merged_dir = os.path.join(data_dst_dir, "merged")
     merged_trash_dir = os.path.join(data_dst_dir, "merged_trash")
     if os.path.exists(merged_trash_dir):
@@ -240,8 +241,8 @@ def get_pitch_yaw_roll(input_path):
         cv.cv_line(img, (x, min), (x, max), (0, 0, 0), thick)
     cv.cv_save(img, os.path.join(input_path, "_pitch_yaw_roll.bmp"))
     import shutil
-    shutil.copy(os.path.join(input_path, "_pitch_yaw_roll.csv"), get_desktop_path())
-    shutil.copy(os.path.join(input_path, "_pitch_yaw_roll.bmp"), get_desktop_path())
+    # shutil.copy(os.path.join(input_path, "_pitch_yaw_roll.csv"), get_desktop_path())
+    # shutil.copy(os.path.join(input_path, "_pitch_yaw_roll.bmp"), get_desktop_path())
     return img_list
 
 
@@ -365,9 +366,9 @@ def skip_by_pitch(src_path, dst_path):
         cv.cv_line(img, (0, x), (size, x), (0, 0, 0), thick)
         cv.cv_line(img, (x, 0), (x, size), (0, 0, 0), thick)
     # cv.cv_show(img)
-    print("Out Of Pitch", len(dst_img_list), count)
-    save_path = os.path.join(get_desktop_path(), "skip_by_pitch.bmp")
-    cv.cv_save(img, save_path)
+    io.log_info("Out Of Pitch, %d / %d" % (len(dst_img_list), count))
+    # save_path = os.path.join(get_desktop_path(), "skip_by_pitch.bmp")
+    # cv.cv_save(img, save_path)
 
 
 def split_aligned():
@@ -388,7 +389,7 @@ def split_aligned():
         count += 1
 
 
-def match_by_pitch(data_src_path, data_dst_path):
+def match_by_pitch(data_src_path, data_dst_path, output_path=None):
     r = 0.05
     mn = 1
     mx = 5
@@ -398,7 +399,7 @@ def match_by_pitch(data_src_path, data_dst_path):
     src_aligned_store = os.path.join(data_src_path, "aligned_store")
     if not os.path.exists(src_aligned_store):
         raise Exception("No Src Aligned Store")
-    src_aligned = os.path.join(data_src_path, "aligned")
+    src_aligned = output_path if output_path is not None else os.path.join(data_src_path, "aligned")
     if os.path.exists(src_aligned):
         shutil.rmtree(src_aligned)
     os.mkdir(src_aligned)
@@ -478,7 +479,7 @@ def sort_by_origname(input_path):
     Sorter.final_process(input_path, img_list, [])
 
 
-def prepare_train(workspace):
+def prepare(workspace):
     import os
     import shutil
     from mainscripts import Extractor
@@ -501,7 +502,7 @@ def prepare_train(workspace):
         # 提取人脸
         Extractor.main(tmp_dir, os.path.join(tmp_dir, "aligned"), detector='s3fd')
         # 两组人脸匹配
-        match_by_pitch(os.path.join(workspace, "data_src"), tmp_dir)
+        match_by_pitch(os.path.join(workspace, "data_src"), tmp_dir, os.path.join(tmp_dir, "src"))
         # 排序
         sort_by_hist(os.path.join(tmp_dir, "aligned"))
         # 重命名
@@ -514,24 +515,12 @@ def prepare_train(workspace):
         shutil.move(video, data_trash)
 
 
-def train_and_convert(workspace, loop=100):
+def train(workspace, loop=9999999999):
     import os
-    import sys
-    import time
-    import argparse
-    import multiprocessing
-    from utils import Path_utils
-    from utils import os_utils
-    from pathlib import Path
-    import os
-    import shutil
     from mainscripts import Trainer
-    from mainscripts import Converter
-    from converters import ConverterMasked
-    data_src_aligned = os.path.join(workspace, "data_src", "aligned")
     model_path = os.path.join(workspace, "model")
     train_args = {
-        'training_data_src_dir': data_src_aligned,
+        'training_data_src_dir': '',
         'training_data_dst_dir': '',
         'pretraining_data_dir': None,
         'model_path': model_path,
@@ -542,6 +531,25 @@ def train_and_convert(workspace, loop=100):
         'loop': loop,
         'break': True
     }
+    device_args = {'cpu_only': False, 'force_gpu_idx': -1}
+    for f in os.listdir(workspace):
+        if not os.path.isdir(os.path.join(workspace, f)) or not f.startswith("data_dst_"):
+            continue
+        io.log_info(f)
+        data_dst = os.path.join(workspace, f)
+        data_src_aligned = os.path.join(data_dst, "src")
+        data_dst_aligned = os.path.join(data_dst, "aligned")
+        # 训练
+        train_args['training_data_src_dir'] = data_src_aligned
+        train_args['training_data_dst_dir'] = data_dst_aligned
+        Trainer.main(train_args, device_args)
+        return
+
+
+def convert(workspace):
+    import os
+    from mainscripts import Converter
+    from mainscripts import VideoEd
     convert_args = {
         'input_dir': 'D:\\DeepFaceLabCUDA10.1AVX\\workspace\\data_dst',
         'output_dir': 'D:\\DeepFaceLabCUDA10.1AVX\\workspace\\data_dst\\merged',
@@ -555,24 +563,31 @@ def train_and_convert(workspace, loop=100):
     for f in os.listdir(workspace):
         if not os.path.isdir(os.path.join(workspace, f)) or not f.startswith("data_dst_"):
             continue
-        data_dst = os.path.join(workspace, "data_dst")
+        io.log_info(f)
+        data_dst = os.path.join(workspace, f)
         data_dst_merged = os.path.join(data_dst, "merged")
         data_dst_aligned = os.path.join(data_dst, "aligned")
-        # 训练
-        train_args['training_data_dst_dir'] = data_dst_aligned
-        # Trainer.main(train_args, device_args)
         # 恢复排序
-        # sort_by_origname(data_dst_aligned)
+        sort_by_origname(data_dst_aligned)
         # 转换
-        # convert_args['input_dir'] = data_dst
-        # convert_args['output_dir'] = data_dst_merged
-        # convert_args['aligned_dir'] = data_dst_aligned
-        ConverterMasked.enable_predef = True
+        convert_args['input_dir'] = data_dst
+        convert_args['output_dir'] = data_dst_merged
+        convert_args['aligned_dir'] = data_dst_aligned
+        # ConverterMasked.enable_predef = True
         Converter.main(convert_args, device_args)
         # 去掉没有脸的
         skip_no_face(data_dst)
-        break
-        pass
+        # 合成
+        refer_name = "_".join(f.split("_")[8:])
+        refer_path = None
+        result_path = os.path.join(workspace, "result.mp4")
+        data_trash = os.path.join(workspace, "data_trash")
+        for ff in os.listdir(data_trash):
+            if ff.startswith(refer_name):
+                refer_path = os.path.join(data_trash, ff)
+                break
+        VideoEd.video_from_sequence(data_dst_merged, result_path, refer_path, "png", None, None, False)
+        return
 
 
 def main():
@@ -588,8 +603,22 @@ def main():
                       os.path.join(get_root_path(), "workspace/data_dst/aligned"))
     elif arg == '--split-aligned':
         split_aligned()
+    elif arg == '--prepare':
+        prepare(os.path.join(get_root_path(), "workspace"))
+    elif arg == '--train':
+        train(os.path.join(get_root_path(), "workspace"))
+    elif arg == '--convert':
+        convert(os.path.join(get_root_path(), "workspace"))
     else:
-        train_and_convert(os.path.join(get_root_path(), "workspace"))
+        for f in os.listdir(os.path.join(get_root_path(), "workspace")):
+            if os.path.isdir(os.path.join(get_root_path(), "workspace", f)) and f.startswith("data_dst_"):
+                print(f)
+                match_by_pitch(os.path.join(get_root_path(), "workspace", "data_src"),
+                               os.path.join(get_root_path(), "workspace", f),
+                               os.path.join(get_root_path(), "workspace", f, "src"))
+        pass
+        # prepare_train(os.path.join(get_root_path(), "workspace"))
+        # train(os.path.join(get_root_path(), "workspace"))
         # sort_by_hist(os.path.join(get_root_path(), "workspace/data_src/aligned"))
         # match_by_pitch(os.path.join(get_root_path(), "workspace/data_src"),
         #                os.path.join(get_root_path(), "workspace/data_dst")
