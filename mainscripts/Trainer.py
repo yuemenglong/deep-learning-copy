@@ -27,8 +27,7 @@ def trainerThread (s2c, c2s, args, device_args):
             model_path = Path( args.get('model_path', '') )
             model_name = args.get('model_name', '')
             save_interval_min = 5
-            loop = 0
-            target_loop = args.get("loop", 9999999999)
+            target_loss = args.get("target_loss", 0)
             debug = args.get('debug', '')
             execute_programs = args.get('execute_programs', [])
 
@@ -152,6 +151,10 @@ def trainerThread (s2c, c2s, args, device_args):
                             io.log_info (loss_string)
 
                             save_iter = iter
+
+                            if mean_loss[0] <= target_loss and mean_loss[1] <= target_loss:
+                                is_reached_goal = True
+                                break
                         else:
                             for loss_value in loss_history[-1]:
                                 loss_string += "[%.4f]" % (loss_value)
@@ -161,14 +164,11 @@ def trainerThread (s2c, c2s, args, device_args):
                             else:
                                 io.log_info (loss_string, end='\r')
 
-                        loop += 1
-                        if model.get_target_iter() != 0 and model.is_reached_iter_goal() or loop >= target_loop:
+                        if model.get_target_iter() != 0 and model.is_reached_iter_goal():
                             io.log_info ('Reached target iteration.')
                             model_save()
                             is_reached_goal = True
                             io.log_info ('You can use preview now.')
-                            if args.get('break', False):
-                                break
 
                 if not is_reached_goal and (time.time() - last_save_time) >= save_interval_min*60:
                     model_save()

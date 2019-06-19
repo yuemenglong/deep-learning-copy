@@ -392,7 +392,7 @@ def split_aligned():
 def match_by_pitch(data_src_path, data_dst_path, output_path=None):
     r = 0.05
     mn = 1
-    mx = 5
+    mx = 2
     import cv
     import shutil
     # 准备各种路径
@@ -515,7 +515,7 @@ def prepare(workspace):
         shutil.move(video, data_trash)
 
 
-def train(workspace, loop=9999999999):
+def train(workspace, target_loss=0.12):
     import os
     from mainscripts import Trainer
     model_path = os.path.join(workspace, "model")
@@ -528,8 +528,7 @@ def train(workspace, loop=9999999999):
         'no_preview': False,
         'debug': False,
         'execute_programs': [],
-        'loop': loop,
-        'break': True
+        'target_loss': target_loss
     }
     device_args = {'cpu_only': False, 'force_gpu_idx': -1}
     for f in os.listdir(workspace):
@@ -550,6 +549,7 @@ def convert(workspace):
     import os
     from mainscripts import Converter
     from mainscripts import VideoEd
+    from converters import ConverterMasked
     convert_args = {
         'input_dir': 'D:\\DeepFaceLabCUDA10.1AVX\\workspace\\data_dst',
         'output_dir': 'D:\\DeepFaceLabCUDA10.1AVX\\workspace\\data_dst\\merged',
@@ -573,7 +573,7 @@ def convert(workspace):
         convert_args['input_dir'] = data_dst
         convert_args['output_dir'] = data_dst_merged
         convert_args['aligned_dir'] = data_dst_aligned
-        # ConverterMasked.enable_predef = True
+        ConverterMasked.enable_predef = True
         Converter.main(convert_args, device_args)
         # 去掉没有脸的
         skip_no_face(data_dst)
@@ -588,6 +588,17 @@ def convert(workspace):
                 break
         VideoEd.video_from_sequence(data_dst_merged, result_path, refer_path, "png", None, None, False)
         return
+
+
+def next(workspace):
+    import shutil
+    for f in os.listdir(workspace):
+        if os.path.isdir(os.path.join(workspace, f)) and f.startswith("data_dst"):
+            src = os.path.join(workspace, f)
+            dst = os.path.join(workspace, "data_trash")
+            io.log_info("Move %s To %s" % (src, dst))
+            shutil.move(src, dst)
+            return
 
 
 def main():
@@ -609,6 +620,8 @@ def main():
         train(os.path.join(get_root_path(), "workspace"))
     elif arg == '--convert':
         convert(os.path.join(get_root_path(), "workspace"))
+    elif arg == '--next':
+        next(os.path.join(get_root_path(), "workspace"))
     else:
         for f in os.listdir(os.path.join(get_root_path(), "workspace")):
             if os.path.isdir(os.path.join(get_root_path(), "workspace", f)) and f.startswith("data_dst_"):
