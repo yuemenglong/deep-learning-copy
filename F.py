@@ -580,7 +580,7 @@ def convert(workspace):
         # 合成
         refer_name = "_".join(f.split("_")[8:])
         refer_path = None
-        result_path = os.path.join(workspace, "result.mp4")
+        result_path = os.path.join(workspace, "result_%s_%s.mp4" % (get_time_str(), refer_name))
         data_trash = os.path.join(workspace, "data_trash")
         for ff in os.listdir(data_trash):
             if ff.startswith(refer_name):

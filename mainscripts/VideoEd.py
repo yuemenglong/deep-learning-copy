@@ -111,6 +111,11 @@ def denoise_image_sequence( input_dir, ext=None, factor=None ):
         io.log_err ("ffmpeg fail, job commandline:" + str(job.compile()) )
 
 def video_from_sequence( input_dir, output_file, reference_file=None, ext=None, fps=None, bitrate=None, lossless=None ):
+    import os
+    if os.path.exists(output_file):
+        io.log_err("Output File Exists")
+        return
+
     input_path = Path(input_dir)
     output_file_path = Path(output_file)
     reference_file_path = Path(reference_file) if reference_file is not None else None
@@ -197,11 +202,5 @@ def video_from_sequence( input_dir, output_file, reference_file=None, ext=None, 
     job = ( ffmpeg.output(*output_args, **output_kwargs).overwrite_output() )
     try:
         job = job.run()
-        import os
-        import F
-        import shutil
-        file_name, ext = os.path.splitext(output_file)
-        dst = "%s_%s%s" % (file_name, F.get_time_str(), ext)
-        shutil.move(output_file, dst)
     except:
         io.log_err ("ffmpeg fail, job commandline:" + str(job.compile()) )
