@@ -37,7 +37,7 @@ def skip_no_face(data_dst_dir):
     import os
     import shutil
     data_dst_aligned_dir = os.path.join(data_dst_dir, "aligned")
-    aligend = set([f.split(".")[0].split("_")[0] for f in os.listdir(data_dst_aligned_dir)])
+    aligend = set([f.split('_')[0] for f in os.listdir(data_dst_aligned_dir)])
     merged_dir = os.path.join(data_dst_dir, "merged")
     merged_trash_dir = os.path.join(data_dst_dir, "merged_trash")
     if os.path.exists(merged_trash_dir):
@@ -474,9 +474,8 @@ def sort_by_hist(input_path):
 
 # noinspection PyUnresolvedReferences
 def sort_by_origname(input_path):
-    import mainscripts.Sorter as Sorter
-    img_list, _ = Sorter.sort_by_origname(input_path)
-    Sorter.final_process(input_path, img_list, [])
+    from mainscripts import Util
+    Util.recover_original_aligned_filename(input_path)
 
 
 def prepare(workspace):
@@ -515,7 +514,7 @@ def prepare(workspace):
         shutil.move(video, data_trash)
 
 
-def train(workspace, target_loss=0.12):
+def train(workspace, target_loss=0.1):
     import os
     from mainscripts import Trainer
     model_path = os.path.join(workspace, "model")
@@ -590,15 +589,36 @@ def convert(workspace):
         return
 
 
-def next(workspace):
+def step(workspace):
     import shutil
     for f in os.listdir(workspace):
         if os.path.isdir(os.path.join(workspace, f)) and f.startswith("data_dst"):
+            model = os.path.join(workspace, "model")
+            model_dst = os.path.join(workspace, f, "model")
+            if not os.path.exists(model_dst):
+                os.mkdir(model_dst)
+            for m in os.listdir(model):
+                mf = os.path.join(model, m)
+                if os.path.isfile(mf):
+                    shutil.copy(os.path.join(model, m), model_dst)
             src = os.path.join(workspace, f)
             dst = os.path.join(workspace, "data_trash")
             io.log_info("Move %s To %s" % (src, dst))
             shutil.move(src, dst)
             return
+
+
+def auto(workspace):
+    import subprocess
+    for f in os.listdir(workspace):
+        if os.path.isdir(os.path.join(get_root_path(), "workspace", f)) and f.startswith("data_dst_"):
+            train_bat = os.path.join(get_root_path(), "auto_train.bat")
+            convert_bat = os.path.join(get_root_path(), "auto_convert.bat")
+            step_bat = os.path.join(get_root_path(), "auto_step.bat")
+            subprocess.call([train_bat])
+            subprocess.call([convert_bat])
+            subprocess.call([step_bat])
+            io.log_info("Finish " + f)
 
 
 def main():
@@ -620,8 +640,10 @@ def main():
         train(os.path.join(get_root_path(), "workspace"))
     elif arg == '--convert':
         convert(os.path.join(get_root_path(), "workspace"))
-    elif arg == '--next':
-        next(os.path.join(get_root_path(), "workspace"))
+    elif arg == '--step':
+        step(os.path.join(get_root_path(), "workspace"))
+    elif arg == '--auto':
+        auto(os.path.join(get_root_path(), "workspace"))
     else:
         for f in os.listdir(os.path.join(get_root_path(), "workspace")):
             if os.path.isdir(os.path.join(get_root_path(), "workspace", f)) and f.startswith("data_dst_"):
