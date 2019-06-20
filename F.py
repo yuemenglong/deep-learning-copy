@@ -565,6 +565,11 @@ def train(workspace, target_loss=0.1):
         return
 
 
+def low_prio():
+    from utils import os_utils
+    os_utils.set_process_lowest_prio()
+
+
 def convert(workspace, enable_predef=True):
     import os
     from mainscripts import Converter
@@ -597,7 +602,7 @@ def convert(workspace, enable_predef=True):
         Converter.main(convert_args, device_args)
         # 去掉没有脸的
         skip_no_face(data_dst)
-        # 合成
+        # 转mp4
         refer_name = "_".join(f.split("_")[8:])
         refer_path = None
         result_path = os.path.join(workspace, "result_%s_%s.mp4" % (get_time_str(), refer_name))
