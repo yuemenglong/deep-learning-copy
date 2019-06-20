@@ -371,18 +371,36 @@ def skip_by_pitch(src_path, dst_path):
     # cv.cv_save(img, save_path)
 
 
-def split_aligned():
+def split_aligned(aligned_path):
     import os
     import shutil
-    aligned_path = os.path.join(get_root_path(), "extract_workspace", "aligned_")
+    batch = 3000
     count = 0
-    dst_dir = os.path.join(get_root_path(), "extract_workspace", "split_%02d" % int(count / 10000))
-    for f in os.listdir(aligned_path):
+    dst_dir = os.path.join(get_root_path(), "extract_workspace", "split_%02d" % int(count / batch))
+    for f in io.progress_bar_generator(os.listdir(aligned_path), "Process"):
         if not f.endswith(".jpg") and not f.endswith(".png"):
             continue
-        if count % 10000 == 0:
-            print(count)
+        if count % batch == 0:
+            dst_dir = os.path.join(get_root_path(), "extract_workspace", "split_%02d" % int(count / batch))
+            os.mkdir(dst_dir)
+        src = os.path.join(aligned_path, f)
+        shutil.move(src, dst_dir)
+        count += 1
+
+
+def merge_aligned(aligned_path):
+    import os
+    import shutil
+    batch = 3000
+    count = 0
+    dst_dir = os.path.join(get_root_path(), "extract_workspace", "split_%02d" % int(count / 10000))
+    for f in io.progress_bar_generator(os.listdir(aligned_path)):
+        if not f.endswith(".jpg") and not f.endswith(".png"):
+            continue
+        if count % batch == 0:
             dst_dir = os.path.join(get_root_path(), "extract_workspace", "split_%02d" % int(count / 10000))
+            if os.path.exists(dst_dir):
+                raise Exception("Split Dir Exists, " + dst_dir)
             os.mkdir(dst_dir)
         src = os.path.join(aligned_path, f)
         shutil.move(src, dst_dir)
@@ -392,7 +410,7 @@ def split_aligned():
 def match_by_pitch(data_src_path, data_dst_path, output_path=None):
     r = 0.05
     mn = 1
-    mx = 2
+    mx = 3
     import cv
     import shutil
     # 准备各种路径
@@ -491,6 +509,7 @@ def prepare(workspace):
             continue
         # 获取所有的data_dst文件
         tmp_dir = os.path.join(workspace, "_tmp")
+        tmp_aligned = os.path.join(tmp_dir, "aligned")
         if os.path.exists(tmp_dir):
             shutil.rmtree(tmp_dir)
         if not os.path.exists(tmp_dir):
@@ -499,11 +518,13 @@ def prepare(workspace):
         # 提取帧
         VideoEd.extract_video(video, tmp_dir, "png", 0)
         # 提取人脸
-        Extractor.main(tmp_dir, os.path.join(tmp_dir, "aligned"), detector='s3fd')
+        Extractor.main(tmp_dir, tmp_aligned, detector='s3fd')
+        # fanseg
+        Extractor.extract_fanseg(tmp_aligned)
         # 两组人脸匹配
         match_by_pitch(os.path.join(workspace, "data_src"), tmp_dir, os.path.join(tmp_dir, "src"))
         # 排序
-        sort_by_hist(os.path.join(tmp_dir, "aligned"))
+        sort_by_hist(tmp_aligned)
         # 重命名
         fname = f.replace(ext, "")
         dst_dir = os.path.join(workspace, "data_dst_%s_%s" % (get_time_str(), fname))
@@ -544,7 +565,7 @@ def train(workspace, target_loss=0.1):
         return
 
 
-def convert(workspace):
+def convert(workspace, enable_predef=True):
     import os
     from mainscripts import Converter
     from mainscripts import VideoEd
@@ -572,7 +593,7 @@ def convert(workspace):
         convert_args['input_dir'] = data_dst
         convert_args['output_dir'] = data_dst_merged
         convert_args['aligned_dir'] = data_dst_aligned
-        ConverterMasked.enable_predef = True
+        ConverterMasked.enable_predef = enable_predef
         Converter.main(convert_args, device_args)
         # 去掉没有脸的
         skip_no_face(data_dst)
@@ -633,7 +654,7 @@ def main():
         skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
                       os.path.join(get_root_path(), "workspace/data_dst/aligned"))
     elif arg == '--split-aligned':
-        split_aligned()
+        split_aligned(os.path.join(get_root_path(), "extract_workspace", "aligned_"))
     elif arg == '--prepare':
         prepare(os.path.join(get_root_path(), "workspace"))
     elif arg == '--train':
@@ -645,29 +666,7 @@ def main():
     elif arg == '--auto':
         auto(os.path.join(get_root_path(), "workspace"))
     else:
-        for f in os.listdir(os.path.join(get_root_path(), "workspace")):
-            if os.path.isdir(os.path.join(get_root_path(), "workspace", f)) and f.startswith("data_dst_"):
-                print(f)
-                match_by_pitch(os.path.join(get_root_path(), "workspace", "data_src"),
-                               os.path.join(get_root_path(), "workspace", f),
-                               os.path.join(get_root_path(), "workspace", f, "src"))
-        pass
-        # prepare_train(os.path.join(get_root_path(), "workspace"))
-        # train(os.path.join(get_root_path(), "workspace"))
-        # sort_by_hist(os.path.join(get_root_path(), "workspace/data_src/aligned"))
-        # match_by_pitch(os.path.join(get_root_path(), "workspace/data_src"),
-        #                os.path.join(get_root_path(), "workspace/data_dst")
-        #                )
-        # split_aligned()
-        # skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
-        #               os.path.join(get_root_path(), "workspace/data_dst/aligned"))
-        # get_data_src_pitch_yaw_roll()
-        # get_data_dst_pitch_yaw_roll()
-        # get_extract_pitch_yaw_roll()
-        # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace", "aligned_ab_01_30"))
-        # pick_spec_pitch(os.path.join(get_root_path(), "extract_workspace/aligned_"),
-        #                 os.path.join(get_root_path(), "extract_workspace/ym_bili_pick"))
-        pass
+        sort_by_hist("D:/DeepFaceLabCUDA10.1AVX/extract_workspace/_san_sheng_4k/aligned_4k_29_32")
 
 
 if __name__ == '__main__':
