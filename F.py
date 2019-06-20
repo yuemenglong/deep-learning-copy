@@ -545,19 +545,24 @@ def prepare(workspace):
 def train(workspace, target_loss=0.01):
     import os
     from mainscripts import Trainer
-    model_path = os.path.join(workspace, "model")
-    train_args = {
-        'training_data_src_dir': '',
-        'training_data_dst_dir': '',
-        'pretraining_data_dir': None,
-        'model_path': model_path,
-        'model_name': 'SAE',
-        'no_preview': False,
-        'debug': False,
-        'execute_programs': [],
-        'target_loss': target_loss
+    # "%PYTHON_EXECUTABLE%" "%DFL_ROOT%\main.py"
+    # train ^
+    # --training - data - src - dir
+    # "%WORKSPACE%\data_src\aligned" ^
+    # --training - data - dst - dir
+    # "%WORKSPACE%\data_dst\aligned" ^
+    # --model - dir
+    # "%WORKSPACE%\model" ^
+    # --model
+    # SAE
+    cmd = "train"
+    args = {
+        "--training-data-src-dir": "",
+        "--training-data-dst-dir": "",
+        "--model-dir": "",
+        "--model": "SAE"
     }
-    device_args = {'cpu_only': False, 'force_gpu_idx': -1}
+    model_dir = os.path.join(workspace, "model")
     for f in os.listdir(workspace):
         if not os.path.isdir(os.path.join(workspace, f)) or not f.startswith("data_dst_"):
             continue
@@ -565,10 +570,14 @@ def train(workspace, target_loss=0.01):
         data_dst = os.path.join(workspace, f)
         data_src_aligned = os.path.join(data_dst, "src")
         data_dst_aligned = os.path.join(data_dst, "aligned")
+        args["--training-data-src-dir"] = data_src_aligned
+        args["--training-data-dst-dir"] = data_dst_aligned
+        args["--model-dir"] = model_dir
         # 训练
-        train_args['training_data_src_dir'] = data_src_aligned
-        train_args['training_data_dst_dir'] = data_dst_aligned
-        Trainer.main(train_args, device_args)
+        exec(cmd, args)
+        # train_args['training_data_src_dir'] = data_src_aligned
+        # train_args['training_data_dst_dir'] = data_dst_aligned
+        # Trainer.main(train_args, device_args)
         return
 
 
