@@ -660,6 +660,23 @@ def auto(workspace):
             io.log_info("Finish " + f)
 
 
+def exec(cmd, args):
+    import subprocess
+    s = ""
+    s += "@echo off\n"
+    s += "call _internal\\setenv.bat\n"
+    s += "\"%PYTHON_EXECUTABLE%\" \"%DFL_ROOT%\\main.py\" " + cmd
+    for k in args:
+        v = args[k]
+        if isinstance(v, str):
+            v = "\"" + v + "\""
+        s += " ^\n    %s %s" % (k, v)
+    fpath = os.path.join(get_root_path(), "@exec.bat")
+    with open(fpath, "w") as f:
+        f.write(s)
+    subprocess.call([fpath])
+
+
 def main():
     import sys
 
@@ -688,7 +705,20 @@ def main():
     elif arg == '--auto':
         auto(os.path.join(get_root_path(), "workspace"))
     else:
-        sort_by_hist("D:/DeepFaceLabCUDA10.1AVX/extract_workspace/_san_sheng_4k/aligned_4k_29_32")
+        tpl = """
+        @echo off
+        call _internal\setenv.bat
+        "%PYTHON_EXECUTABLE%" "%DFL_ROOT%\main.py" videoed extract-video ^
+            --input-file "%WORKSPACE%\data_dst.*" ^
+            --output-dir "%WORKSPACE%\data_dst" ^
+            --fps 0
+            """
+        arg = {
+            "--input-file": "%WORKSPACE%\\data_dst.*",
+            "--output-dir": "%WORKSPACE%\\data_dst",
+            "--fps": 0
+        }
+        exec("videoed extract-video", arg)
 
 
 if __name__ == '__main__':
