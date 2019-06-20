@@ -1,8 +1,7 @@
 import os
+import dfl
 from typing import Any, Callable
-
 import numpy as np
-
 from interact import interact as io
 
 
@@ -62,11 +61,7 @@ def cpu_count():
 
 
 def get_root_path():
-    import os
-    path = __file__
-    for _ in range(3):
-        path = os.path.dirname(path)
-    return path
+    return dfl.get_root_path()
 
 
 def get_time_str():
@@ -583,18 +578,7 @@ def train(workspace, target_loss=0.01):
 
 def convert(workspace, enable_predef=True):
     import os
-    from mainscripts import Converter
-    from converters import ConverterMasked
-    convert_args = {
-        'input_dir': 'D:\\DeepFaceLabCUDA10.1AVX\\workspace\\data_dst',
-        'output_dir': 'D:\\DeepFaceLabCUDA10.1AVX\\workspace\\data_dst\\merged',
-        'aligned_dir': 'D:\\DeepFaceLabCUDA10.1AVX\\workspace\\data_dst\\aligned',
-        'avaperator_aligned_dir': None,
-        'model_dir': 'D:\\DeepFaceLabCUDA10.1AVX\\workspace\\model',
-        'model_name': 'SAE',
-        'debug': False
-    }
-    device_args = {'cpu_only': False, 'force_gpu_idx': -1}
+    model_dir = os.path.join(workspace, "model")
     for f in os.listdir(workspace):
         if not os.path.isdir(os.path.join(workspace, f)) or not f.startswith("data_dst_"):
             continue
@@ -605,11 +589,8 @@ def convert(workspace, enable_predef=True):
         # 恢复排序
         recover_filename(data_dst_aligned)
         # 转换
-        convert_args['input_dir'] = data_dst
-        convert_args['output_dir'] = data_dst_merged
-        convert_args['aligned_dir'] = data_dst_aligned
-        ConverterMasked.enable_predef = enable_predef
-        Converter.main(convert_args, device_args)
+        dfl.dfl_convert(data_dst, data_dst_merged, data_dst_aligned, model_dir)
+        # ConverterMasked.enable_predef = enable_predef
         # 去掉没有脸的
         skip_no_face(data_dst)
         return
@@ -617,7 +598,6 @@ def convert(workspace, enable_predef=True):
 
 def mp4(workspace):
     import os
-    from mainscripts import VideoEd
     for f in os.listdir(workspace):
         if not os.path.isdir(os.path.join(workspace, f)) or not f.startswith("data_dst_"):
             continue
@@ -633,7 +613,7 @@ def mp4(workspace):
             if ff.startswith(refer_name):
                 refer_path = os.path.join(data_trash, ff)
                 break
-        VideoEd.video_from_sequence(data_dst_merged, result_path, refer_path, "png", None, None, False)
+        dfl.dfl_video_from_sequence(data_dst_merged, result_path, refer_path)
         return
 
 
