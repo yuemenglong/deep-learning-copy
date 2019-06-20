@@ -391,20 +391,22 @@ def split_aligned(aligned_path):
 def merge_aligned(aligned_path):
     import os
     import shutil
-    batch = 3000
-    count = 0
-    dst_dir = os.path.join(get_root_path(), "extract_workspace", "split_%02d" % int(count / 10000))
-    for f in io.progress_bar_generator(os.listdir(aligned_path)):
-        if not f.endswith(".jpg") and not f.endswith(".png"):
+    if os.path.exists(aligned_path) and os.listdir(aligned_path):
+        io.log_err("Dst Aligned Exists")
+        return
+    if not os.path.exists(aligned_path):
+        os.mkdir(aligned_path)
+    extract_dir = os.path.join(get_root_path(), "extract_workspace")
+    for f in os.listdir(extract_dir):
+        split_dir = os.path.join(extract_dir, f)
+        if not os.path.isdir(split_dir) or not f.startswith("split_"):
             continue
-        if count % batch == 0:
-            dst_dir = os.path.join(get_root_path(), "extract_workspace", "split_%02d" % int(count / 10000))
-            if os.path.exists(dst_dir):
-                raise Exception("Split Dir Exists, " + dst_dir)
-            os.mkdir(dst_dir)
-        src = os.path.join(aligned_path, f)
-        shutil.move(src, dst_dir)
-        count += 1
+        for img in io.progress_bar_generator(os.listdir(split_dir), f):
+            if img.endswith(".jpg") or img.endswith(".png"):
+                src = os.path.join(split_dir, img)
+                dst = aligned_path
+                shutil.move(src, dst)
+        os.rmdir(split_dir)
 
 
 def match_by_pitch(data_src_path, data_dst_path, output_path=None):
@@ -491,9 +493,14 @@ def sort_by_hist(input_path):
 
 
 # noinspection PyUnresolvedReferences
-def sort_by_origname(input_path):
+def recover_filename(input_path):
     from mainscripts import Util
     Util.recover_original_aligned_filename(input_path)
+
+
+def low_prio():
+    from utils import os_utils
+    os_utils.set_process_lowest_prio()
 
 
 def prepare(workspace):
@@ -535,7 +542,7 @@ def prepare(workspace):
         shutil.move(video, data_trash)
 
 
-def train(workspace, target_loss=0.1):
+def train(workspace, target_loss=0.01):
     import os
     from mainscripts import Trainer
     model_path = os.path.join(workspace, "model")
@@ -565,15 +572,9 @@ def train(workspace, target_loss=0.1):
         return
 
 
-def low_prio():
-    from utils import os_utils
-    os_utils.set_process_lowest_prio()
-
-
 def convert(workspace, enable_predef=True):
     import os
     from mainscripts import Converter
-    from mainscripts import VideoEd
     from converters import ConverterMasked
     convert_args = {
         'input_dir': 'D:\\DeepFaceLabCUDA10.1AVX\\workspace\\data_dst',
@@ -593,7 +594,7 @@ def convert(workspace, enable_predef=True):
         data_dst_merged = os.path.join(data_dst, "merged")
         data_dst_aligned = os.path.join(data_dst, "aligned")
         # 恢复排序
-        sort_by_origname(data_dst_aligned)
+        recover_filename(data_dst_aligned)
         # 转换
         convert_args['input_dir'] = data_dst
         convert_args['output_dir'] = data_dst_merged
@@ -602,6 +603,18 @@ def convert(workspace, enable_predef=True):
         Converter.main(convert_args, device_args)
         # 去掉没有脸的
         skip_no_face(data_dst)
+        return
+
+
+def mp4(workspace):
+    import os
+    from mainscripts import VideoEd
+    for f in os.listdir(workspace):
+        if not os.path.isdir(os.path.join(workspace, f)) or not f.startswith("data_dst_"):
+            continue
+        io.log_info(f)
+        data_dst = os.path.join(workspace, f)
+        data_dst_merged = os.path.join(data_dst, "merged")
         # 转mp4
         refer_name = "_".join(f.split("_")[8:])
         refer_path = None
@@ -660,12 +673,16 @@ def main():
                       os.path.join(get_root_path(), "workspace/data_dst/aligned"))
     elif arg == '--split-aligned':
         split_aligned(os.path.join(get_root_path(), "extract_workspace", "aligned_"))
+    elif arg == '--merge-aligned':
+        merge_aligned(os.path.join(get_root_path(), "extract_workspace", "aligned_"))
     elif arg == '--prepare':
         prepare(os.path.join(get_root_path(), "workspace"))
     elif arg == '--train':
         train(os.path.join(get_root_path(), "workspace"))
     elif arg == '--convert':
         convert(os.path.join(get_root_path(), "workspace"))
+    elif arg == '--mp4':
+        mp4(os.path.join(get_root_path(), "workspace"))
     elif arg == '--step':
         step(os.path.join(get_root_path(), "workspace"))
     elif arg == '--auto':
