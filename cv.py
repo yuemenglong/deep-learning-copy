@@ -86,13 +86,13 @@ def cv_scatter(img, xs, ys, xr=None, yr=None, c=None, r=None):
     if not c:
         c = [(128, 128, 128)] * len(xs)
     if not r:
-        r = [(size[0] + size[1]) / 800] * len(xs)
+        r = [int((size[0] + size[1]) / 800)] * len(xs)
     if not xr:
         xr = [min(xs), max(xs)]
     if not yr:
         yr = [min(ys), max(ys)]
-    trans_x: Callable[[Any], Any] = lambda v: (v - xr[0]) / (xr[1] - xr[0]) * size[0]
-    trans_y: Callable[[Any], Any] = lambda v: (v - yr[0]) / (yr[1] - yr[0]) * size[1]
+    trans_x: Callable[[Any], Any] = lambda v: (v - xr[0]) / (xr[1] - xr[0]) * (size[0] - 1)
+    trans_y: Callable[[Any], Any] = lambda v: (v - yr[0]) / (yr[1] - yr[0]) * (size[1] - 1)
     for [x, y, color, radius] in zip(xs, ys, c, r):
         cv_point(img, (trans_x(x), trans_y(y)), color, radius)
     # cv_show(img)

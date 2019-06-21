@@ -176,7 +176,7 @@ def extract():
 
 
 # noinspection PyUnresolvedReferences
-def get_pitch_yaw_roll(input_path):
+def get_pitch_yaw_roll(input_path, r=0.05):
     import os
     import numpy as np
     import cv2
@@ -215,29 +215,16 @@ def get_pitch_yaw_roll(input_path):
 
     import cv
     width = 800
-    trans = lambda x: int((x + 1) * width / 2)
     img = cv.cv_new((width, width))
-    min = trans(-1)
-    max = trans(1)
-    # points
-    for l in img_list:
-        pitch = trans(l[1])
-        yaw = trans(l[2])
-        cv.cv_point(img, (pitch, yaw), (0xcc, 0x66, 0x33), 2)
-    # border
-    for i in range(-10, 10, 2):
-        x = trans(i / 10)
-        thick = 1
-        if i % 4 == 0:
-            thick = 2
-        if i == 0:
-            thick = 3
-        cv.cv_line(img, (min, x), (max, x), (0, 0, 0), thick)
-        cv.cv_line(img, (x, min), (x, max), (0, 0, 0), thick)
+    xs = [i[1] for i in img_list]
+    ys = [i[2] for i in img_list]
+    cs = [(128, 128, 128)] * len(xs)
+    rs = [int(r * width / 2)] * len(xs)
+    cv.cv_scatter(img, xs, ys, [-1, 1], [-1, 1], cs, rs)
+    cs = [(0xcc, 0x66, 0x33)] * len(xs)
+    rs = [2] * len(xs)
+    cv.cv_scatter(img, xs, ys, [-1, 1], [-1, 1], cs, rs)
     cv.cv_save(img, os.path.join(input_path, "_pitch_yaw_roll.bmp"))
-    import shutil
-    # shutil.copy(os.path.join(input_path, "_pitch_yaw_roll.csv"), get_desktop_path())
-    # shutil.copy(os.path.join(input_path, "_pitch_yaw_roll.bmp"), get_desktop_path())
     return img_list
 
 
@@ -366,42 +353,38 @@ def skip_by_pitch(src_path, dst_path):
     # cv.cv_save(img, save_path)
 
 
-def split_aligned(aligned_path):
+def split(input_path, target_path, batch=3000):
     import os
     import shutil
-    batch = 3000
     count = 0
-    dst_dir = os.path.join(get_root_path(), "extract_workspace", "split_%02d" % int(count / batch))
-    for f in io.progress_bar_generator(os.listdir(aligned_path), "Process"):
+    if not os.path.exists(target_path):
+        os.mkdir(target_path)
+    dst_dir = os.path.join(target_path, "split_%02d" % int(count / batch))
+    for f in io.progress_bar_generator(os.listdir(input_path), "Process"):
         if not f.endswith(".jpg") and not f.endswith(".png"):
             continue
         if count % batch == 0:
-            dst_dir = os.path.join(get_root_path(), "extract_workspace", "split_%02d" % int(count / batch))
+            dst_dir = os.path.join(target_path, "split_%02d" % int(count / batch))
             os.mkdir(dst_dir)
-        src = os.path.join(aligned_path, f)
+        src = os.path.join(input_path, f)
         shutil.move(src, dst_dir)
         count += 1
 
 
-def merge_aligned(aligned_path):
+def merge(input_path, target_path):
     import os
     import shutil
-    if os.path.exists(aligned_path) and os.listdir(aligned_path):
-        io.log_err("Dst Aligned Exists")
-        return
-    if not os.path.exists(aligned_path):
-        os.mkdir(aligned_path)
-    extract_dir = os.path.join(get_root_path(), "extract_workspace")
-    for f in os.listdir(extract_dir):
-        split_dir = os.path.join(extract_dir, f)
-        if not os.path.isdir(split_dir) or not f.startswith("split_"):
+    for f in os.listdir(input_path):
+        sub_path = os.path.join(input_path, f)
+        if os.path.abspath(sub_path) == os.path.abspath(target_path):
             continue
-        for img in io.progress_bar_generator(os.listdir(split_dir), f):
-            if img.endswith(".jpg") or img.endswith(".png"):
-                src = os.path.join(split_dir, img)
-                dst = aligned_path
-                shutil.move(src, dst)
-        os.rmdir(split_dir)
+        if os.path.isdir(sub_path):
+            time_str = get_time_str()
+            for img in io.progress_bar_generator(os.listdir(sub_path), f):
+                if img.endswith(".png") or img.endswith(".jpg"):
+                    img_path = os.path.join(sub_path, img)
+                    dst_path = os.path.join(target_path, "%s_%s" % (time_str, img))
+                    shutil.move(img_path, dst_path)
 
 
 def match_by_pitch(data_src_path, data_dst_path, output_path=None):
@@ -456,11 +439,12 @@ def match_by_pitch(data_src_path, data_dst_path, output_path=None):
     io.log_info("%s, %s, %s, %s" % ("Dst Match", len(dst_match), "Dst All", len(dst_img_list)))
 
     # 画图
+    width = 800
     xycr = []
     for idx in range(len(src_img_list)):
         t = src_img_list[idx]
         if idx in src_match:
-            xycr.append([t[1], t[2], (128, 128, 128), int(r * 400)])  # 蓝色，匹配到的
+            xycr.append([t[1], t[2], (128, 128, 128), int(r * width / 2)])  # 蓝色，匹配到的
             shutil.copy(t[0], src_aligned)
         else:
             xycr.append([t[1], t[2], (128, 128, 128), 2])  # 灰色，没匹配到
@@ -471,7 +455,7 @@ def match_by_pitch(data_src_path, data_dst_path, output_path=None):
         else:
             xycr.append([t[1], t[2], (0, 0, 255), 2])  # 红色，删除
             shutil.move(t[0], dst_aligned_trash)
-    img = cv.cv_new((800 + 1, 800 + 1))
+    img = cv.cv_new((width, width))
     xs = [i[0] for i in xycr]
     ys = [i[1] for i in xycr]
     cs = [i[2] for i in xycr]
@@ -578,11 +562,15 @@ def train(workspace, target_loss=0.01):
 
 def convert(workspace, enable_predef=True):
     import os
-    model_dir = os.path.join(workspace, "model")
     for f in os.listdir(workspace):
         if not os.path.isdir(os.path.join(workspace, f)) or not f.startswith("data_dst_"):
             continue
         io.log_info(f)
+        model_dir = os.path.join(workspace, "model")
+        self_model_dir = os.path.join(workspace, f, "model")
+        if os.path.exists(self_model_dir):
+            io.log_info("Use Self Model")
+            model_dir = self_model_dir
         data_dst = os.path.join(workspace, f)
         data_dst_merged = os.path.join(data_dst, "merged")
         data_dst_aligned = os.path.join(data_dst, "aligned")
@@ -624,11 +612,12 @@ def step(workspace):
             model = os.path.join(workspace, "model")
             model_dst = os.path.join(workspace, f, "model")
             if not os.path.exists(model_dst):
+                io.log_info("Move Model Files To %s" % f)
                 os.mkdir(model_dst)
-            for m in os.listdir(model):
-                mf = os.path.join(model, m)
-                if os.path.isfile(mf):
-                    shutil.copy(os.path.join(model, m), model_dst)
+                for m in os.listdir(model):
+                    mf = os.path.join(model, m)
+                    if os.path.isfile(mf):
+                        shutil.copy(os.path.join(model, m), model_dst)
             src = os.path.join(workspace, f)
             dst = os.path.join(workspace, "data_trash")
             io.log_info("Move %s To %s" % (src, dst))
@@ -677,10 +666,6 @@ def main():
     elif arg == '--skip-by-pitch':
         skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
                       os.path.join(get_root_path(), "workspace/data_dst/aligned"))
-    elif arg == '--split-aligned':
-        split_aligned(os.path.join(get_root_path(), "extract_workspace", "aligned_"))
-    elif arg == '--merge-aligned':
-        merge_aligned(os.path.join(get_root_path(), "extract_workspace", "aligned_"))
     elif arg == '--prepare':
         prepare(os.path.join(get_root_path(), "workspace"))
     elif arg == '--train':
@@ -694,20 +679,12 @@ def main():
     elif arg == '--auto':
         auto(os.path.join(get_root_path(), "workspace"))
     else:
-        tpl = """
-        @echo off
-        call _internal\setenv.bat
-        "%PYTHON_EXECUTABLE%" "%DFL_ROOT%\main.py" videoed extract-video ^
-            --input-file "%WORKSPACE%\data_dst.*" ^
-            --output-dir "%WORKSPACE%\data_dst" ^
-            --fps 0
-            """
-        arg = {
-            "--input-file": "%WORKSPACE%\\data_dst.*",
-            "--output-dir": "%WORKSPACE%\\data_dst",
-            "--fps": 0
-        }
-        exec("videoed extract-video", arg)
+        # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace_test", "data_src/aligned"))
+        # split(os.path.join(get_root_path(), "workspace_test/data_src/aligned"),
+        #       os.path.join(get_root_path(), "workspace_test/split"), 100)
+        merge(os.path.join(get_root_path(), "workspace_test/split"),
+              os.path.join(get_root_path(), "workspace_test/data_src/aligned"))
+        pass
 
 
 if __name__ == '__main__':
