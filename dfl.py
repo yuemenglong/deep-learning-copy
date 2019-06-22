@@ -58,3 +58,24 @@ def dfl_exec(cmd, args):
     with open(fpath, "w") as f:
         f.write(s)
     subprocess.call([fpath])
+
+
+def dfl_load_img(path):
+    from pathlib import Path
+    from utils.DFLPNG import DFLPNG
+    from utils.DFLJPG import DFLJPG
+    filepath = Path(path)
+    if filepath.suffix == '.png':
+        dflimg = DFLPNG.load(str(filepath))
+    elif filepath.suffix == '.jpg':
+        dflimg = DFLJPG.load(str(filepath))
+    else:
+        dflimg = None
+    if dflimg is None:
+        io.log_err("%s is not a dfl image file" % (filepath.name))
+    return dflimg
+
+
+def dfl_estimate_pitch_yaw_roll(dfl_img):
+    from facelib import LandmarksProcessor
+    return LandmarksProcessor.estimate_pitch_yaw_roll(dfl_img.get_landmarks())

@@ -529,24 +529,6 @@ def prepare(workspace):
 
 def train(workspace, target_loss=0.01):
     import os
-    from mainscripts import Trainer
-    # "%PYTHON_EXECUTABLE%" "%DFL_ROOT%\main.py"
-    # train ^
-    # --training - data - src - dir
-    # "%WORKSPACE%\data_src\aligned" ^
-    # --training - data - dst - dir
-    # "%WORKSPACE%\data_dst\aligned" ^
-    # --model - dir
-    # "%WORKSPACE%\model" ^
-    # --model
-    # SAE
-    cmd = "train"
-    args = {
-        "--training-data-src-dir": "",
-        "--training-data-dst-dir": "",
-        "--model-dir": "",
-        "--model": "SAE"
-    }
     model_dir = os.path.join(workspace, "model")
     for f in os.listdir(workspace):
         if not os.path.isdir(os.path.join(workspace, f)) or not f.startswith("data_dst_"):
@@ -555,14 +537,8 @@ def train(workspace, target_loss=0.01):
         data_dst = os.path.join(workspace, f)
         data_src_aligned = os.path.join(data_dst, "src")
         data_dst_aligned = os.path.join(data_dst, "aligned")
-        args["--training-data-src-dir"] = data_src_aligned
-        args["--training-data-dst-dir"] = data_dst_aligned
-        args["--model-dir"] = model_dir
         # 训练
-        exec(cmd, args)
-        # train_args['training_data_src_dir'] = data_src_aligned
-        # train_args['training_data_dst_dir'] = data_dst_aligned
-        # Trainer.main(train_args, device_args)
+        dfl.dfl_train(data_src_aligned, data_dst_aligned, model_dir)
         return
 
 
@@ -644,21 +620,41 @@ def auto(workspace):
             io.log_info("Finish " + f)
 
 
-def exec(cmd, args):
-    import subprocess
-    s = ""
-    s += "@echo off\n"
-    s += "call _internal\\setenv.bat\n"
-    s += "\"%PYTHON_EXECUTABLE%\" \"%DFL_ROOT%\\main.py\" " + cmd
-    for k in args:
-        v = args[k]
-        if isinstance(v, str):
-            v = "\"" + v + "\""
-        s += " ^\n    %s %s" % (k, v)
-    fpath = os.path.join(get_root_path(), "@exec.bat")
-    with open(fpath, "w") as f:
-        f.write(s)
-    subprocess.call([fpath])
+def select(exists_path, pool_path, div=200):
+    # 先计算output_path的已有图像
+    import cv
+    import dfl
+    import random
+    width = 800
+    trans = cv.trans_fn(-1, 1, 0, width)
+    img = cv.cv_new((width, width))
+    for f in io.progress_bar_generator(os.listdir(exists_path), "Existing Imgs"):
+        if f.endswith(".png") or f.endswith("jpg"):
+            img_path = os.path.join(exists_path, f)
+            dfl_img = dfl.dfl_load_img(img_path)
+            pitch, yaw, _ = dfl.dfl_estimate_pitch_yaw_roll(dfl_img)
+            pitch = trans(pitch)
+            yaw = trans(yaw)
+            cv.cv_circle(img, (pitch, yaw), (128, 128, 128), width / div, -1)
+    time_str = get_time_str()
+    import shutil
+    pool_files = list(os.listdir(pool_path))
+    random.shuffle(pool_files)
+    count = 0
+    for f in io.progress_bar_generator(pool_files, os.path.basename(pool_path)):
+        if f.endswith(".png") or f.endswith(".jpg"):
+            img_path = os.path.join(pool_path, f)
+            dfl_img = dfl.dfl_load_img(img_path)
+            pitch, yaw, _ = dfl.dfl_estimate_pitch_yaw_roll(dfl_img)
+            pitch = trans(pitch)
+            yaw = trans(yaw)
+            if sum(img[yaw][pitch]) == 255 * 3:
+                dst = os.path.join(exists_path, "%s_%s" % (time_str, f))
+                shutil.copy(img_path, dst)
+                count += 1
+                cv.cv_circle(img, (pitch, yaw), (128, 128, 128), width / div, -1)
+    cv.cv_save(img, os.path.join(exists_path, "_select.bmp"))
+    io.log_info("Copy %d, Total %d" % (count, len(pool_files)))
 
 
 def main():
@@ -685,9 +681,12 @@ def main():
     elif arg == '--auto':
         auto(os.path.join(get_root_path(), "workspace"))
     else:
+        select(os.path.join(get_root_path(), "workspace/data_src/aligned_store"),
+               # os.path.join(get_root_path(), "workspace/data_src/aligned_store_"))
+               os.path.join(get_root_path(), "extract_workspace/_ym/aligned_ym_fuyao"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace_test", "data_src/aligned"))
-        split(os.path.join(get_root_path(), "extract_workspace/all_once/aligned_4k_33_58"),
-              os.path.join(get_root_path(), "extract_workspace/all_once"), 3000)
+        # split(os.path.join(get_root_path(), "extract_workspace/all_once/aligned_4k_33_58"),
+        #       os.path.join(get_root_path(), "extract_workspace/all_once"), 3000)
         # merge(os.path.join(get_root_path(), "workspace_test/split"),
         #       os.path.join(get_root_path(), "workspace_test/data_src/aligned"))
         pass

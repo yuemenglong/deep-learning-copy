@@ -70,7 +70,7 @@ def cv_rect(img, p1, p2, color, thick=1):
 
 def cv_circle(img, center, color, radius, thick=1):
     (x, y) = center
-    cv2.circle(img, (int(x), int(y)), radius, color, thick)
+    cv2.circle(img, (int(x), int(y)), int(radius), color, thick)
 
 
 def cv_point(img, center, color, r=1):
@@ -97,6 +97,10 @@ def cv_scatter(img, xs, ys, xr=None, yr=None, c=None, r=None):
         cv_point(img, (trans_x(x), trans_y(y)), color, radius)
     # cv_show(img)
     return img
+
+
+def trans_fn(from_min, from_max, to_min, to_max):
+    return lambda x: int((x - from_min) / (from_max - from_min) * (to_max - to_min - 1) + to_min)
 
 
 def main():
