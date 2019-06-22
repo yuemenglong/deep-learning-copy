@@ -359,12 +359,12 @@ def split(input_path, target_path, batch=3000):
     count = 0
     if not os.path.exists(target_path):
         os.mkdir(target_path)
-    dst_dir = os.path.join(target_path, "split_%02d" % int(count / batch))
+    dst_dir = os.path.join(target_path, "split_%03d" % int(count / batch))
     for f in io.progress_bar_generator(os.listdir(input_path), "Process"):
         if not f.endswith(".jpg") and not f.endswith(".png"):
             continue
         if count % batch == 0:
-            dst_dir = os.path.join(target_path, "split_%02d" % int(count / batch))
+            dst_dir = os.path.join(target_path, "split_%03d" % int(count / batch))
             os.mkdir(dst_dir)
         src = os.path.join(input_path, f)
         shutil.move(src, dst_dir)
@@ -433,8 +433,6 @@ def match_by_pitch(data_src_path, data_dst_path, output_path=None):
             if ds[idx] > r:
                 break
             src_match.add(idx)
-    if not os.path.exists(src_aligned):
-        os.mkdir(src_aligned)
     io.log_info("%s, %s, %s, %s" % ("Src Match", len(src_match), "Src All", len(src_img_list)))
     io.log_info("%s, %s, %s, %s" % ("Dst Match", len(dst_match), "Dst All", len(dst_img_list)))
 
@@ -462,6 +460,14 @@ def match_by_pitch(data_src_path, data_dst_path, output_path=None):
     rs = [i[3] for i in xycr]
     cv.cv_scatter(img, xs, ys, [-1, 1], [-1, 1], cs, rs)
     cv.cv_save(img, os.path.join(dst_aligned, "_match_by_pitch.bmp"))
+
+    # 加入base
+    base_dir = os.path.join(data_src_path, "aligned_base")
+    if os.path.exists(base_dir):
+        for img in os.listdir(base_dir):
+            if img.endswith(".jpg") or img.endswith(".png"):
+                img_path = os.path.join(base_dir, img)
+                shutil.copy(img_path, src_aligned)
 
 
 # noinspection PyUnresolvedReferences
@@ -680,10 +686,10 @@ def main():
         auto(os.path.join(get_root_path(), "workspace"))
     else:
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace_test", "data_src/aligned"))
-        # split(os.path.join(get_root_path(), "workspace_test/data_src/aligned"),
-        #       os.path.join(get_root_path(), "workspace_test/split"), 100)
-        merge(os.path.join(get_root_path(), "workspace_test/split"),
-              os.path.join(get_root_path(), "workspace_test/data_src/aligned"))
+        split(os.path.join(get_root_path(), "extract_workspace/all_once/aligned_4k_33_58"),
+              os.path.join(get_root_path(), "extract_workspace/all_once"), 3000)
+        # merge(os.path.join(get_root_path(), "workspace_test/split"),
+        #       os.path.join(get_root_path(), "workspace_test/data_src/aligned"))
         pass
 
 
