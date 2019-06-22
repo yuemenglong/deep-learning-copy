@@ -10,7 +10,7 @@ def dfl_train(src_aligned, dst_aligned, model_dir, model="SAE"):
         "--model-dir": model_dir,
         "--model": model,
     }
-    exec(cmd, args)
+    dfl_exec(cmd, args)
 
 
 def dfl_convert(input_dir, output_dir, aligned_dir, model_dir, model="SAE"):
@@ -22,7 +22,7 @@ def dfl_convert(input_dir, output_dir, aligned_dir, model_dir, model="SAE"):
         "--model-dir": model_dir,
         "--model": model,
     }
-    exec(cmd, args)
+    dfl_exec(cmd, args)
 
 
 def dfl_video_from_sequence(input_dir, output_file, reference_file):
@@ -32,7 +32,7 @@ def dfl_video_from_sequence(input_dir, output_file, reference_file):
         "--output-file": output_file,
         "--reference-file": reference_file,
     }
-    exec(cmd, args)
+    dfl_exec(cmd, args)
 
 
 def get_root_path():
@@ -43,7 +43,7 @@ def get_root_path():
     return path
 
 
-def exec(cmd, args):
+def dfl_exec(cmd, args):
     import subprocess
     s = ""
     s += "@echo off\n"
