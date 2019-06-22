@@ -292,27 +292,14 @@ def skip_by_pitch(src_path, dst_path):
     import os
     import shutil
     import cv
-    # src_csv = os.path.join(src_path, csv_name())
-    # dst_csv = os.path.join(dst_path, csv_name())
-    # if not os.path.exists(src_csv):
-    #     get_pitch_yaw_roll(src_path)
-    # if not os.path.exists(dst_csv):
-    #     get_pitch_yaw_roll(dst_path)
+    size = 800
+    r = 10
     src_img_list = get_pitch_yaw_roll(src_path)
     dst_img_list = get_pitch_yaw_roll(dst_path)
-    # with open(src_csv) as f:
-    #     for line in f.readlines():
-    #         [path, pitch, yaw, roll] = line.strip().split(",")
-    #         src_img_list.append([path, float(pitch), float(yaw), float(roll)])
-    # with open(dst_csv) as f:
-    #     for line in f.readlines():
-    #         [path, pitch, yaw, roll] = line.strip().split(",")
-    #         dst_img_list.append([path, float(pitch), float(yaw), float(roll)])
     trash_path = dst_path + "_trash"
     if not os.path.exists(trash_path):
         os.makedirs(trash_path)
-    size = 800
-    r = 20
+
     img = cv.cv_new((size + 1, size + 1))
     trans: Callable[[Any], int] = lambda v: int((v + 1) * size / 2)
     count = 0
@@ -336,21 +323,10 @@ def skip_by_pitch(src_path, dst_path):
             xys.append((x, y, (0xcc, 0x66, 0x33)))
     for (x, y, color) in xys:
         cv.cv_point(img, (x, y), color, 2)
-    # border
-    delta = int(size / 10)
-    for i in range(0, size, delta):
-        x = i
-        thick = 1
-        if i in [delta, 3 * delta, 7 * delta, 9 * delta]:
-            thick = 2
-        if i == delta * 5:
-            thick = 3
-        cv.cv_line(img, (0, x), (size, x), (0, 0, 0), thick)
-        cv.cv_line(img, (x, 0), (x, size), (0, 0, 0), thick)
     # cv.cv_show(img)
-    io.log_info("Out Of Pitch, %d / %d" % (len(dst_img_list), count))
-    # save_path = os.path.join(get_desktop_path(), "skip_by_pitch.bmp")
-    # cv.cv_save(img, save_path)
+    io.log_info("Out Of Pitch, %d / %d" % (count, len(dst_img_list)))
+    save_path = os.path.join(dst_path, "_skip_by_pitch.bmp")
+    cv.cv_save(img, save_path)
 
 
 def split(input_path, target_path, batch=3000):
@@ -514,7 +490,8 @@ def prepare(workspace):
         # fanseg
         Extractor.extract_fanseg(tmp_aligned)
         # 两组人脸匹配
-        match_by_pitch(os.path.join(workspace, "data_src"), tmp_dir, os.path.join(tmp_dir, "src"))
+        skip_by_pitch(os.path.join(workspace, "data_src", "aligned"), os.path.join(tmp_dir, "aligned"))
+        # match_by_pitch(os.path.join(workspace, "data_src"), tmp_dir, os.path.join(tmp_dir, "src"))
         # 排序
         sort_by_hist(tmp_aligned)
         # 重命名
@@ -652,7 +629,7 @@ def select(exists_path, pool_path, div=200):
                 dst = os.path.join(exists_path, "%s_%s" % (time_str, f))
                 shutil.copy(img_path, dst)
                 count += 1
-                cv.cv_circle(img, (pitch, yaw), (128, 128, 128), width / div, -1)
+                cv.cv_circle(img, (pitch, yaw), (0xcc, 0x66, 0x33), width / div, -1)
     cv.cv_save(img, os.path.join(exists_path, "_select.bmp"))
     io.log_info("Copy %d, Total %d" % (count, len(pool_files)))
 
@@ -681,9 +658,11 @@ def main():
     elif arg == '--auto':
         auto(os.path.join(get_root_path(), "workspace"))
     else:
-        select(os.path.join(get_root_path(), "workspace/data_src/aligned_store"),
-               # os.path.join(get_root_path(), "workspace/data_src/aligned_store_"))
-               os.path.join(get_root_path(), "extract_workspace/_ym/aligned_ym_fuyao"))
+        # skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
+        #               os.path.join(get_root_path(), "workspace/data_dst/aligned"))
+        # select(os.path.join(get_root_path(), "workspace/data_src/aligned_store"),
+        # os.path.join(get_root_path(), "workspace/data_src/aligned_store_"))
+        # os.path.join(get_root_path(), "extract_workspace/_ym/aligned_ym_fuyao"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace_test", "data_src/aligned"))
         # split(os.path.join(get_root_path(), "extract_workspace/all_once/aligned_4k_33_58"),
         #       os.path.join(get_root_path(), "extract_workspace/all_once"), 3000)
