@@ -211,7 +211,7 @@ def get_pitch_yaw_roll(input_path, r=0.05):
     img_list.sort(key=lambda item: item[1])
     with open(os.path.join(input_path, "_pitch_yaw_roll.csv"), "w") as f:
         for i in img_list:
-            f.write("%s,%f,%f,%f\n" % (i[0], i[1], i[2], i[3]))
+            f.write("%s,%f,%f,%f\n" % (os.path.basename(i[0]), i[1], i[2], i[3]))
 
     import cv
     width = 800
@@ -245,18 +245,6 @@ def show_landmarks(path):
     for (x, y) in lm:
         cv.cv_point(img, (x, y), (255, 0, 0))
     cv.cv_show(img)
-
-
-def get_extract_pitch_yaw_roll():
-    get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace", "aligned_"))
-
-
-def get_data_src_pitch_yaw_roll():
-    get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace", "data_src", "aligned"))
-
-
-def get_data_dst_pitch_yaw_roll():
-    get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace", "data_dst", "aligned"))
 
 
 def skip_spec_pitch(input_path):
@@ -293,7 +281,7 @@ def skip_by_pitch(src_path, dst_path):
     import shutil
     import cv
     size = 800
-    r = 10
+    r = 20
     src_img_list = get_pitch_yaw_roll(src_path)
     dst_img_list = get_pitch_yaw_roll(dst_path)
     trash_path = dst_path + "_trash"
@@ -313,7 +301,8 @@ def skip_by_pitch(src_path, dst_path):
         x = trans(pitch)
         y = trans(yaw)
         c = img[y, x]
-        if sum(c) == 255 * 3:
+        c_ = img[-y, x]
+        if sum(c) == 255 * 3 and sum(c_) == 255 * 3:
             xys.append((x, y, (0, 0, 0xff)))
             if not os.path.exists(path) or not os.path.exists(trash_path):
                 continue
@@ -363,7 +352,7 @@ def merge(input_path, target_path):
                     shutil.move(img_path, dst_path)
 
 
-def match_by_pitch(data_src_path, data_dst_path, output_path=None):
+def match_by_pitch(data_src_path, data_dst_path):
     r = 0.05
     mn = 1
     mx = 3
@@ -373,7 +362,7 @@ def match_by_pitch(data_src_path, data_dst_path, output_path=None):
     src_aligned_store = os.path.join(data_src_path, "aligned_store")
     if not os.path.exists(src_aligned_store):
         raise Exception("No Src Aligned Store")
-    src_aligned = output_path if output_path is not None else os.path.join(data_src_path, "aligned")
+    src_aligned = os.path.join(data_dst_path, "src")
     if os.path.exists(src_aligned):
         shutil.rmtree(src_aligned)
     os.mkdir(src_aligned)
@@ -491,7 +480,7 @@ def prepare(workspace):
         Extractor.extract_fanseg(tmp_aligned)
         # 两组人脸匹配
         skip_by_pitch(os.path.join(workspace, "data_src", "aligned"), os.path.join(tmp_dir, "aligned"))
-        # match_by_pitch(os.path.join(workspace, "data_src"), tmp_dir, os.path.join(tmp_dir, "src"))
+        # match_by_pitch(os.path.join(workspace, "data_src"), tmp_dir))
         # 排序
         sort_by_hist(tmp_aligned)
         # 重命名
@@ -513,6 +502,8 @@ def train(workspace, target_loss=0.01):
         io.log_info(f)
         data_dst = os.path.join(workspace, f)
         data_src_aligned = os.path.join(data_dst, "src")
+        if not os.path.exists(data_src_aligned):
+            data_src_aligned = os.path.join(workspace, "data_src", "aligned")
         data_dst_aligned = os.path.join(data_dst, "aligned")
         # 训练
         dfl.dfl_train(data_src_aligned, data_dst_aligned, model_dir)
@@ -616,7 +607,7 @@ def select(exists_path, pool_path, div=200):
     time_str = get_time_str()
     import shutil
     pool_files = list(os.listdir(pool_path))
-    random.shuffle(pool_files)
+    # random.shuffle(pool_files)
     count = 0
     for f in io.progress_bar_generator(pool_files, os.path.basename(pool_path)):
         if f.endswith(".png") or f.endswith(".jpg"):
@@ -632,6 +623,26 @@ def select(exists_path, pool_path, div=200):
                 cv.cv_circle(img, (pitch, yaw), (0xcc, 0x66, 0x33), width / div, -1)
     cv.cv_save(img, os.path.join(exists_path, "_select.bmp"))
     io.log_info("Copy %d, Total %d" % (count, len(pool_files)))
+
+
+def sync_trash(trash_path, pool_path):
+    import shutil
+    count = 0
+    for f in io.progress_bar_generator(os.listdir(trash_path), "Trash Files"):
+        if f.endswith(".jpg") or f.endswith(".png"):
+            img_name = f.split("_")[-1]
+            img_path = os.path.join(pool_path, img_name)
+            dst_path = os.path.join(trash_path, "_origin")
+            if os.path.exists(img_path):
+                shutil.move(img_path, dst_path)
+                count += 1
+    io.log_info("Trash %d" % count)
+
+
+def get_first_dst(workspace):
+    for f in os.listdir(workspace):
+        if f.startswith("data_dst_"):
+            return os.path.join(workspace, f)
 
 
 def main():
@@ -658,16 +669,24 @@ def main():
     elif arg == '--auto':
         auto(os.path.join(get_root_path(), "workspace"))
     else:
+        # match_by_pitch(os.path.join(get_root_path(), "workspace/data_src"),
+        #                get_first_dst(os.path.join(get_root_path(), "workspace")))
+        # sync_trash(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_trash"),
+        #            os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_all"))
+
+        # select(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_select"),
+        #        os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_all"))
+
         # skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
         #               os.path.join(get_root_path(), "workspace/data_dst/aligned"))
-        # select(os.path.join(get_root_path(), "workspace/data_src/aligned_store"),
-        # os.path.join(get_root_path(), "workspace/data_src/aligned_store_"))
-        # os.path.join(get_root_path(), "extract_workspace/_ym/aligned_ym_fuyao"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace_test", "data_src/aligned"))
         # split(os.path.join(get_root_path(), "extract_workspace/all_once/aligned_4k_33_58"),
         #       os.path.join(get_root_path(), "extract_workspace/all_once"), 3000)
-        # merge(os.path.join(get_root_path(), "workspace_test/split"),
-        #       os.path.join(get_root_path(), "workspace_test/data_src/aligned"))
+        # merge(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"),
+        #       os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"),)
+        sort_by_hist(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"))
+        # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_all"))
+        # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace/data_src/aligned"))
         pass
 
 
