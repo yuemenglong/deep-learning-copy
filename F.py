@@ -436,13 +436,6 @@ def match_by_pitch(data_src_path, data_dst_path):
 
 
 # noinspection PyUnresolvedReferences
-def sort_by_hist(input_path):
-    import mainscripts.Sorter as Sorter
-    img_list = Sorter.sort_by_hist(input_path)
-    Sorter.final_process(input_path, img_list, [])
-
-
-# noinspection PyUnresolvedReferences
 def recover_filename(input_path):
     from mainscripts import Util
     Util.recover_original_aligned_filename(input_path)
@@ -482,7 +475,7 @@ def prepare(workspace):
         skip_by_pitch(os.path.join(workspace, "data_src", "aligned"), os.path.join(tmp_dir, "aligned"))
         # match_by_pitch(os.path.join(workspace, "data_src"), tmp_dir))
         # 排序
-        sort_by_hist(tmp_aligned)
+        dfl.dfl_sort_by_hist(tmp_aligned)
         # 重命名
         fname = f.replace(ext, "")
         dst_dir = os.path.join(workspace, "data_dst_%s_%s" % (get_time_str(), fname))
@@ -684,7 +677,7 @@ def main():
         #       os.path.join(get_root_path(), "extract_workspace/all_once"), 3000)
         # merge(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"),
         #       os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"),)
-        sort_by_hist(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"))
+        dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_all"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace/data_src/aligned"))
         pass
