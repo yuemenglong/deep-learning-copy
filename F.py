@@ -446,6 +446,112 @@ def low_prio():
     os_utils.set_process_lowest_prio()
 
 
+def manual_select(input_path):
+    import cv
+    import colorsys
+    import cv2
+    import numpy as np
+    import random
+    img_list = []
+    width = 800
+    ratio = 0.8
+    for f in io.progress_bar_generator(os.listdir(input_path), "Loading"):
+        if f.endswith(".jpg") or f.endswith(".png"):
+            fpath = os.path.join(input_path, f)
+            dfl_img = dfl.dfl_load_img(fpath)
+            p, y, _ = dfl.dfl_estimate_pitch_yaw_roll(dfl_img)
+            fno = int(f.split(".")[0])
+            img_list.append([fno, p, y])
+    # for i in range(10000):
+    #     img_list.append([i,
+    #                      random.random() * 2 - 1,
+    #                      random.random() * 2 - 1])
+    img_list = np.array(img_list, "float")
+    cur_list = img_list
+    redius = width / 100 * 2
+
+    trans_pitch_to_x = cv.trans_fn(-1, 1, 0, width)
+    trans_yaw_to_y = cv.trans_fn(-1, 1, 0, width)
+    trans_x_to_pitch = cv.trans_fn(0, width, -1, 1)
+    trans_y_to_yaw = cv.trans_fn(0, width, -1, 1)
+    trans_r = cv.trans_fn(0, width, 0, 2)
+    cur_pitch_yaw = img_list[:, 1:3]
+    img = cv.cv_new((width, width))
+    cur_w = 2
+    cur_mid = (0, 0)
+
+    def repaint():
+        nonlocal trans_pitch_to_x
+        nonlocal trans_yaw_to_y
+        nonlocal trans_x_to_pitch
+        nonlocal trans_y_to_yaw
+        nonlocal trans_r
+        nonlocal cur_pitch_yaw
+        nonlocal cur_list
+        nonlocal img
+        mid = cur_mid
+        w = cur_w
+        sx = mid[0] - w / 2
+        sy = mid[1] - w / 2
+        ex = mid[0] + w / 2
+        ey = mid[1] + w / 2
+        idxs = (img_list[:, 1] >= sx) & \
+               (img_list[:, 2] >= sy) & \
+               (img_list[:, 1] <= ex) & \
+               (img_list[:, 2] <= ey)
+        cur_list = img_list[idxs]
+        trans_pitch_to_x = cv.trans_fn(sx, ex, 0, width)
+        trans_yaw_to_y = cv.trans_fn(sy, ey, 0, width)
+        trans_x_to_pitch = cv.trans_fn(0, width, sx, ex)
+        trans_y_to_yaw = cv.trans_fn(0, width, sy, ey)
+        trans_r = cv.trans_fn(0, width, 0, w)
+        cur_pitch_yaw = cur_list[:, 1:3]
+        img = cv.cv_new((width, width))
+
+        min_fno = int(cur_list[0][0])
+        max_fno = int(cur_list[-1][0])
+        trans_color = cv.trans_fn(min_fno, max_fno, 0, 1)
+        for f, p, y in cur_list:
+            fno = int(f)
+            h = trans_color(fno)
+            s = 1
+            v = 1
+            r, g, b = colorsys.hsv_to_rgb(h, s, v)
+            cv.cv_point(img, (trans_pitch_to_x(p), trans_yaw_to_y(y)), (b * 255, g * 255, r * 255), 2)
+        cv2.imshow("select", img)
+
+    def mouse_callback(event, x, y, flags, param):
+        nonlocal cur_mid
+        nonlocal cur_w
+        x = trans_x_to_pitch(x)
+        y = trans_y_to_yaw(y)
+        if event == cv2.EVENT_LBUTTONDOWN:
+            tr = trans_r(redius)
+            point = np.array([[x, y]] * len(cur_pitch_yaw), "float")
+            dist = np.linalg.norm(cur_pitch_yaw - point, axis=1)
+            idxs = dist <= tr
+            for f, _, _ in cur_list[idxs]:
+                print(f)
+                pass
+            print("-----------------------------------------")
+        elif event == cv2.EVENT_RBUTTONDOWN:
+            cur_mid = (x, y)
+            cur_w = cur_w * ratio
+            repaint()
+        elif event == cv2.EVENT_MBUTTONDOWN:
+            cur_w = cur_w / ratio
+            if cur_w >= 2:
+                cur_w = 2
+                cur_mid = (0, 0)
+            repaint()
+
+    cv2.namedWindow("select")
+    cv2.setMouseCallback("select", mouse_callback)
+    repaint()
+    # cv.cv_show(img)
+    cv2.waitKey()
+
+
 def prepare(workspace):
     import os
     import shutil
@@ -551,7 +657,7 @@ def mp4(workspace):
 def step(workspace):
     import shutil
     for f in os.listdir(workspace):
-        if os.path.isdir(os.path.join(workspace, f)) and f.startswith("data_dst"):
+        if os.path.isdir(os.path.join(workspace, f)) and f.startswith("data_dst_"):
             model = os.path.join(workspace, "model")
             model_dst = os.path.join(workspace, f, "model")
             if not os.path.exists(model_dst):
@@ -677,9 +783,11 @@ def main():
         #       os.path.join(get_root_path(), "extract_workspace/all_once"), 3000)
         # merge(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"),
         #       os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"),)
-        dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"))
+        # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_all"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace/data_src/aligned"))
+        manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_pick"))
+        # dfl.dfl_sort_by_hist(os.path.join(get_root_path(),"workspace_test/data_src/aligned"))
         pass
 
 
