@@ -446,15 +446,23 @@ def low_prio():
     os_utils.set_process_lowest_prio()
 
 
-def manual_select(input_path):
+def manual_select(input_path, src_path=None):
     import cv
     import colorsys
     import cv2
-    import numpy as np
-    import random
     img_list = []
+    src_img_list = []
     width = 800
     ratio = 0.8
+    if src_path:
+        for f in io.progress_bar_generator(os.listdir(src_path), "Loading"):
+            if f.endswith(".jpg") or f.endswith(".png"):
+                fpath = os.path.join(src_path, f)
+                dfl_img = dfl.dfl_load_img(fpath)
+                p, y, _ = dfl.dfl_estimate_pitch_yaw_roll(dfl_img)
+                fno = int(f.split(".")[0])
+                src_img_list.append([fno, p, y])
+                src_img_list.append([fno, p, -y])
     for f in io.progress_bar_generator(os.listdir(input_path), "Loading"):
         if f.endswith(".jpg") or f.endswith(".png"):
             fpath = os.path.join(input_path, f)
@@ -466,8 +474,11 @@ def manual_select(input_path):
     #     img_list.append([i,
     #                      random.random() * 2 - 1,
     #                      random.random() * 2 - 1])
+    src_img_list = np.array(src_img_list, "float")
+    src_cur_list = src_img_list
     img_list = np.array(img_list, "float")
     cur_list = img_list
+    src_r = width / 100 * 2.5
     redius = width / 100 * 2
 
     trans_pitch_to_x = cv.trans_fn(-1, 1, 0, width)
@@ -486,9 +497,11 @@ def manual_select(input_path):
         nonlocal trans_x_to_pitch
         nonlocal trans_y_to_yaw
         nonlocal trans_r
-        nonlocal cur_pitch_yaw
+        nonlocal src_cur_list
         nonlocal cur_list
+        nonlocal cur_pitch_yaw
         nonlocal img
+        nonlocal src_path
         mid = cur_mid
         w = cur_w
         sx = mid[0] - w / 2
@@ -500,17 +513,26 @@ def manual_select(input_path):
                (img_list[:, 1] <= ex) & \
                (img_list[:, 2] <= ey)
         cur_list = img_list[idxs]
+        cur_pitch_yaw = cur_list[:, 1:3]
+        if src_path:
+            idxs = (src_img_list[:, 1] >= sx) & \
+                   (src_img_list[:, 2] >= sy) & \
+                   (src_img_list[:, 1] <= ex) & \
+                   (src_img_list[:, 2] <= ey)
+            src_cur_list = src_img_list[idxs]
+
         trans_pitch_to_x = cv.trans_fn(sx, ex, 0, width)
         trans_yaw_to_y = cv.trans_fn(sy, ey, 0, width)
         trans_x_to_pitch = cv.trans_fn(0, width, sx, ex)
         trans_y_to_yaw = cv.trans_fn(0, width, sy, ey)
         trans_r = cv.trans_fn(0, width, 0, w)
-        cur_pitch_yaw = cur_list[:, 1:3]
         img = cv.cv_new((width, width))
 
         min_fno = int(cur_list[0][0])
         max_fno = int(cur_list[-1][0])
         trans_color = cv.trans_fn(min_fno, max_fno, 0, 1)
+        for _, p, y in src_cur_list:
+            cv.cv_point(img, (trans_pitch_to_x(p), trans_yaw_to_y(y)), (128, 128, 128), src_r * 2 / cur_w)
         for f, p, y in cur_list:
             fno = int(f)
             h = trans_color(fno)
@@ -744,6 +766,16 @@ def get_first_dst(workspace):
             return os.path.join(workspace, f)
 
 
+def auto_skip_by_pitch():
+    workspace = os.path.join(get_root_path(), "workspace")
+    for f in os.listdir(workspace):
+        if f.startswith("data_dst_"):
+            dst = os.path.join(workspace, f, "aligned")
+            src = os.path.join(workspace, "data_src/aligned")
+            skip_by_pitch(src, dst)
+            break
+
+
 def main():
     import sys
 
@@ -786,8 +818,12 @@ def main():
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_all"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace/data_src/aligned"))
-        manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_pick"))
+        manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_all"),
+                      os.path.join(get_root_path(), "workspace/data_src/aligned"))
+        # manual_select(os.path.join(get_root_path(), "workspace/data_src/aligned"),
+        #               os.path.join(get_root_path(), "workspace/data_src/aligned"))
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(),"workspace_test/data_src/aligned"))
+        # auto_skip_by_pitch()
         pass
 
 
