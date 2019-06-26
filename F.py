@@ -454,15 +454,7 @@ def manual_select(input_path, src_path=None):
     src_img_list = []
     width = 800
     ratio = 0.8
-    if src_path:
-        for f in io.progress_bar_generator(os.listdir(src_path), "Loading"):
-            if f.endswith(".jpg") or f.endswith(".png"):
-                fpath = os.path.join(src_path, f)
-                dfl_img = dfl.dfl_load_img(fpath)
-                p, y, _ = dfl.dfl_estimate_pitch_yaw_roll(dfl_img)
-                fno = int(f.split(".")[0])
-                src_img_list.append([fno, p, y])
-                src_img_list.append([fno, p, -y])
+
     for f in io.progress_bar_generator(os.listdir(input_path), "Loading"):
         if f.endswith(".jpg") or f.endswith(".png"):
             fpath = os.path.join(input_path, f)
@@ -474,8 +466,8 @@ def manual_select(input_path, src_path=None):
     #     img_list.append([i,
     #                      random.random() * 2 - 1,
     #                      random.random() * 2 - 1])
-    src_img_list = np.array(src_img_list, "float")
-    src_cur_list = src_img_list
+    src_img_list = []
+    src_cur_list = []
     img_list = np.array(img_list, "float")
     cur_list = img_list
     src_r = width / 100 * 2.5
@@ -490,6 +482,22 @@ def manual_select(input_path, src_path=None):
     img = cv.cv_new((width, width))
     cur_w = 2
     cur_mid = (0, 0)
+
+    def reload_src():
+        nonlocal src_img_list
+        nonlocal src_cur_list
+        src_img_list = []
+        if src_path:
+            for f in io.progress_bar_generator(os.listdir(src_path), "Loading"):
+                if f.endswith(".jpg") or f.endswith(".png"):
+                    fpath = os.path.join(src_path, f)
+                    dfl_img = dfl.dfl_load_img(fpath)
+                    p, y, _ = dfl.dfl_estimate_pitch_yaw_roll(dfl_img)
+                    fno = int(f.split(".")[0])
+                    src_img_list.append([fno, p, y])
+                    src_img_list.append([fno, p, -y])
+        src_img_list = np.array(src_img_list, "float")
+        src_cur_list = src_img_list
 
     def repaint():
         nonlocal trans_pitch_to_x
@@ -532,7 +540,7 @@ def manual_select(input_path, src_path=None):
         max_fno = int(cur_list[-1][0])
         trans_color = cv.trans_fn(min_fno, max_fno, 0, 1)
         for _, p, y in src_cur_list:
-            cv.cv_point(img, (trans_pitch_to_x(p), trans_yaw_to_y(y)), (128, 128, 128), src_r * 2 / cur_w)
+            cv.cv_point(img, (trans_pitch_to_x(p), trans_yaw_to_y(y)), (192, 192, 192), src_r * 2 / cur_w)
         for f, p, y in cur_list:
             fno = int(f)
             h = trans_color(fno)
@@ -567,11 +575,16 @@ def manual_select(input_path, src_path=None):
                 cur_mid = (0, 0)
             repaint()
 
+    reload_src()
     cv2.namedWindow("select")
     cv2.setMouseCallback("select", mouse_callback)
-    repaint()
-    # cv.cv_show(img)
-    cv2.waitKey()
+    while True:
+        repaint()
+        key = cv2.waitKey()
+        if key == 13 or key == -1:
+            break
+        elif key == 114:
+            reload_src()
 
 
 def prepare(workspace):
@@ -818,10 +831,10 @@ def main():
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_all"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace/data_src/aligned"))
-        manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_all"),
-                      os.path.join(get_root_path(), "workspace/data_src/aligned"))
-        # manual_select(os.path.join(get_root_path(), "workspace/data_src/aligned"),
+        # manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ym_fuyao"),
         #               os.path.join(get_root_path(), "workspace/data_src/aligned"))
+        manual_select(os.path.join(get_root_path(), "workspace/data_src/aligned"),
+                      os.path.join(get_root_path(), "workspace/data_src/aligned"))
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(),"workspace_test/data_src/aligned"))
         # auto_skip_by_pitch()
         pass
