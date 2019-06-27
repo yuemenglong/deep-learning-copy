@@ -789,6 +789,34 @@ def auto_skip_by_pitch():
             break
 
 
+def auto_extract_to_img():
+    workspace = os.path.join(get_root_path(), "workspace")
+    data_dst = None
+    for f in os.listdir(workspace):
+        if f.startswith("data_dst_"):
+            data_dst = f
+            break
+    io.log_info(data_dst)
+    video_name = None
+    if data_dst is not None:
+        name = "_".join(data_dst.split("_")[8:])
+        print(name)
+        for f in os.listdir(os.path.join(workspace, "data_trash")):
+            if f.startswith(name):
+                video_name = f
+                break
+    io.log_info(video_name)
+    if video_name is not None:
+        video_path = os.path.join(workspace, "data_trash", video_name)
+        data_dst_path = os.path.join(workspace, data_dst)
+        io.log_info(video_path)
+        io.log_info(data_dst_path)
+        for f in io.progress_bar_generator(os.listdir(data_dst_path), "Remove"):
+            if f.endswith(".jpg") or f.endswith(".png"):
+                os.remove(os.path.join(data_dst_path, f))
+        dfl.dfl_extract_video(video_path, data_dst_path)
+
+
 def main():
     import sys
 
@@ -824,8 +852,8 @@ def main():
         # skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
         #               os.path.join(get_root_path(), "workspace/data_dst/aligned"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace_test", "data_src/aligned"))
-        # split(os.path.join(get_root_path(), "extract_workspace/all_once/aligned_4k_33_58"),
-        #       os.path.join(get_root_path(), "extract_workspace/all_once"), 3000)
+        # split(os.path.join(get_root_path(), "extract_workspace/_/_chuang_ye_4k/all"),
+        #       os.path.join(get_root_path(), "extract_workspace/_/_chuang_ye_4k/split"), 3000)
         # merge(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"),
         #       os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"),)
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"))
@@ -833,10 +861,11 @@ def main():
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace/data_src/aligned"))
         # manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ym_fuyao"),
         #               os.path.join(get_root_path(), "workspace/data_src/aligned"))
-        manual_select(os.path.join(get_root_path(), "workspace/data_src/aligned"),
-                      os.path.join(get_root_path(), "workspace/data_src/aligned"))
-        # dfl.dfl_sort_by_hist(os.path.join(get_root_path(),"workspace_test/data_src/aligned"))
+        # manual_select(os.path.join(get_root_path(), "workspace/data_src/aligned"),
+        #               os.path.join(get_root_path(), "workspace/data_src/aligned"))
+        # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/_/_chuang_ye_4k/aligned_ab_31_"))
         # auto_skip_by_pitch()
+        auto_extract_to_img()
         pass
 
 

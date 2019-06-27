@@ -44,6 +44,25 @@ def dfl_video_from_sequence(input_dir, output_file, reference_file):
     dfl_exec(cmd, args)
 
 
+def dfl_extract_video(input_file, output_dir, fps=0):
+    # "%PYTHON_EXECUTABLE%" "%DFL_ROOT%\main.py"
+    # videoed
+    # extract - video ^
+    # --input - file
+    # "%WORKSPACE%\data_dst.*" ^
+    # --output - dir
+    # "%WORKSPACE%\data_dst" ^
+    # --fps
+    # 0
+    cmd = "videoed extract-video"
+    args = {
+        "--input-file": input_file,
+        "--output-dir": output_dir,
+        "--fps": fps,
+    }
+    dfl_exec(cmd, args)
+
+
 def get_root_path():
     import os
     path = __file__
