@@ -587,7 +587,7 @@ def manual_select(input_path, src_path=None):
             reload_src()
 
 
-def prepare(workspace):
+def prepare(workspace, detector="s3fd"):
     import os
     import shutil
     from mainscripts import Extractor
@@ -609,7 +609,7 @@ def prepare(workspace):
         # 提取帧
         VideoEd.extract_video(video, tmp_dir, "png", 0)
         # 提取人脸
-        Extractor.main(tmp_dir, tmp_aligned, detector='s3fd')
+        Extractor.main(tmp_dir, tmp_aligned, detector=detector)
         # fanseg
         Extractor.extract_fanseg(tmp_aligned)
         # 两组人脸匹配
@@ -841,6 +841,7 @@ def main():
     elif arg == '--auto':
         auto(os.path.join(get_root_path(), "workspace"))
     else:
+        prepare(os.path.join(get_root_path(), "workspace"), "manual")
         # match_by_pitch(os.path.join(get_root_path(), "workspace/data_src"),
         #                get_first_dst(os.path.join(get_root_path(), "workspace")))
         # sync_trash(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_trash"),
@@ -859,13 +860,13 @@ def main():
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_all"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace/data_src/aligned"))
-        # manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ym_fuyao"),
+        # manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_all"),
         #               os.path.join(get_root_path(), "workspace/data_src/aligned"))
         # manual_select(os.path.join(get_root_path(), "workspace/data_src/aligned"),
         #               os.path.join(get_root_path(), "workspace/data_src/aligned"))
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/_/_chuang_ye_4k/aligned_ab_31_"))
         # auto_skip_by_pitch()
-        auto_extract_to_img()
+        # auto_extract_to_img()
         pass
 
 
