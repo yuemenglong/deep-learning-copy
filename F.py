@@ -493,7 +493,6 @@ def manual_select(input_path, src_path=None):
                     fpath = os.path.join(src_path, f)
                     dfl_img = dfl.dfl_load_img(fpath)
                     p, y, _ = dfl.dfl_estimate_pitch_yaw_roll(dfl_img)
-                    fno = int(f.split(".")[0])
                     src_img_list.append([fno, p, y])
                     src_img_list.append([fno, p, -y])
         src_img_list = np.array(src_img_list, "float")
@@ -611,7 +610,7 @@ def prepare(workspace, detector="s3fd"):
         # 提取人脸
         Extractor.main(tmp_dir, tmp_aligned, detector=detector)
         # fanseg
-        Extractor.extract_fanseg(tmp_aligned)
+        # Extractor.extract_fanseg(tmp_aligned)
         # 两组人脸匹配
         skip_by_pitch(os.path.join(workspace, "data_src", "aligned"), os.path.join(tmp_dir, "aligned"))
         # match_by_pitch(os.path.join(workspace, "data_src"), tmp_dir))
@@ -830,10 +829,13 @@ def main():
                       os.path.join(get_root_path(), "workspace/data_dst/aligned"))
     elif arg == '--prepare':
         prepare(os.path.join(get_root_path(), "workspace"))
+    elif arg == '--prepare-manual':
+        prepare(os.path.join(get_root_path(), "workspace"), "manual")
     elif arg == '--train':
         train(os.path.join(get_root_path(), "workspace"))
     elif arg == '--convert':
         convert(os.path.join(get_root_path(), "workspace"))
+        mp4(os.path.join(get_root_path(), "workspace"))
     elif arg == '--mp4':
         mp4(os.path.join(get_root_path(), "workspace"))
     elif arg == '--step':
@@ -841,7 +843,7 @@ def main():
     elif arg == '--auto':
         auto(os.path.join(get_root_path(), "workspace"))
     else:
-        prepare(os.path.join(get_root_path(), "workspace"), "manual")
+        # prepare(os.path.join(get_root_path(), "workspace"), "manual")
         # match_by_pitch(os.path.join(get_root_path(), "workspace/data_src"),
         #                get_first_dst(os.path.join(get_root_path(), "workspace")))
         # sync_trash(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_trash"),
@@ -855,16 +857,16 @@ def main():
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace_test", "data_src/aligned"))
         # split(os.path.join(get_root_path(), "extract_workspace/_/_chuang_ye_4k/all"),
         #       os.path.join(get_root_path(), "extract_workspace/_/_chuang_ye_4k/split"), 3000)
-        # merge(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"),
-        #       os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"),)
+        # merge(os.path.join(get_root_path(), "extract_workspace/_/_chuang_ye_4k/split/fin"),
+        #       os.path.join(get_root_path(), "extract_workspace/_/_chuang_ye_4k/all"),)
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_all"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace/data_src/aligned"))
-        # manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_all"),
-        #               os.path.join(get_root_path(), "workspace/data_src/aligned"))
+        manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"),
+                      os.path.join(get_root_path(), "workspace_ab/data_src/aligned"))
         # manual_select(os.path.join(get_root_path(), "workspace/data_src/aligned"),
         #               os.path.join(get_root_path(), "workspace/data_src/aligned"))
-        # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/_/_chuang_ye_4k/aligned_ab_31_"))
+        # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"))
         # auto_skip_by_pitch()
         # auto_extract_to_img()
         pass
