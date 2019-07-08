@@ -155,7 +155,7 @@ def extract():
         input_dir = output_dir
         output_dir = os.path.join(extract_workspace, "_current")
         debug_dir = os.path.join(extract_workspace, "debug")
-        min_pixel = 512 if fps % 5 == 0 and fps != 0 else 256
+        min_pixel = 512
         Extractor.main(input_dir, output_dir, debug_dir, "s3fd", min_pixel=min_pixel)
         # fanseg
         io.log_info("@@@@@  Start FanSeg %s, %d / %d" % (file, pos, len(files)))
@@ -610,10 +610,9 @@ def prepare(workspace, detector="s3fd"):
         # 提取人脸
         Extractor.main(tmp_dir, tmp_aligned, detector=detector)
         # fanseg
-        # Extractor.extract_fanseg(tmp_aligned)
+        Extractor.extract_fanseg(tmp_aligned)
         # 两组人脸匹配
         skip_by_pitch(os.path.join(workspace, "data_src", "aligned"), os.path.join(tmp_dir, "aligned"))
-        # match_by_pitch(os.path.join(workspace, "data_src"), tmp_dir))
         # 排序
         dfl.dfl_sort_by_hist(tmp_aligned)
         # 重命名
@@ -816,6 +815,16 @@ def auto_extract_to_img():
         dfl.dfl_extract_video(video_path, data_dst_path)
 
 
+def auto_fanseg():
+    from mainscripts import Extractor
+    workspace = os.path.join(get_root_path(), "workspace")
+    for f in os.listdir(workspace):
+        if f.startswith("data_dst_"):
+            dst = os.path.join(workspace, f, "aligned")
+            Extractor.extract_fanseg(dst)
+            break
+
+
 def main():
     import sys
 
@@ -862,13 +871,14 @@ def main():
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_all"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace/data_src/aligned"))
-        manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"),
-                      os.path.join(get_root_path(), "workspace_ab/data_src/aligned"))
+        # manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"),
+        #               os.path.join(get_root_path(), "workspace_ab/data_src/aligned"))
         # manual_select(os.path.join(get_root_path(), "workspace/data_src/aligned"),
         #               os.path.join(get_root_path(), "workspace/data_src/aligned"))
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"))
         # auto_skip_by_pitch()
         # auto_extract_to_img()
+        auto_fanseg()
         pass
 
 
