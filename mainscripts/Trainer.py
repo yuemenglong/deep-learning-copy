@@ -82,6 +82,7 @@ def trainerThread (s2c, c2s, args, device_args):
                         model.load_weights_safe(weights_to_load)
                         io.log_info("Crash And Try Restore....")
                 if loss_src_mean <= 1 and loss_dst_mean <= 1 and loss_src <= 1 and loss_dst <= 1:
+                    F.backup_model_move(model_name, model_path)
                     F.backup_model(model_name, model_path)
 
 

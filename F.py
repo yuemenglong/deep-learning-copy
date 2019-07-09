@@ -84,6 +84,23 @@ def backup_model(model_name, model_path):
             shutil.copy(src, dst)
 
 
+def backup_model_move(model_name, model_path):
+    import os
+    import shutil
+    move_path = os.path.join(model_path, "backup_move")
+    if os.path.exists(move_path):
+        shutil.rmtree(move_path)
+    os.mkdir(move_path)
+    backup_path = os.path.join(model_path, "backup")
+    for file in os.listdir(backup_path):
+        if os.path.isdir(os.path.join(model_path, file)):
+            continue
+        if file.startswith(model_name):
+            src = os.path.join(backup_path, file)
+            dst = os.path.join(move_path, file)
+            shutil.move(src, dst)
+
+
 def has_backup(model_name, model_path):
     import os
     backup_path = os.path.join(model_path, "backup")
