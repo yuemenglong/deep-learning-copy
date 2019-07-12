@@ -659,7 +659,7 @@ def train(workspace, target_loss=0.01):
         return
 
 
-def convert(workspace, enable_predef=True):
+def convert(workspace, skip=True):
     import os
     for f in os.listdir(workspace):
         if not os.path.isdir(os.path.join(workspace, f)) or not f.startswith("data_dst_"):
@@ -679,7 +679,8 @@ def convert(workspace, enable_predef=True):
         dfl.dfl_convert(data_dst, data_dst_merged, data_dst_aligned, model_dir)
         # ConverterMasked.enable_predef = enable_predef
         # 去掉没有脸的
-        skip_no_face(data_dst)
+        if skip:
+            skip_no_face(data_dst)
         return
 
 
@@ -697,9 +698,12 @@ def mp4(workspace):
         result_path = os.path.join(workspace, "result_%s_%s.mp4" % (get_time_str(), refer_name))
         data_trash = os.path.join(workspace, "data_trash")
         for ff in os.listdir(data_trash):
-            if ff.startswith(refer_name):
+            if ff.startswith(refer_name + "."):
                 refer_path = os.path.join(data_trash, ff)
                 break
+        if not refer_path:
+            io.log_err("No Refer Path")
+            return
         dfl.dfl_video_from_sequence(data_dst_merged, result_path, refer_path)
         return
 
@@ -857,10 +861,14 @@ def main():
         prepare(os.path.join(get_root_path(), "workspace"))
     elif arg == '--prepare-manual':
         prepare(os.path.join(get_root_path(), "workspace"), "manual")
+        train(os.path.join(get_root_path(), "workspace"))
     elif arg == '--train':
         train(os.path.join(get_root_path(), "workspace"))
     elif arg == '--convert':
         convert(os.path.join(get_root_path(), "workspace"))
+        mp4(os.path.join(get_root_path(), "workspace"))
+    elif arg == '--convert-no-skip':
+        convert(os.path.join(get_root_path(), "workspace"), False)
         mp4(os.path.join(get_root_path(), "workspace"))
     elif arg == '--mp4':
         mp4(os.path.join(get_root_path(), "workspace"))
