@@ -87,11 +87,13 @@ def backup_model(model_name, model_path):
 def backup_model_move(model_name, model_path):
     import os
     import shutil
+    backup_path = os.path.join(model_path, "backup")
+    if not os.path.exists(backup_path):
+        return
     move_path = os.path.join(model_path, "backup_move")
     if os.path.exists(move_path):
         shutil.rmtree(move_path)
     os.mkdir(move_path)
-    backup_path = os.path.join(model_path, "backup")
     for file in os.listdir(backup_path):
         if os.path.isdir(os.path.join(model_path, file)):
             continue
@@ -129,7 +131,7 @@ def restore_model(model_name, model_path):
             shutil.copy(src, dst)
 
 
-def extract():
+def extract(min_pixel=512):
     import os
     import shutil
     from mainscripts import VideoEd
@@ -172,7 +174,6 @@ def extract():
         input_dir = output_dir
         output_dir = os.path.join(extract_workspace, "_current")
         debug_dir = os.path.join(extract_workspace, "debug")
-        min_pixel = 512
         Extractor.main(input_dir, output_dir, debug_dir, "s3fd", min_pixel=min_pixel)
         # fanseg
         io.log_info("@@@@@  Start FanSeg %s, %d / %d" % (file, pos, len(files)))
@@ -836,6 +837,11 @@ def auto_extract_to_img():
         dfl.dfl_extract_video(video_path, data_dst_path)
 
 
+def fanseg(align_dir):
+    from mainscripts import Extractor
+    Extractor.extract_fanseg(align_dir)
+
+
 def auto_fanseg():
     from mainscripts import Extractor
     workspace = os.path.join(get_root_path(), "workspace")
@@ -853,13 +859,15 @@ def main():
     if arg == '--skip-no-face':
         skip_no_face(os.path.join(get_root_path(), "workspace", "data_dst"))
     elif arg == '--extract':
-        extract()
+        extract(0)
     elif arg == '--skip-by-pitch':
         skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
                       os.path.join(get_root_path(), "workspace/data_dst/aligned"))
     elif arg == '--prepare':
         prepare(os.path.join(get_root_path(), "workspace"))
     elif arg == '--prepare-manual':
+        prepare(os.path.join(get_root_path(), "workspace"), "manual")
+    elif arg == '--prepare-manual-train':
         prepare(os.path.join(get_root_path(), "workspace"), "manual")
         train(os.path.join(get_root_path(), "workspace"))
     elif arg == '--train':
@@ -903,7 +911,12 @@ def main():
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"))
         # auto_skip_by_pitch()
         # auto_extract_to_img()
-        auto_fanseg()
+        # fanseg(os.path.join(get_root_path(), "extract_workspace", "aligned_ty"))
+        # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace", "aligned_fj_all"))
+        # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace", "aligned_ty"))
+        split(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"),
+              os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all")
+              )
         pass
 
 
