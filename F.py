@@ -618,10 +618,12 @@ def prepare(workspace, detector="s3fd"):
         # 获取所有的data_dst文件
         tmp_dir = os.path.join(workspace, "_tmp")
         tmp_aligned = os.path.join(tmp_dir, "aligned")
+        tmp_video_dir = os.path.join(tmp_dir, "video")
         if os.path.exists(tmp_dir):
             shutil.rmtree(tmp_dir)
         if not os.path.exists(tmp_dir):
             os.mkdir(tmp_dir)
+            os.mkdir(tmp_video_dir)
         video = os.path.join(workspace, f)
         # 提取帧
         VideoEd.extract_video(video, tmp_dir, "png", 0)
@@ -633,10 +635,13 @@ def prepare(workspace, detector="s3fd"):
         skip_by_pitch(os.path.join(workspace, "data_src", "aligned"), os.path.join(tmp_dir, "aligned"))
         # 排序
         dfl.dfl_sort_by_hist(tmp_aligned)
+        # 保存video
+        shutil.copy(video, tmp_video_dir)
         # 重命名
         fname = f.replace(ext, "")
         dst_dir = os.path.join(workspace, "data_dst_%s_%s" % (get_time_str(), fname))
         shutil.move(tmp_dir, dst_dir)
+        # 移动video
         data_trash = os.path.join(workspace, "data_trash")
         if not os.path.exists(data_trash):
             os.mkdir(data_trash)
@@ -693,18 +698,27 @@ def mp4(workspace):
         io.log_info(f)
         data_dst = os.path.join(workspace, f)
         data_dst_merged = os.path.join(data_dst, "merged")
+        data_dst_video = os.path.join(data_dst, "video")
         # 转mp4
-        refer_name = "_".join(f.split("_")[8:])
         refer_path = None
-        result_path = os.path.join(workspace, "result_%s_%s.mp4" % (get_time_str(), refer_name))
-        data_trash = os.path.join(workspace, "data_trash")
-        for ff in os.listdir(data_trash):
-            if ff.startswith(refer_name + "."):
-                refer_path = os.path.join(data_trash, ff)
+        for v in os.listdir(data_dst_video):
+            if v.split(".")[-1] in ["mp4", "avi", "wmv", "mkv"]:
+                refer_path = os.path.join(data_dst_video, v)
                 break
         if not refer_path:
-            io.log_err("No Refer Path")
+            io.log_err("No Refer File In " + data_dst_video)
             return
+        refer_name = os.path.basename(refer_path).split(".")[0]
+        result_path = os.path.join(workspace, "result_%s_%s.mp4" % (get_time_str(), refer_name))
+
+        # data_trash = os.path.join(workspace, "data_trash")
+        # for ff in os.listdir(data_trash):
+        #     if ff.startswith(refer_name + "."):
+        #         refer_path = os.path.join(data_trash, ff)
+        #         break
+        # if not refer_path:
+        #     io.log_err("No Refer Path")
+        #     return
         dfl.dfl_video_from_sequence(data_dst_merged, result_path, refer_path)
         return
 
