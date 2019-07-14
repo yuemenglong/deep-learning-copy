@@ -156,6 +156,7 @@ if __name__ == "__main__":
                 'model_dir'   : arguments.model_dir,
                 'model_name'  : arguments.model_name,
                 'debug'       : arguments.debug,
+                'enable_predef'       : arguments.enable_predef,
                 }
         device_args = {'cpu_only'  : arguments.cpu_only,
                        'force_gpu_idx' : arguments.force_gpu_idx,
@@ -173,6 +174,7 @@ if __name__ == "__main__":
     p.add_argument('--debug', action="store_true", dest="debug", default=False, help="Debug converter.")
     p.add_argument('--force-gpu-idx', type=int, dest="force_gpu_idx", default=-1, help="Force to choose this GPU idx.")
     p.add_argument('--cpu-only', action="store_true", dest="cpu_only", default=False, help="Convert on CPU.")
+    p.add_argument('--enable-predef', action="store_true", dest="enable_predef", default=False, help="Enable Predef.")
     p.set_defaults(func=process_convert)
 
     videoed_parser = subparsers.add_parser( "videoed", help="Video processing.").add_subparsers()

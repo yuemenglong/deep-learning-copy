@@ -13,7 +13,7 @@ def dfl_train(src_aligned, dst_aligned, model_dir, model="SAE"):
     dfl_exec(cmd, args)
 
 
-def dfl_convert(input_dir, output_dir, aligned_dir, model_dir, model="SAE"):
+def dfl_convert(input_dir, output_dir, aligned_dir, model_dir, enable_predef=True, model="SAE"):
     cmd = "convert"
     args = {
         "--input-dir": input_dir,
@@ -22,6 +22,8 @@ def dfl_convert(input_dir, output_dir, aligned_dir, model_dir, model="SAE"):
         "--model-dir": model_dir,
         "--model": model,
     }
+    if enable_predef:
+        args["--enable-predef"] = ""
     dfl_exec(cmd, args)
 
 
@@ -81,7 +83,10 @@ def dfl_exec(cmd, args):
         v = args[k]
         if isinstance(v, str):
             v = "\"" + v + "\""
-        s += " ^\n    %s %s" % (k, v)
+        if len(v) == 2:
+            s += " ^\n    %s" % k
+        else:
+            s += " ^\n    %s %s" % (k, v)
     fpath = os.path.join(get_root_path(), "@exec.bat")
     with open(fpath, "w") as f:
         f.write(s)

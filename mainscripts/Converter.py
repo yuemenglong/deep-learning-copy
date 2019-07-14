@@ -226,9 +226,13 @@ class ConvertSubprocessor(Subprocessor):
 def main (args, device_args):
     io.log_info ("Running converter.\r\n")
 
+    from converters import ConverterMasked
+    if args['enable_predef']:
+        ConverterMasked.enable_predef = True
+
     aligned_dir = args.get('aligned_dir', None)
     avaperator_aligned_dir = args.get('avaperator_aligned_dir', None)
-    
+
     try:
         input_path = Path(args['input_dir'])
         output_path = Path(args['output_dir'])

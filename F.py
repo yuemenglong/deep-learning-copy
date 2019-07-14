@@ -904,8 +904,8 @@ def main():
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_all"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace/data_src/aligned"))
-        # manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"),
-        #               os.path.join(get_root_path(), "workspace_ab/data_src/aligned"))
+        manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_fj_all"),
+                      os.path.join(get_root_path(), "workspace_fj/data_src/aligned"))
         # manual_select(os.path.join(get_root_path(), "workspace/data_src/aligned"),
         #               os.path.join(get_root_path(), "workspace/data_src/aligned"))
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"))
@@ -914,9 +914,9 @@ def main():
         # fanseg(os.path.join(get_root_path(), "extract_workspace", "aligned_ty"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace", "aligned_fj_all"))
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace", "aligned_ty"))
-        split(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"),
-              os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all")
-              )
+        # split(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"),
+        #       os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all")
+        #       )
         pass
 
 
