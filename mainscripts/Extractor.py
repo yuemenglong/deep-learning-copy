@@ -431,6 +431,7 @@ class ExtractSubprocessor(Subprocessor):
                         new_y = self.y
                         new_rect_size = self.rect_size
 
+                        right_btn_down = False
                         mouse_events = io.get_mouse_events(self.wnd_name)
                         for ev in mouse_events:
                             (x, y, ev, flags) = ev
@@ -441,6 +442,8 @@ class ExtractSubprocessor(Subprocessor):
                             elif ev == io.EVENT_LBUTTONDOWN:
                                 self.rect_locked = not self.rect_locked
                                 self.extract_needed = True
+                            elif ev == io.EVENT_RBUTTONDOWN:
+                                right_btn_down = True
                             elif not self.rect_locked:
                                 new_x = np.clip (x, 0, w-1) / self.view_scale
                                 new_y = np.clip (y, 0, h-1) / self.view_scale
@@ -448,7 +451,7 @@ class ExtractSubprocessor(Subprocessor):
                         key_events = io.get_key_events(self.wnd_name)
                         key, chr_key, ctrl_pressed, alt_pressed, shift_pressed = key_events[-1] if len(key_events) > 0 else (0,0,False,False,False)
 
-                        if key == ord('f') and self.rect_locked:
+                        if (key == ord('f') or right_btn_down) and self.rect_locked:
                             # confirm frame
                             is_frame_done = True
                             self.last_outer = self.temp_outer
@@ -487,7 +490,8 @@ class ExtractSubprocessor(Subprocessor):
                                     break
                                 else:
                                     self.auto = False
-                                    print('\a')
+                                    for i in range(10):
+                                        print('\a')
                         elif key == ord('\r') or key == ord('\n'):
                             # confirm frame
                             is_frame_done = True

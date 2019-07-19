@@ -539,7 +539,9 @@ def manual_select(input_path, src_path=None):
                (img_list[:, 2] <= ey)
         cur_list = img_list[idxs]
         cur_pitch_yaw = cur_list[:, 1:3]
-        if src_path:
+        if len(src_img_list) == 0:
+            src_cur_list = []
+        elif src_path:
             idxs = (src_img_list[:, 1] >= sx) & \
                    (src_img_list[:, 2] >= sy) & \
                    (src_img_list[:, 1] <= ex) & \
@@ -604,7 +606,7 @@ def manual_select(input_path, src_path=None):
             reload_src()
 
 
-def prepare(workspace, detector="s3fd"):
+def prepare(workspace, detector="mt"):
     import os
     import shutil
     from mainscripts import Extractor
@@ -628,6 +630,8 @@ def prepare(workspace, detector="s3fd"):
         # 提取帧
         VideoEd.extract_video(video, tmp_dir, "png", 0)
         # 提取人脸
+        if detector == "manual":
+            print('\a')
         Extractor.main(tmp_dir, tmp_aligned, detector=detector)
         # fanseg
         Extractor.extract_fanseg(tmp_aligned)
@@ -866,6 +870,28 @@ def auto_fanseg():
             break
 
 
+def merge_dst_aligned():
+    import shutil
+    workspace = os.path.join(get_root_path(), "workspace")
+    counter = 0
+    target_dst = os.path.join(workspace, "data_dst")
+    if os.path.exists(target_dst):
+        shutil.rmtree(target_dst)
+    target_dst_aligned = os.path.join(target_dst, "aligned")
+    os.makedirs(target_dst_aligned)
+    for f in os.listdir(workspace):
+        dst_path = os.path.join(workspace, f)
+        if os.path.isdir(dst_path) and f.startswith("data_dst_"):
+            counter += 1
+            dst_aligned = os.path.join(dst_path, "aligned")
+            for img in io.progress_bar_generator(os.listdir(dst_aligned), "Process"):
+                if img.endswith(".png") or img.endswith(".jpg"):
+                    img_path = os.path.join(dst_aligned, img)
+                    base_name = os.path.basename(img_path)
+                    dst_img_path = os.path.join(target_dst_aligned, "%d_%s" % (counter, base_name))
+                    shutil.copy(img_path, dst_img_path)
+
+
 def main():
     import sys
 
@@ -898,6 +924,8 @@ def main():
         step(os.path.join(get_root_path(), "workspace"))
     elif arg == '--auto':
         auto(os.path.join(get_root_path(), "workspace"))
+    elif arg == '--merge-dst-aligned':
+        merge_dst_aligned()
     else:
         # prepare(os.path.join(get_root_path(), "workspace"), "manual")
         # match_by_pitch(os.path.join(get_root_path(), "workspace/data_src"),
@@ -913,13 +941,13 @@ def main():
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace_test", "data_src/aligned"))
         # split(os.path.join(get_root_path(), "extract_workspace/_/_chuang_ye_4k/all"),
         #       os.path.join(get_root_path(), "extract_workspace/_/_chuang_ye_4k/split"), 3000)
-        # merge(os.path.join(get_root_path(), "extract_workspace/_/_chuang_ye_4k/split/fin"),
-        #       os.path.join(get_root_path(), "extract_workspace/_/_chuang_ye_4k/all"),)
+        # merge(os.path.join(get_root_path(), "extract_workspace/aligned_reba_all/fin"),
+        #       os.path.join(get_root_path(), "extract_workspace/aligned_reba_all"),)
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_all"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace/data_src/aligned"))
-        manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_fj_all"),
-                      os.path.join(get_root_path(), "workspace_fj/data_src/aligned"))
+        # manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_rb_all"),
+        #               os.path.join(get_root_path(), "workspace_rb/data_src/aligned"))
         # manual_select(os.path.join(get_root_path(), "workspace/data_src/aligned"),
         #               os.path.join(get_root_path(), "workspace/data_src/aligned"))
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"))
@@ -928,9 +956,10 @@ def main():
         # fanseg(os.path.join(get_root_path(), "extract_workspace", "aligned_ty"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace", "aligned_fj_all"))
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace", "aligned_ty"))
-        # split(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"),
-        #       os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all")
+        # split(os.path.join(get_root_path(), "extract_workspace/aligned_reba_all"),
+        #       os.path.join(get_root_path(), "extract_workspace/aligned_reba_all")
         #       )
+        merge_dst_aligned()
         pass
 
 
