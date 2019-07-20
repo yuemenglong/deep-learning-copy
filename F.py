@@ -635,10 +635,11 @@ def prepare(workspace, detector="mt"):
         Extractor.main(tmp_dir, tmp_aligned, detector=detector)
         # fanseg
         Extractor.extract_fanseg(tmp_aligned)
-        # 两组人脸匹配
-        skip_by_pitch(os.path.join(workspace, "data_src", "aligned"), os.path.join(tmp_dir, "aligned"))
-        # 排序
-        dfl.dfl_sort_by_hist(tmp_aligned)
+        if detector != "manual":
+            # 两组人脸匹配
+            skip_by_pitch(os.path.join(workspace, "data_src", "aligned"), os.path.join(tmp_dir, "aligned"))
+            # 排序
+            dfl.dfl_sort_by_hist(tmp_aligned)
         # 保存video
         shutil.copy(video, tmp_video_dir)
         # 重命名
@@ -683,15 +684,44 @@ def convert(workspace, skip=True):
         data_dst = os.path.join(workspace, f)
         data_dst_merged = os.path.join(data_dst, "merged")
         data_dst_aligned = os.path.join(data_dst, "aligned")
+        data_dst_video = os.path.join(data_dst, "video")
+        refer_path = None
+        for v in os.listdir(data_dst_video):
+            if v.split(".")[-1] in ["mp4", "avi", "wmv", "mkv"]:
+                refer_path = os.path.join(data_dst_video, v)
+                break
+        if not refer_path:
+            io.log_err("No Refer File In " + data_dst_video)
+            return
         # 恢复排序
-        recover_filename(data_dst_aligned)
+        need_recover = True
+        for img in os.listdir(data_dst_aligned):
+            if img.endswith("_0.jpg") or img.endswith("_0.png"):
+                need_recover = False
+        if need_recover:
+            recover_filename(data_dst_aligned)
+        # 如果data_dst里没有脸则extract
+        has_img = False
+        for img in os.listdir(data_dst):
+            if img.endswith(".jpg") or img.endswith(".png"):
+                has_img = True
+                break
+        if not has_img:
+            dfl.dfl_extract_video(refer_path, data_dst)
         # 转换
         dfl.dfl_convert(data_dst, data_dst_merged, data_dst_aligned, model_dir)
         # ConverterMasked.enable_predef = enable_predef
         # 去掉没有脸的
         if skip:
             skip_no_face(data_dst)
-        return
+        # 转mp4
+        refer_name = ".".join(os.path.basename(refer_path).split(".")[:-1])
+        result_path = os.path.join(workspace, "result_%s_%s.mp4" % (get_time_str(), refer_name))
+        dfl.dfl_video_from_sequence(data_dst_merged, result_path, refer_path)
+        # 移动到trash
+        trash_dir = os.path.join(workspace, "data_trash")
+        import shutil
+        shutil.move(data_dst, trash_dir)
 
 
 def mp4(workspace):
@@ -712,7 +742,7 @@ def mp4(workspace):
         if not refer_path:
             io.log_err("No Refer File In " + data_dst_video)
             return
-        refer_name = os.path.basename(refer_path).split(".")[0]
+        refer_name = ".".join(os.path.basename(refer_path).split(".")[:-1])
         result_path = os.path.join(workspace, "result_%s_%s.mp4" % (get_time_str(), refer_name))
 
         # data_trash = os.path.join(workspace, "data_trash")
@@ -914,10 +944,10 @@ def main():
         train(os.path.join(get_root_path(), "workspace"))
     elif arg == '--convert':
         convert(os.path.join(get_root_path(), "workspace"))
-        mp4(os.path.join(get_root_path(), "workspace"))
+        # mp4(os.path.join(get_root_path(), "workspace"))
     elif arg == '--convert-no-skip':
         convert(os.path.join(get_root_path(), "workspace"), False)
-        mp4(os.path.join(get_root_path(), "workspace"))
+        # mp4(os.path.join(get_root_path(), "workspace"))
     elif arg == '--mp4':
         mp4(os.path.join(get_root_path(), "workspace"))
     elif arg == '--step':

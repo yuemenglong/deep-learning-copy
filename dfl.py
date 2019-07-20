@@ -83,7 +83,7 @@ def dfl_exec(cmd, args):
         v = args[k]
         if isinstance(v, str):
             v = "\"" + v + "\""
-        if len(v) == 2:
+        if isinstance(v, str) and len(v) == 2:
             s += " ^\n    %s" % k
         else:
             s += " ^\n    %s %s" % (k, v)
