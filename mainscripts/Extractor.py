@@ -468,7 +468,8 @@ class ExtractSubprocessor(Subprocessor):
                             new_y = np.clip(y, 0, h - 1) / self.view_scale
                             new_rect_size = last_border / 2 / self.view_scale * 0.8
                             # make sure rect and landmarks have been refreshed
-                            if self.x == new_x and self.y == new_y and len(self.temp_outer) != 0:
+                            # if self.x == new_x and self.y == new_y and len(self.temp_outer) != 0:
+                            if len(self.temp_outer) != 0:
                                 # compare dist and area
                                 temp_mid = F.mid_point(self.temp_outer)
                                 dist = np.linalg.norm(np.array(temp_mid) - np.array(last_mid))
@@ -491,6 +492,7 @@ class ExtractSubprocessor(Subprocessor):
                                 else:
                                     self.auto = False
                                     for i in range(10):
+                                        time.sleep(0.1)
                                         print('\a')
                         elif key == ord('\r') or key == ord('\n'):
                             # confirm frame
