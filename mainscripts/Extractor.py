@@ -489,9 +489,12 @@ class ExtractSubprocessor(Subprocessor):
                                 elif key == ord('s'):
                                     is_frame_done = True
                                     break
+                                elif self.x != new_x or self.y != new_y:
+                                    # 可以在等一轮更新后试一下
+                                    pass
                                 else:
                                     self.auto = False
-                                    for i in range(10):
+                                    for i in range(5):
                                         time.sleep(0.1)
                                         print('\a')
                         elif key == ord('\r') or key == ord('\n'):
