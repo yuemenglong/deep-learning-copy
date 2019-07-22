@@ -494,7 +494,7 @@ class ExtractSubprocessor(Subprocessor):
                                     pass
                                 else:
                                     self.auto = False
-                                    for i in range(5):
+                                    for i in range(3):
                                         time.sleep(0.1)
                                         print('\a')
                         elif key == ord('\r') or key == ord('\n'):
@@ -507,7 +507,7 @@ class ExtractSubprocessor(Subprocessor):
                             #confirm skip frame
                             is_frame_done = True
                             break
-                        elif key == ord(',')  and len(self.result) > 0:
+                        elif key == ord('z')  and len(self.result) > 0:
                             #go prev frame
 
                             if self.rect_locked:
@@ -515,7 +515,6 @@ class ExtractSubprocessor(Subprocessor):
                                 # Only save the face if the rect is still locked
                                 data_rects.append (self.rect)
                                 data_landmarks.append (self.landmarks)
-
 
                             self.input_data.insert(0, self.result.pop() )
                             io.progress_bar_inc(-1)

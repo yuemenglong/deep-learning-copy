@@ -651,6 +651,7 @@ def prepare(workspace, detector="mt"):
         if not os.path.exists(data_trash):
             os.mkdir(data_trash)
         shutil.move(video, data_trash)
+    print("\a")
 
 
 def train(workspace, target_loss=0.01):
@@ -670,7 +671,7 @@ def train(workspace, target_loss=0.01):
         return
 
 
-def convert(workspace, skip=True):
+def convert(workspace, skip=True, manual=False):
     import os
     for f in os.listdir(workspace):
         if not os.path.isdir(os.path.join(workspace, f)) or not f.startswith("data_dst_"):
@@ -709,7 +710,7 @@ def convert(workspace, skip=True):
         if not has_img:
             dfl.dfl_extract_video(refer_path, data_dst)
         # 转换
-        dfl.dfl_convert(data_dst, data_dst_merged, data_dst_aligned, model_dir)
+        dfl.dfl_convert(data_dst, data_dst_merged, data_dst_aligned, model_dir, enable_predef=not manual)
         # ConverterMasked.enable_predef = enable_predef
         # 去掉没有脸的
         if skip:
@@ -948,6 +949,8 @@ def main():
     elif arg == '--convert-no-skip':
         convert(os.path.join(get_root_path(), "workspace"), False)
         # mp4(os.path.join(get_root_path(), "workspace"))
+    elif arg == '--convert-no-skip-manual':
+        convert(os.path.join(get_root_path(), "workspace"), False, True)
     elif arg == '--mp4':
         mp4(os.path.join(get_root_path(), "workspace"))
     elif arg == '--step':
