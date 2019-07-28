@@ -131,7 +131,7 @@ def restore_model(model_name, model_path):
             shutil.copy(src, dst)
 
 
-def extract(min_pixel=512):
+def extract():
     import os
     import shutil
     from mainscripts import VideoEd
@@ -146,6 +146,8 @@ def extract(min_pixel=512):
 
     fps = io.input_int("Enter FPS ( ?:help skip:fullfps ) : ", 0,
                        help_message="How many frames of every second of the video will be extracted.")
+    min_pixel = io.input_int("Enter Min Pixel ( ?:help skip: 512) : ", 512,
+                             help_message="Min Pixel")
 
     def file_filter(file):
         if os.path.isdir(os.path.join(extract_workspace, file)):
@@ -930,7 +932,7 @@ def main():
     if arg == '--skip-no-face':
         skip_no_face(os.path.join(get_root_path(), "workspace", "data_dst"))
     elif arg == '--extract':
-        extract(0)
+        extract()
     elif arg == '--skip-by-pitch':
         skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
                       os.path.join(get_root_path(), "workspace/data_dst/aligned"))
@@ -989,10 +991,10 @@ def main():
         # fanseg(os.path.join(get_root_path(), "extract_workspace", "aligned_ty"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace", "aligned_fj_all"))
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace", "aligned_ty"))
-        # split(os.path.join(get_root_path(), "extract_workspace/aligned_reba_all"),
-        #       os.path.join(get_root_path(), "extract_workspace/aligned_reba_all")
-        #       )
-        merge_dst_aligned()
+        split(os.path.join(get_root_path(), "extract_workspace/aligned_lyf"),
+              os.path.join(get_root_path(), "extract_workspace/aligned_lyf")
+              )
+        # merge_dst_aligned()
         pass
 
 
