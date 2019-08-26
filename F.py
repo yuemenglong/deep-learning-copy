@@ -608,7 +608,7 @@ def manual_select(input_path, src_path=None):
             reload_src()
 
 
-def prepare(workspace, detector="mt"):
+def prepare(workspace, detector="s3fd"):
     import os
     import shutil
     from mainscripts import Extractor
@@ -727,7 +727,7 @@ def convert(workspace, skip=True, manual=False):
         shutil.move(data_dst, trash_dir)
 
 
-def mp4(workspace):
+def mp4(workspace, skip=False):
     import os
     for f in os.listdir(workspace):
         if not os.path.isdir(os.path.join(workspace, f)) or not f.startswith("data_dst_"):
@@ -735,8 +735,8 @@ def mp4(workspace):
         io.log_info(f)
         data_dst = os.path.join(workspace, f)
         data_dst_merged = os.path.join(data_dst, "merged")
+        data_dst_aligned = os.path.join(data_dst, "aligned")
         data_dst_video = os.path.join(data_dst, "video")
-        # 转mp4
         refer_path = None
         for v in os.listdir(data_dst_video):
             if v.split(".")[-1] in ["mp4", "avi", "wmv", "mkv"]:
@@ -745,19 +745,33 @@ def mp4(workspace):
         if not refer_path:
             io.log_err("No Refer File In " + data_dst_video)
             return
+        # 恢复排序
+        need_recover = True
+        for img in os.listdir(data_dst_aligned):
+            if img.endswith("_0.jpg") or img.endswith("_0.png"):
+                need_recover = False
+        if need_recover:
+            recover_filename(data_dst_aligned)
+        # 如果data_dst里没有脸则extract
+        has_img = False
+        for img in os.listdir(data_dst):
+            if img.endswith(".jpg") or img.endswith(".png"):
+                has_img = True
+                break
+        if not has_img:
+            dfl.dfl_extract_video(refer_path, data_dst)
+        # 去掉没有脸的
+        if skip:
+            skip_no_face(data_dst)
+        # 转mp4
         refer_name = ".".join(os.path.basename(refer_path).split(".")[:-1])
         result_path = os.path.join(workspace, "result_%s_%s.mp4" % (get_time_str(), refer_name))
-
-        # data_trash = os.path.join(workspace, "data_trash")
-        # for ff in os.listdir(data_trash):
-        #     if ff.startswith(refer_name + "."):
-        #         refer_path = os.path.join(data_trash, ff)
-        #         break
-        # if not refer_path:
-        #     io.log_err("No Refer Path")
-        #     return
         dfl.dfl_video_from_sequence(data_dst_merged, result_path, refer_path)
-        return
+        # 移动到trash
+        trash_dir = os.path.join(workspace, "data_trash")
+        import shutil
+        shutil.move(data_dst, trash_dir)
+
 
 
 def step(workspace):
@@ -955,6 +969,8 @@ def main():
         convert(os.path.join(get_root_path(), "workspace"), False, True)
     elif arg == '--mp4':
         mp4(os.path.join(get_root_path(), "workspace"))
+    elif arg == '--mp4-skip':
+        mp4(os.path.join(get_root_path(), "workspace"), True)
     elif arg == '--step':
         step(os.path.join(get_root_path(), "workspace"))
     elif arg == '--auto':
@@ -981,8 +997,8 @@ def main():
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_all"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace/data_src/aligned"))
-        # manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_rb_all"),
-        #               os.path.join(get_root_path(), "workspace_rb/data_src/aligned"))
+        manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ab_ex4"),
+                      os.path.join(get_root_path(), "workspace/data_src/aligned"))
         # manual_select(os.path.join(get_root_path(), "workspace/data_src/aligned"),
         #               os.path.join(get_root_path(), "workspace/data_src/aligned"))
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"))
@@ -991,9 +1007,9 @@ def main():
         # fanseg(os.path.join(get_root_path(), "extract_workspace", "aligned_ty"))
         # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace", "aligned_fj_all"))
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace", "aligned_ty"))
-        split(os.path.join(get_root_path(), "extract_workspace/aligned_lyf"),
-              os.path.join(get_root_path(), "extract_workspace/aligned_lyf")
-              )
+        # split(os.path.join(get_root_path(), "extract_workspace/aligned_lyf"),
+        #       os.path.join(get_root_path(), "extract_workspace/aligned_lyf")
+        #       )
         # merge_dst_aligned()
         pass
 
