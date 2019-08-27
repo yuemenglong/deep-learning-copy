@@ -27,7 +27,8 @@ def extract_video(input_file, output_dir, output_ext=None, fps=None):
         fps = io.input_int ("Enter FPS ( ?:help skip:fullfps ) : ", 0, help_message="How many frames of every second of the video will be extracted.")
 
     if output_ext is None:
-        output_ext = io.input_str ("Output image format? ( jpg png ?:help skip:png ) : ", "png", ["png","jpg"], help_message="png is lossless, but extraction is x10 slower for HDD, requires x10 more disk space than jpg.")
+        # output_ext = io.input_str ("Output image format? ( jpg png ?:help skip:png ) : ", "png", ["png","jpg"], help_message="png is lossless, but extraction is x10 slower for HDD, requires x10 more disk space than jpg.")
+        output_ext = "png"
 
     for filename in Path_utils.get_image_paths (output_path, ['.'+output_ext]):
         Path(filename).unlink()
@@ -110,6 +111,11 @@ def denoise_image_sequence( input_dir, ext=None, factor=None ):
         io.log_err ("ffmpeg fail, job commandline:" + str(job.compile()) )
 
 def video_from_sequence( input_dir, output_file, reference_file=None, ext=None, fps=None, bitrate=None, lossless=None ):
+    import os
+    if os.path.exists(output_file):
+        io.log_err("Output File Exists")
+        return
+
     input_path = Path(input_dir)
     output_file_path = Path(output_file)
     reference_file_path = Path(reference_file) if reference_file is not None else None
@@ -165,7 +171,8 @@ def video_from_sequence( input_dir, output_file, reference_file=None, ext=None, 
         fps = max (1, io.input_int ("FPS ? (default:25) : ", 25) )
 
     if not lossless and bitrate is None:
-        bitrate = max (1, io.input_int ("Bitrate of output file in MB/s ? (default:16) : ", 16) )
+        bitrate = 16
+        # bitrate = max (1, io.input_int ("Bitrate of output file in MB/s ? (default:16) : ", 16) )
 
     i_in = ffmpeg.input(str (input_path / ('%5d.'+ext)), r=fps)
 

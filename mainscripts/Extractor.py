@@ -21,6 +21,9 @@ from facelib import FANSegmentator
 from nnlib import nnlib
 from joblib import Subprocessor
 from interact import interact as io
+import F
+import math
+
 
 DEBUG = False
 
@@ -47,7 +50,8 @@ class ExtractSubprocessor(Subprocessor):
             self.cpu_only     = client_dict['device_type'] == 'CPU'
             self.final_output_path  = Path(client_dict['final_output_dir']) if 'final_output_dir' in client_dict.keys() else None
             self.debug_dir    = client_dict['debug_dir']
-            
+            self.min_pixel    = client_dict['min_pixel'] if 'min_pixel' in client_dict.keys() else 0
+
             #transfer and set stdin in order to work code.interact in debug subprocess
             stdin_fd         = client_dict['stdin_fd']
             if stdin_fd is not None and DEBUG:
@@ -237,7 +241,7 @@ class ExtractSubprocessor(Subprocessor):
                             face_image_landmarks = image_landmarks
                         else:
                             image_to_face_mat = LandmarksProcessor.get_transform_mat (image_landmarks, self.image_size, self.face_type)
-                            
+
                             face_image = cv2.warpAffine(image, image_to_face_mat, (self.image_size, self.image_size), cv2.INTER_LANCZOS4)
                             face_image_landmarks = LandmarksProcessor.transform_points (image_landmarks, image_to_face_mat)
 
@@ -249,8 +253,11 @@ class ExtractSubprocessor(Subprocessor):
                             if landmarks_area > 4*rect_area: #get rid of faces which umeyama-landmark-area > 4*detector-rect-area
                                 continue
 
-                            if self.debug_dir is not None:
-                                LandmarksProcessor.draw_rect_landmarks (debug_image, rect, image_landmarks, self.image_size, self.face_type, transparent_mask=True)
+                        if self.debug_dir is not None:
+                            outer_points = LandmarksProcessor.draw_rect_landmarks (debug_image, rect, image_landmarks, self.image_size, self.face_type, transparent_mask=True)
+                            dist = np.sqrt(np.sum(np.square(outer_points[0]-outer_points[1])))
+                            if dist < int(self.min_pixel):
+                                continue
 
                         if src_dflimg is not None and filename_path.suffix == '.jpg':
                             #if extracting from dflimg and jpg copy it in order not to lose quality
@@ -293,7 +300,7 @@ class ExtractSubprocessor(Subprocessor):
             return data.filename
 
     #override
-    def __init__(self, input_data, type, image_size=None, face_type=None, debug_dir=None, multi_gpu=False, cpu_only=False, manual=False, manual_window_size=0, final_output_path=None):
+    def __init__(self, input_data, type, image_size=None, face_type=None, debug_dir=None, multi_gpu=False, cpu_only=False, manual=False, manual_window_size=0, final_output_path=None, min_pixel=0):
         self.input_data = input_data
         self.type = type
         self.image_size = image_size
@@ -303,6 +310,10 @@ class ExtractSubprocessor(Subprocessor):
         self.manual = manual
         self.manual_window_size = manual_window_size
         self.result = []
+        self.last_outer = []
+        self.temp_outer = []
+        self.auto = False
+        self.min_pixel = min_pixel
 
         self.devices = ExtractSubprocessor.get_devices_for_config(self.manual, self.type, multi_gpu, cpu_only)
 
@@ -353,7 +364,8 @@ class ExtractSubprocessor(Subprocessor):
                      'face_type': self.face_type,
                      'debug_dir': self.debug_dir,
                      'final_output_dir': str(self.final_output_path),
-                     'stdin_fd': sys.stdin.fileno() }
+                     'stdin_fd': sys.stdin.fileno(),
+                     'min_pixel': self.min_pixel}
 
 
         for (device_idx, device_type, device_name, device_total_vram_gb) in self.devices:
@@ -417,6 +429,7 @@ class ExtractSubprocessor(Subprocessor):
                                                             '[Enter] / [Space] - confirm / skip frame',
                                                             '[,] [.]- prev frame, next frame. [Q] - skip remaining frames',
                                                             '[a] - accuracy on/off (more fps)',
+                                                            '[f] - select face by last rect',
                                                             '[h] - hide this help'
                                                         ], (1, 1, 1) )*255).astype(np.uint8)
 
@@ -429,6 +442,7 @@ class ExtractSubprocessor(Subprocessor):
                         new_y = self.y
                         new_rect_size = self.rect_size
 
+                        right_btn_down = False
                         mouse_events = io.get_mouse_events(self.wnd_name)
                         for ev in mouse_events:
                             (x, y, ev, flags) = ev
@@ -439,6 +453,8 @@ class ExtractSubprocessor(Subprocessor):
                             elif ev == io.EVENT_LBUTTONDOWN:
                                 self.rect_locked = not self.rect_locked
                                 self.extract_needed = True
+                            elif ev == io.EVENT_RBUTTONDOWN:
+                                right_btn_down = True
                             elif not self.rect_locked:
                                 new_x = np.clip (x, 0, w-1) / self.view_scale
                                 new_y = np.clip (y, 0, h-1) / self.view_scale
@@ -446,8 +462,54 @@ class ExtractSubprocessor(Subprocessor):
                         key_events = io.get_key_events(self.wnd_name)
                         key, chr_key, ctrl_pressed, alt_pressed, shift_pressed = key_events[-1] if len(key_events) > 0 else (0,0,False,False,False)
 
-                        if key == ord('\r') or key == ord('\n'):
-                            #confirm frame
+                        if (key == ord('f') or right_btn_down) and self.rect_locked:
+                            # confirm frame
+                            is_frame_done = True
+                            self.last_outer = self.temp_outer
+                            data_rects.append(self.rect)
+                            data_landmarks.append(self.landmarks)
+                            self.auto = True
+                            break
+                        elif (key == ord('f') or key == ord('s') or self.auto) and len(self.last_outer) != 0:
+                            last_mid = F.mid_point(self.last_outer)
+                            last_border = np.linalg.norm(np.array(self.last_outer[0]) - np.array(self.last_outer[1]))
+                            last_area = F.poly_area(self.last_outer)
+                            x, y = last_mid
+                            new_x = np.clip(x, 0, w - 1) / self.view_scale
+                            new_y = np.clip(y, 0, h - 1) / self.view_scale
+                            new_rect_size = last_border / 2 / self.view_scale * 0.8
+                            # make sure rect and landmarks have been refreshed
+                            # if self.x == new_x and self.y == new_y and len(self.temp_outer) != 0:
+                            if len(self.temp_outer) != 0:
+                                # compare dist and area
+                                temp_mid = F.mid_point(self.temp_outer)
+                                dist = np.linalg.norm(np.array(temp_mid) - np.array(last_mid))
+                                dist_r = dist / last_border
+                                temp_area = F.poly_area(self.temp_outer)
+                                area_r = temp_area / last_area
+                                v0 = np.array(last_mid) - np.array(self.last_outer[0])
+                                v1 = np.array(temp_mid) - np.array(self.temp_outer[0])
+                                angle = math.fabs(F.angle_between(v0, v1))
+                                if dist_r < 0.5 and 0.5 < area_r < 1.5 and angle < 0.7:
+                                    is_frame_done = True
+                                    self.last_outer = self.temp_outer
+                                    data_rects.append(self.rect)
+                                    data_landmarks.append(self.landmarks)
+                                    self.auto = True
+                                    break
+                                elif key == ord('s'):
+                                    is_frame_done = True
+                                    break
+                                elif self.x != new_x or self.y != new_y:
+                                    # 可以在等一轮更新后试一下
+                                    pass
+                                else:
+                                    self.auto = False
+                                    for i in range(3):
+                                        time.sleep(0.1)
+                                        print('\a')
+                        elif key == ord('\r') or key == ord('\n'):
+                            # confirm frame
                             is_frame_done = True
                             data_rects.append (self.rect)
                             data_landmarks.append (self.landmarks)
@@ -456,7 +518,7 @@ class ExtractSubprocessor(Subprocessor):
                             #confirm skip frame
                             is_frame_done = True
                             break
-                        elif key == ord(',')  and len(self.result) > 0:
+                        elif key == ord('z')  and len(self.result) > 0:
                             #go prev frame
 
                             if self.rect_locked:
@@ -464,7 +526,6 @@ class ExtractSubprocessor(Subprocessor):
                                 # Only save the face if the rect is still locked
                                 data_rects.append (self.rect)
                                 data_landmarks.append (self.landmarks)
-
 
                             self.input_data.insert(0, self.result.pop() )
                             io.progress_bar_inc(-1)
@@ -532,6 +593,7 @@ class ExtractSubprocessor(Subprocessor):
                     io.progress_bar_inc(1)
                     self.extract_needed = True
                     self.rect_locked = False
+                    self.temp_outer = []
 
         return None
 
@@ -557,7 +619,7 @@ class ExtractSubprocessor(Subprocessor):
             view_rect = (np.array(self.rect) * self.view_scale).astype(np.int).tolist()
             view_landmarks  = (np.array(self.landmarks) * self.view_scale).astype(np.int).tolist()
 
-            if self.rect_size <= 40:
+            if self.rect_size <= 40 and False:
                 scaled_rect_size = h // 3 if w > h else w // 3
 
                 p1 = (self.x - self.rect_size, self.y - self.rect_size)
@@ -574,7 +636,7 @@ class ExtractSubprocessor(Subprocessor):
                 view_landmarks = LandmarksProcessor.transform_points (view_landmarks, mat)
 
             landmarks_color = (255,255,0) if self.rect_locked else (0,255,0)
-            LandmarksProcessor.draw_rect_landmarks (image, view_rect, view_landmarks, self.image_size, self.face_type, landmarks_color=landmarks_color)
+            self.temp_outer = LandmarksProcessor.draw_rect_landmarks (image, view_rect, view_landmarks, self.image_size, self.face_type, landmarks_color=landmarks_color)
             self.extract_needed = False
 
             io.show_image (self.wnd_name, image)
@@ -804,7 +866,8 @@ def main(input_dir,
          manual_window_size=1368,
          image_size=256,
          face_type='full_face',
-         device_args={}):
+         device_args={},
+         min_pixel=0):
 
     input_path = Path(input_dir)
     output_path = Path(output_dir)
@@ -820,7 +883,7 @@ def main(input_dir,
         if not manual_output_debug_fix and input_path != output_path:
             output_images_paths = Path_utils.get_image_paths(output_path)
             if len(output_images_paths) > 0:
-                io.input_bool("WARNING !!! \n %s contains files! \n They will be deleted. \n Press enter to continue." % (str(output_path)), False )
+                # io.input_bool("WARNING !!! \n %s contains files! \n They will be deleted. \n Press enter to continue." % (str(output_path)), False )
                 for filename in output_images_paths:
                     Path(filename).unlink()
     else:
@@ -864,7 +927,7 @@ def main(input_dir,
             data = ExtractSubprocessor (data, 'landmarks', image_size, face_type, debug_dir, multi_gpu=multi_gpu, cpu_only=cpu_only, manual=False).run()
 
         io.log_info ('Performing 3rd pass...')
-        data = ExtractSubprocessor (data, 'final', image_size, face_type, debug_dir, multi_gpu=multi_gpu, cpu_only=cpu_only, manual=False, final_output_path=output_path).run()
+        data = ExtractSubprocessor (data, 'final', image_size, face_type, debug_dir, multi_gpu=multi_gpu, cpu_only=cpu_only, manual=False, final_output_path=output_path, min_pixel=min_pixel).run()
         faces_detected += sum([d.faces_detected for d in data])
 
         if manual_fix:
