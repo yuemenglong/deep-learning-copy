@@ -1,12 +1,20 @@
-## Repo is closed, because nobody interested to improve the technology, so I received only 700$ donations since january. I am sorry but I have to go make a money for a living. Feel free to start your own new deepfake software based on DFL. Good bye.
-
-![](doc/DFL_welcome.jpg)
+﻿![](doc/DFL_welcome.jpg)
 
 ![](doc/logo_cuda.jpg)![](doc/logo_opencl.jpg)![](doc/logo_keras.jpg)![](doc/logo_tensorflow.jpg)![](doc/logo_plaidml.jpg)
 
 #deepfakes #faceswap #face-swap #deep-learning #deeplearning #deep-neural-networks #deepface #deep-face-swap #fakeapp #fake-app #neural-networks #neural-nets
 
 ## **DeepFaceLab** is a tool that utilizes machine learning to replace faces in videos.
+
+If you like this software, please consider a donation.
+
+GOAL: next DeepFacelab update.
+
+[Donate via Yandex.Money](https://money.yandex.ru/to/41001142318065)
+
+[Donate via Paypal](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=lepersorium@gmail.com&lc=US&no_note=0&item_name=Support+DeepFaceLab&cn=&curency_code=USD&bn=PP-DonationsBF:btn_donateCC_LG.gif:NonHosted)
+                    
+bitcoin:31mPd6DxPCzbpCMZk4k1koWAbErSyqkAXr
 
 - ### [Gallery](doc/gallery/doc_gallery.md)
 
@@ -30,8 +38,15 @@
 
 - ### Communication groups:
 
+[mrdeepfakes (English)](https://mrdeepfakes.com/forums/) - the biggest SFW and NSFW community
+
 (Chinese) QQ group 951138799 for ML/AI experts
 
 [deepfakes (Chinese)](https://deepfakescn.com)
 
-[reddit (English)](https://www.reddit.com/r/GifFakes/new/)
+[deepfakes (Chinese) (outdated) ](https://deepfakes.com.cn/)
+
+[reddit r/GifFakes/ (English)](https://www.reddit.com/r/GifFakes/new/)
+
+[reddit r/SFWdeepfakes/ (English)](https://www.reddit.com/r/SFWdeepfakes/new/)
+

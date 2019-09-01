@@ -12,8 +12,7 @@ import cv2
 import models
 from interact import interact as io
 
-
-def trainerThread (s2c, c2s, args, device_args):
+def trainerThread (s2c, c2s, e, args, device_args):
     while True:
         try:
             start_time = time.time()
@@ -93,6 +92,7 @@ def trainerThread (s2c, c2s, args, device_args):
                 else:
                     previews = [( 'debug, press update for new', model.debug_one_iter())]
                     c2s.put ( {'op':'show', 'previews': previews} )
+                e.set() #Set the GUI Thread as Ready
 
 
             if model.is_first_run():
@@ -220,8 +220,11 @@ def main(args, device_args):
     s2c = queue.Queue()
     c2s = queue.Queue()
 
-    thread = threading.Thread(target=trainerThread, args=(s2c, c2s, args, device_args) )
+    e = threading.Event()
+    thread = threading.Thread(target=trainerThread, args=(s2c, c2s, e, args, device_args) )
     thread.start()
+
+    e.wait() #Wait for inital load to occur.
 
     if no_preview:
         while True:
