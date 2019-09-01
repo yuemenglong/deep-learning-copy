@@ -634,7 +634,7 @@ def prepare(workspace, detector="s3fd"):
         # 提取人脸
         if detector == "manual":
             print('\a')
-        Extractor.main(tmp_dir, tmp_aligned, detector=detector)
+        Extractor.main(tmp_dir, tmp_aligned, detector=detector, manual_fix=True)
         # fanseg
         Extractor.extract_fanseg(tmp_aligned)
         if detector != "manual":
