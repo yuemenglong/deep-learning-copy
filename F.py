@@ -701,6 +701,7 @@ def convert(workspace, skip=True, manual=False):
         for img in os.listdir(data_dst_aligned):
             if img.endswith("_0.jpg") or img.endswith("_0.png"):
                 need_recover = False
+            break
         if need_recover:
             recover_filename(data_dst_aligned)
         # 如果data_dst里没有脸则extract
