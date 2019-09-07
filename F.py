@@ -608,7 +608,7 @@ def manual_select(input_path, src_path=None):
             reload_src()
 
 
-def prepare(workspace, detector="s3fd"):
+def prepare(workspace, detector="s3fd", manual_fix=True):
     import os
     import shutil
     from mainscripts import Extractor
@@ -634,14 +634,14 @@ def prepare(workspace, detector="s3fd"):
         # 提取人脸
         if detector == "manual":
             print('\a')
-        Extractor.main(tmp_dir, tmp_aligned, detector=detector, manual_fix=True)
+        Extractor.main(tmp_dir, tmp_aligned, detector=detector, manual_fix=manual_fix)
         # fanseg
         Extractor.extract_fanseg(tmp_aligned)
-        if detector != "manual":
-            # 两组人脸匹配
-            skip_by_pitch(os.path.join(workspace, "data_src", "aligned"), os.path.join(tmp_dir, "aligned"))
-            # 排序
-            dfl.dfl_sort_by_hist(tmp_aligned)
+        # if detector != "manual":
+        #     # 两组人脸匹配
+        #     skip_by_pitch(os.path.join(workspace, "data_src", "aligned"), os.path.join(tmp_dir, "aligned"))
+        #     # 排序
+        #     dfl.dfl_sort_by_hist(tmp_aligned)
         # 保存video
         shutil.copy(video, tmp_video_dir)
         # 重命名
@@ -772,7 +772,6 @@ def mp4(workspace, skip=False):
         trash_dir = os.path.join(workspace, "data_trash")
         import shutil
         shutil.move(data_dst, trash_dir)
-
 
 
 def step(workspace):
@@ -940,6 +939,36 @@ def merge_dst_aligned():
                     shutil.copy(img_path, dst_img_path)
 
 
+def change_workspace():
+    wss = []
+    for f in os.listdir(get_root_path()):
+        fpath = os.path.join(get_root_path(), f)
+        if os.path.isfile(fpath) and f.startswith("@workspace"):
+            os.remove(fpath)
+        elif os.path.isdir(fpath) and f.startswith("workspace"):
+            wss.append(f)
+    inputs = "1234567890"[0:len(wss)]
+    for i in range(0, len(wss)):
+        io.log_info("[ %s ] %s" % (inputs[i], wss[i]))
+    no = io.input_str("Select Workspace:", 0)[0]
+    idx = inputs.find(no)
+    if idx < 0:
+        raise Exception("Invalid Idx " + no)
+    ws = wss[idx]
+    io.log_info("Select " + ws)
+    f = open(os.path.join(get_root_path(), "@" + ws), 'w')
+    f.write(ws)
+    f.close()
+
+
+def get_workspace():
+    for f in os.listdir(get_root_path()):
+        fpath = os.path.join(get_root_path(), f)
+        if os.path.isfile(fpath) and f.startswith("@workspace"):
+            return os.path.join(get_root_path(), f[1:])
+    raise Exception("No @Workspace File")
+
+
 def main():
     import sys
 
@@ -948,36 +977,41 @@ def main():
         skip_no_face(os.path.join(get_root_path(), "workspace", "data_dst"))
     elif arg == '--extract':
         extract()
-    elif arg == '--skip-by-pitch':
-        skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
-                      os.path.join(get_root_path(), "workspace/data_dst/aligned"))
+    elif arg == '--change-workspace':
+        change_workspace()
     elif arg == '--prepare':
-        prepare(os.path.join(get_root_path(), "workspace"))
+        prepare(get_workspace())
+    elif arg == '--prepare-train':
+        prepare(get_workspace(), manual_fix=False)
+        train(get_workspace())
     elif arg == '--prepare-manual':
-        prepare(os.path.join(get_root_path(), "workspace"), "manual")
+        prepare(get_workspace(), "manual")
     elif arg == '--prepare-manual-train':
-        prepare(os.path.join(get_root_path(), "workspace"), "manual")
-        train(os.path.join(get_root_path(), "workspace"))
+        prepare(get_workspace(), "manual")
+        train(get_workspace())
     elif arg == '--train':
-        train(os.path.join(get_root_path(), "workspace"))
+        train(get_workspace())
     elif arg == '--convert':
-        convert(os.path.join(get_root_path(), "workspace"))
-        # mp4(os.path.join(get_root_path(), "workspace"))
+        convert(get_workspace())
+        # mp4(get_workspace())
     elif arg == '--convert-no-skip':
-        convert(os.path.join(get_root_path(), "workspace"), False)
-        # mp4(os.path.join(get_root_path(), "workspace"))
+        convert(get_workspace(), False)
+        # mp4(get_workspace())
     elif arg == '--convert-no-skip-manual':
-        convert(os.path.join(get_root_path(), "workspace"), False, True)
+        convert(get_workspace(), False, True)
     elif arg == '--mp4':
-        mp4(os.path.join(get_root_path(), "workspace"))
+        mp4(get_workspace())
     elif arg == '--mp4-skip':
-        mp4(os.path.join(get_root_path(), "workspace"), True)
+        mp4(get_workspace(), True)
     elif arg == '--step':
-        step(os.path.join(get_root_path(), "workspace"))
+        step(get_workspace())
     elif arg == '--auto':
-        auto(os.path.join(get_root_path(), "workspace"))
+        auto(get_workspace())
     elif arg == '--merge-dst-aligned':
         merge_dst_aligned()
+    # elif arg == '--skip-by-pitch':
+    #     skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
+    #                   os.path.join(get_root_path(), "workspace/data_dst/aligned"))
     else:
         # prepare(os.path.join(get_root_path(), "workspace"), "manual")
         # match_by_pitch(os.path.join(get_root_path(), "workspace/data_src"),
