@@ -637,11 +637,11 @@ def prepare(workspace, detector="s3fd", manual_fix=True):
         Extractor.main(tmp_dir, tmp_aligned, detector=detector, manual_fix=manual_fix)
         # fanseg
         Extractor.extract_fanseg(tmp_aligned)
-        # if detector != "manual":
+        if detector != "manual":
         #     # 两组人脸匹配
         #     skip_by_pitch(os.path.join(workspace, "data_src", "aligned"), os.path.join(tmp_dir, "aligned"))
-        #     # 排序
-        #     dfl.dfl_sort_by_hist(tmp_aligned)
+            # 排序
+            dfl.dfl_sort_by_hist(tmp_aligned)
         # 保存video
         shutil.copy(video, tmp_video_dir)
         # 重命名
@@ -982,7 +982,7 @@ def main():
     elif arg == '--prepare':
         prepare(get_workspace())
     elif arg == '--prepare-train':
-        prepare(get_workspace(), manual_fix=False)
+        prepare(get_workspace())
         train(get_workspace())
     elif arg == '--prepare-manual':
         prepare(get_workspace(), "manual")
