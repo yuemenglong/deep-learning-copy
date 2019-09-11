@@ -638,8 +638,8 @@ def prepare(workspace, detector="s3fd", manual_fix=True):
         # fanseg
         Extractor.extract_fanseg(tmp_aligned)
         if detector != "manual":
-        #     # 两组人脸匹配
-        #     skip_by_pitch(os.path.join(workspace, "data_src", "aligned"), os.path.join(tmp_dir, "aligned"))
+            #     # 两组人脸匹配
+            #     skip_by_pitch(os.path.join(workspace, "data_src", "aligned"), os.path.join(tmp_dir, "aligned"))
             # 排序
             dfl.dfl_sort_by_hist(tmp_aligned)
         # 保存video
@@ -984,13 +984,16 @@ def main():
     elif arg == '--prepare-train':
         prepare(get_workspace())
         train(get_workspace())
+        convert(get_workspace(), False, True)
     elif arg == '--prepare-manual':
         prepare(get_workspace(), "manual")
     elif arg == '--prepare-manual-train':
         prepare(get_workspace(), "manual")
         train(get_workspace())
+        convert(get_workspace(), False, True)
     elif arg == '--train':
         train(get_workspace())
+        convert(get_workspace(), False, True)
     elif arg == '--convert':
         convert(get_workspace())
         # mp4(get_workspace())

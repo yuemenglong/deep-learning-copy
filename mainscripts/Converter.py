@@ -414,13 +414,13 @@ class ConvertSubprocessor(Subprocessor):
                                 elif chr_key == 'a':
                                     cfg.add_hist_match_threshold(-1 if not shift_pressed else -5)
                                 elif chr_key == 'w':
-                                    cfg.add_erode_mask_modifier(1 if not shift_pressed else 5)
+                                    cfg.add_erode_mask_modifier(1 if not shift_pressed else 10)
                                 elif chr_key == 's':
-                                    cfg.add_erode_mask_modifier(-1 if not shift_pressed else -5)
+                                    cfg.add_erode_mask_modifier(-1 if not shift_pressed else -10)
                                 elif chr_key == 'e':
-                                    cfg.add_blur_mask_modifier(1 if not shift_pressed else 5)
+                                    cfg.add_blur_mask_modifier(1 if not shift_pressed else 10)
                                 elif chr_key == 'd':
-                                    cfg.add_blur_mask_modifier(-1 if not shift_pressed else -5)
+                                    cfg.add_blur_mask_modifier(-1 if not shift_pressed else -10)
                                 elif chr_key == 'r':
                                     cfg.add_motion_blur_power(1 if not shift_pressed else 5)
                                 elif chr_key == 'f':
