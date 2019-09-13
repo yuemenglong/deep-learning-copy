@@ -352,6 +352,7 @@ class ConvertSubprocessor(Subprocessor):
         self.predictor_func_host.process_messages()
         self.dcscn_host.process_messages()
 
+        go_first_frame = False
         go_prev_frame = False
         go_prev_frame_overriding_cfg = False
         go_next_frame = self.process_remain_frames
@@ -468,7 +469,10 @@ class ConvertSubprocessor(Subprocessor):
                                 cur_frame.is_done = False
                                 cur_frame.is_shown = False
                     else:
-                        if chr_key == ',' or chr_key == 'm':
+                        if chr_key == 'm':
+                            self.process_remain_frames = False
+                            go_first_frame = True
+                        elif chr_key == ',' or chr_key == 'm':
                             self.process_remain_frames = False
                             go_prev_frame = True
                             go_prev_frame_overriding_cfg = chr_key == 'm'
@@ -483,8 +487,24 @@ class ConvertSubprocessor(Subprocessor):
                         elif chr_key == '=':
                             self.screen_manager.get_current().diff_scale(0.1)
 
+        if go_first_frame:
+            if cur_frame is None or cur_frame.is_done:
+                if cur_frame is not None:
+                    cur_frame.image = None
 
-        if go_prev_frame:
+                prev_frame = None
+                while len(self.frames_done_idxs) > 0:
+                    prev_frame = self.frames[self.frames_done_idxs.pop()]
+                    self.frames_idxs.insert(0, prev_frame.idx)
+                    prev_frame.is_shown = False
+                    io.progress_bar_inc(-1)
+
+                    # if cur_frame is not None and go_prev_frame_overriding_cfg:
+                if prev_frame is not None and prev_frame.cfg != cur_frame.cfg:
+                    prev_frame.cfg = cur_frame.cfg.copy()
+                    prev_frame.is_done = False
+
+        elif go_prev_frame:
             if cur_frame is None or cur_frame.is_done:
                 if cur_frame is not None:
                     cur_frame.image = None
