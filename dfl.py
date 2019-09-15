@@ -13,7 +13,7 @@ def dfl_train(src_aligned, dst_aligned, model_dir, model="SAE"):
     dfl_exec(cmd, args)
 
 
-def dfl_convert(input_dir, output_dir, aligned_dir, model_dir, enable_predef=True, model="SAE"):
+def dfl_convert(input_dir, output_dir, aligned_dir, model_dir, model="SAE"):
     cmd = "convert"
     args = {
         "--input-dir": input_dir,
@@ -22,8 +22,6 @@ def dfl_convert(input_dir, output_dir, aligned_dir, model_dir, enable_predef=Tru
         "--model-dir": model_dir,
         "--model": model,
     }
-    if enable_predef:
-        args["--enable-predef"] = ""
     dfl_exec(cmd, args)
 
 
