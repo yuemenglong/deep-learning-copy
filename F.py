@@ -52,7 +52,7 @@ def skip_no_face(data_dst_dir):
             idx += 1
             src = os.path.join(merged_trash_dir, f)
             dst = os.path.join(merged_dir, "%05d" % idx + ext)
-            shutil.move(src, dst)
+            shutil.copy(src, dst)
 
 
 def cpu_count():
@@ -193,6 +193,19 @@ def extract():
         io.log_info("@@@@@  Finish %s, %d / %d" % (file, pos, len(files)))
         os.remove(os.path.join(extract_workspace, file))
         os.rmdir(output_dir)
+
+
+def extract_dst_image(workspace):
+    import os
+    from mainscripts import Extractor
+
+    # 提取人脸
+    input_dir = os.path.join(workspace, "data_dst")
+    output_dir = os.path.join(workspace, "data_dst/aligned")
+    debug_dir = os.path.join(workspace, "data_dst/aligned_debug")
+    Extractor.main(input_dir, output_dir, debug_dir, "s3fd", manual_fix=True)
+    # fanseg
+    Extractor.extract_fanseg(output_dir)
 
 
 # noinspection PyUnresolvedReferences
@@ -656,7 +669,7 @@ def prepare(workspace, detector="s3fd", manual_fix=True):
     print("\a")
 
 
-def train(workspace, target_loss=0.01):
+def train(workspace):
     import os
     model_dir = os.path.join(workspace, "model")
     for f in os.listdir(workspace):
@@ -673,7 +686,16 @@ def train(workspace, target_loss=0.01):
         return
 
 
-def convert(workspace, skip=True, manual=False):
+def train_dst(workspace):
+    import os
+    model_dir = os.path.join(workspace, "model")
+    data_src_aligned = os.path.join(workspace, "data_src", "aligned")
+    data_dst_aligned = os.path.join(workspace, "data_dst", "aligned")
+    # 训练
+    dfl.dfl_train(data_src_aligned, data_dst_aligned, model_dir)
+
+
+def convert(workspace, skip=True):
     import os
     for f in os.listdir(workspace):
         if not os.path.isdir(os.path.join(workspace, f)) or not f.startswith("data_dst_"):
@@ -713,7 +735,7 @@ def convert(workspace, skip=True, manual=False):
         if not has_img:
             dfl.dfl_extract_video(refer_path, data_dst)
         # 转换
-        dfl.dfl_convert(data_dst, data_dst_merged, data_dst_aligned, model_dir, enable_predef=not manual)
+        dfl.dfl_convert(data_dst, data_dst_merged, data_dst_aligned, model_dir)
         # ConverterMasked.enable_predef = enable_predef
         # 去掉没有脸的
         if skip:
@@ -726,6 +748,16 @@ def convert(workspace, skip=True, manual=False):
         trash_dir = os.path.join(workspace, "data_trash")
         import shutil
         shutil.move(data_dst, trash_dir)
+
+
+def convert_dst(workspace):
+    import os
+    model_dir = os.path.join(workspace, "model")
+    data_dst = os.path.join(workspace, "data_dst")
+    data_dst_merged = os.path.join(data_dst, "merged")
+    data_dst_aligned = os.path.join(data_dst, "aligned")
+    # 转换
+    dfl.dfl_convert(data_dst, data_dst_merged, data_dst_aligned, model_dir)
 
 
 def mp4(workspace, skip=False):
@@ -975,33 +1007,46 @@ def main():
     arg = sys.argv[-1]
     if arg == '--skip-no-face':
         skip_no_face(os.path.join(get_root_path(), "workspace", "data_dst"))
-    elif arg == '--extract':
-        extract()
     elif arg == '--change-workspace':
         change_workspace()
+    elif arg == '--extract':
+        extract()
+    elif arg == '--extract-dst-image':
+        extract_dst_image(get_workspace())
+        train_dst(get_workspace())
+        convert_dst(get_workspace())
     elif arg == '--prepare':
         prepare(get_workspace())
     elif arg == '--prepare-train':
         prepare(get_workspace())
         train(get_workspace())
-        convert(get_workspace(), False, True)
-    elif arg == '--prepare-manual':
-        prepare(get_workspace(), "manual")
+        convert(get_workspace(), False)
+    elif arg == '--prepare-nofix-train':
+        prepare(get_workspace(), manual_fix=False)
+        train(get_workspace())
+        convert(get_workspace(), False)
     elif arg == '--prepare-manual-train':
         prepare(get_workspace(), "manual")
         train(get_workspace())
-        convert(get_workspace(), False, True)
+        convert(get_workspace(), False)
     elif arg == '--train':
         train(get_workspace())
-        convert(get_workspace(), False, True)
-    elif arg == '--convert':
-        convert(get_workspace())
-        # mp4(get_workspace())
-    elif arg == '--convert-no-skip':
         convert(get_workspace(), False)
-        # mp4(get_workspace())
+    elif arg == '--train-dst':
+        train_dst(get_workspace())
+        convert_dst(get_workspace())
+    # elif arg == '--convert':
+    #     convert(get_workspace())
+    #     # mp4(get_workspace())
+    # elif arg == '--convert-no-skip':
+    #     convert(get_workspace(), False)
+    #     # mp4(get_workspace())
+    elif arg == '--convert-skip-manual':
+        convert(get_workspace(), skip=True)
     elif arg == '--convert-no-skip-manual':
-        convert(get_workspace(), False, True)
+        convert(get_workspace(), skip=False)
+    elif arg == '--convert-dst':
+        convert_dst(get_workspace())
     elif arg == '--mp4':
         mp4(get_workspace())
     elif arg == '--mp4-skip':
