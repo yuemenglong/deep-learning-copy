@@ -170,8 +170,8 @@ class ConverterConfigMasked(ConverterConfig):
     def add_output_face_scale(self, diff):
         self.output_face_scale = np.clip ( self.output_face_scale+diff , -50, 50)
 
-    def toggle_color_transfer_mode(self):
-        self.color_transfer_mode = (self.color_transfer_mode+1) % ( max(ctm_dict.keys())+1 )
+    def toggle_color_transfer_mode(self, diff=1):
+        self.color_transfer_mode = (self.color_transfer_mode+diff) % ( max(ctm_dict.keys())+1 )
 
     def add_color_degrade_power(self, diff):
         self.color_degrade_power = np.clip ( self.color_degrade_power+diff , 0, 100)

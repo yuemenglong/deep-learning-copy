@@ -444,7 +444,7 @@ class ConvertSubprocessor(Subprocessor):
                                 elif chr_key == 'x':
                                     cfg.toggle_mask_mode()
                                 elif chr_key == 'c':
-                                    cfg.toggle_color_transfer_mode()
+                                    cfg.toggle_color_transfer_mode(1 if not shift_pressed else -1)
                                 elif chr_key == 'v':
                                     cfg.toggle_super_resolution_mode()
                                 elif chr_key == 'b':
@@ -469,7 +469,7 @@ class ConvertSubprocessor(Subprocessor):
                                 cur_frame.is_done = False
                                 cur_frame.is_shown = False
                     else:
-                        if chr_key == 'm':
+                        if chr_key == 'm' and shift_pressed:
                             self.process_remain_frames = False
                             go_first_frame = True
                         elif chr_key == ',' or chr_key == 'm':
