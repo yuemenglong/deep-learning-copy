@@ -19,13 +19,14 @@ def trainerThread (s2c, c2s, e, args, device_args):
 
             training_data_src_path = Path( args.get('training_data_src_dir', '') )
             training_data_dst_path = Path( args.get('training_data_dst_dir', '') )
-            
+
             pretraining_data_path = args.get('pretraining_data_dir', '')
             pretraining_data_path = Path(pretraining_data_path) if pretraining_data_path is not None else None
-            
+
             model_path = Path( args.get('model_path', '') )
             model_name = args.get('model_name', '')
-            save_interval_min = 15
+            save_interval_min = 5
+            target_loss = args.get("target_loss", 0)
             debug = args.get('debug', '')
             execute_programs = args.get('execute_programs', [])
 
@@ -58,7 +59,32 @@ def trainerThread (s2c, c2s, e, args, device_args):
                 if not debug and not is_reached_goal:
                     io.log_info ("Saving....", end='\r')
                     model.save()
+                    backup()
                     shared_state['after_save'] = True
+
+
+            def backup():
+                import F
+                if model.is_first_run():
+                    return
+                has_backup = F.has_backup(model_name, model_path)
+                io.log_info ("Backup....", end='\r')
+                loss_src_mean, loss_dst_mean = np.mean([np.array(loss_history[i]) for i in range(save_iter, iter)], axis=0)
+                loss_src, loss_dst = loss_history[-1]
+                if has_backup and (iter > 20000 and loss_src_mean > 1 or loss_dst_mean > 1 or loss_src > 1 or loss_dst > 1):
+                    if model_name == "SAE" and model.options['archi'] == 'df':
+                        F.restore_model(model_name, model_path)
+                        weights_to_load = [[model.encoder, 'encoder.h5'],
+                                           [model.decoder_src, 'decoder_src.h5'],
+                                           [model.decoder_dst, 'decoder_dst.h5'],
+                                           [model.decoder_srcm, 'decoder_srcm.h5'],
+                                           [model.decoder_dstm, 'decoder_dstm.h5']]
+                        model.load_weights_safe(weights_to_load)
+                        io.log_info("Crash And Try Restore....")
+                if loss_src_mean <= 1 and loss_dst_mean <= 1 and loss_src <= 1 and loss_dst <= 1:
+                    F.backup_model_move(model_name, model_path)
+                    F.backup_model(model_name, model_path)
+
 
             def send_preview():
                 if not debug:
@@ -94,11 +120,11 @@ def trainerThread (s2c, c2s, e, args, device_args):
                         exec_prog = False
                         if prog_time > 0 and (cur_time - start_time) >= prog_time:
                             x[0] = 0
-                            exec_prog = True                            
-                        elif prog_time < 0 and (cur_time - last_time)  >= -prog_time:
-                            x[2] = cur_time                            
                             exec_prog = True
-                            
+                        elif prog_time < 0 and (cur_time - last_time)  >= -prog_time:
+                            x[2] = cur_time
+                            exec_prog = True
+
                         if exec_prog:
                             try:
                                 exec(prog)
@@ -127,6 +153,10 @@ def trainerThread (s2c, c2s, e, args, device_args):
                             io.log_info (loss_string)
 
                             save_iter = iter
+
+                            if mean_loss[0] <= target_loss and mean_loss[1] <= target_loss:
+                                is_reached_goal = True
+                                break
                         else:
                             for loss_value in loss_history[-1]:
                                 loss_string += "[%.4f]" % (loss_value)
