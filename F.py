@@ -142,7 +142,7 @@ def extract():
     extract_workspace = os.path.join(root_dir, "extract_workspace")
     target_dir = os.path.join(extract_workspace, "aligned_")
 
-    valid_exts = [".mp4", ".avi", ".wmv", ".mkv"]
+    valid_exts = [".mp4", ".avi", ".wmv", ".mkv", ".ts"]
 
     fps = io.input_int("Enter FPS ( ?:help skip:fullfps ) : ", 0,
                        help_message="How many frames of every second of the video will be extracted.")
