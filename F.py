@@ -1057,10 +1057,7 @@ def main():
         auto(get_workspace())
     elif arg == '--merge-dst-aligned':
         merge_dst_aligned()
-    # elif arg == '--skip-by-pitch':
-    #     skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
-    #                   os.path.join(get_root_path(), "workspace/data_dst/aligned"))
-    else:
+    elif arg == '--test':
         # prepare(os.path.join(get_root_path(), "workspace"), "manual")
         # match_by_pitch(os.path.join(get_root_path(), "workspace/data_src"),
         #                get_first_dst(os.path.join(get_root_path(), "workspace")))
