@@ -745,7 +745,7 @@ def convert(workspace, skip=True):
         result_path = os.path.join(workspace, "result_%s_%s.mp4" % (get_time_str(), refer_name))
         dfl.dfl_video_from_sequence(data_dst_merged, result_path, refer_path)
         # 移动到trash
-        trash_dir = os.path.join(workspace, "data_trash")
+        trash_dir = os.path.join(workspace, "../trash_workspace")
         import shutil
         shutil.move(data_dst, trash_dir)
 
@@ -801,7 +801,7 @@ def mp4(workspace, skip=False):
         result_path = os.path.join(workspace, "result_%s_%s.mp4" % (get_time_str(), refer_name))
         dfl.dfl_video_from_sequence(data_dst_merged, result_path, refer_path)
         # 移动到trash
-        trash_dir = os.path.join(workspace, "data_trash")
+        trash_dir = os.path.join(workspace, "../trash_workspace")
         import shutil
         shutil.move(data_dst, trash_dir)
 
