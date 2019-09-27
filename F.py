@@ -662,7 +662,7 @@ def prepare(workspace, detector="s3fd", manual_fix=True):
         dst_dir = os.path.join(workspace, "data_dst_%s_%s" % (get_time_str(), fname))
         shutil.move(tmp_dir, dst_dir)
         # 移动video
-        data_trash = os.path.join(workspace, "data_trash")
+        data_trash = os.path.join(workspace, "../trash_workspace")
         if not os.path.exists(data_trash):
             os.mkdir(data_trash)
         shutil.move(video, data_trash)
@@ -820,7 +820,7 @@ def step(workspace):
                     if os.path.isfile(mf):
                         shutil.copy(os.path.join(model, m), model_dst)
             src = os.path.join(workspace, f)
-            dst = os.path.join(workspace, "data_trash")
+            dst = os.path.join(workspace, "../trash_workspace")
             io.log_info("Move %s To %s" % (src, dst))
             shutil.move(src, dst)
             return
@@ -918,13 +918,13 @@ def auto_extract_to_img():
     if data_dst is not None:
         name = "_".join(data_dst.split("_")[8:])
         print(name)
-        for f in os.listdir(os.path.join(workspace, "data_trash")):
+        for f in os.listdir(os.path.join(workspace, "../trash_workspace")):
             if f.startswith(name):
                 video_name = f
                 break
     io.log_info(video_name)
     if video_name is not None:
-        video_path = os.path.join(workspace, "data_trash", video_name)
+        video_path = os.path.join(workspace, "../trash_workspace", video_name)
         data_dst_path = os.path.join(workspace, data_dst)
         io.log_info(video_path)
         io.log_info(data_dst_path)
