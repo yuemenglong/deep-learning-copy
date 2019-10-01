@@ -448,7 +448,7 @@ class ConvertSubprocessor(Subprocessor):
                                 elif chr_key == 'z':
                                     cfg.toggle_masked_hist_match()
                                 elif chr_key == 'x':
-                                    cfg.toggle_mask_mode()
+                                    cfg.toggle_mask_mode(1 if not shift_pressed else -1)
                                 elif chr_key == 'c':
                                     cfg.toggle_color_transfer_mode(1 if not shift_pressed else -1)
                                 elif chr_key == 'v':
