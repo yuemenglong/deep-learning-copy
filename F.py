@@ -1061,8 +1061,9 @@ def main():
     elif arg == '--merge-dst-aligned':
         merge_dst_aligned()
     elif arg == '--test':
-        manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"),
-                      os.path.join(get_root_path(), "workspace_ab/data_src/aligned"))
+        # manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"),
+        #               os.path.join(get_root_path(), "workspace_ab/data_src/aligned"))
+        dfl.dfl_edit_mask(os.path.join(get_workspace(), "data_src/aligned"))
         pass
 
 
