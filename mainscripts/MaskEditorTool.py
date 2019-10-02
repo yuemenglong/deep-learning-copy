@@ -60,6 +60,7 @@ class MaskEditor:
         self.screen_status_block = None
         self.screen_status_block_dirty = True
         self.screen_changed = True
+        self.mode_ex = True
 
     def set_state(self, state):
         self.state = state
@@ -306,6 +307,20 @@ class MaskEditor:
 
     def mask_point(self, type):
         self.screen_changed = True
+        if self.mode_ex:
+            b = 4
+            B = 6
+            self.ie_polys.add(type)
+            self.ie_polys.n_list().add(self.mouse_x + int(-b), self.mouse_y + int(-b))
+            self.ie_polys.n_list().add(self.mouse_x + int(0), self.mouse_y + int(-B))
+            self.ie_polys.n_list().add(self.mouse_x + int(+b), self.mouse_y + int(-b))
+            self.ie_polys.n_list().add(self.mouse_x + int(+B), self.mouse_y + int(0))
+            self.ie_polys.n_list().add(self.mouse_x + int(+b), self.mouse_y + int(+b))
+            self.ie_polys.n_list().add(self.mouse_x + int(0), self.mouse_y + int(+B))
+            self.ie_polys.n_list().add(self.mouse_x + int(-b), self.mouse_y + int(+b))
+            self.ie_polys.n_list().add(self.mouse_x + int(-B), self.mouse_y + int(0))
+            self.mask_finish()
+            return
         if self.state == self.STATE_MASKING and \
            self.ie_polys.n_list().type != type:
             self.mask_finish()
@@ -470,7 +485,10 @@ def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default
                                     ed.redo_point()
 
                 for key, chr_key, ctrl_pressed, alt_pressed, shift_pressed in io.get_key_events(wnd_name):
-                    if chr_key == 'q' or chr_key == 'z':
+                    if chr_key == 'x':
+                        ed.mode_ex = not ed.mode_ex
+                        io.log_info("Mode Ex Change To " + str(ed.mode_ex))
+                    elif chr_key == 'q' or chr_key == 'z':
                         do_prev_count = 1 if not shift_pressed else 10
                     elif chr_key == '-':
                         zoom_factor = np.clip (zoom_factor-0.1, 0.1, 4.0)
