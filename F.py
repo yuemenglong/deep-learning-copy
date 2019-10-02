@@ -142,7 +142,7 @@ def extract():
     extract_workspace = os.path.join(root_dir, "extract_workspace")
     target_dir = os.path.join(extract_workspace, "aligned_")
 
-    valid_exts = [".mp4", ".avi", ".wmv", ".mkv"]
+    valid_exts = [".mp4", ".avi", ".wmv", ".mkv", ".ts"]
 
     fps = io.input_int("Enter FPS ( ?:help skip:fullfps ) : ", 0,
                        help_message="How many frames of every second of the video will be extracted.")
@@ -662,7 +662,7 @@ def prepare(workspace, detector="s3fd", manual_fix=True):
         dst_dir = os.path.join(workspace, "data_dst_%s_%s" % (get_time_str(), fname))
         shutil.move(tmp_dir, dst_dir)
         # 移动video
-        data_trash = os.path.join(workspace, "data_trash")
+        data_trash = os.path.join(workspace, "../trash_workspace")
         if not os.path.exists(data_trash):
             os.mkdir(data_trash)
         shutil.move(video, data_trash)
@@ -745,7 +745,7 @@ def convert(workspace, skip=True):
         result_path = os.path.join(workspace, "result_%s_%s.mp4" % (get_time_str(), refer_name))
         dfl.dfl_video_from_sequence(data_dst_merged, result_path, refer_path)
         # 移动到trash
-        trash_dir = os.path.join(workspace, "data_trash")
+        trash_dir = os.path.join(workspace, "../trash_workspace")
         import shutil
         shutil.move(data_dst, trash_dir)
 
@@ -801,7 +801,7 @@ def mp4(workspace, skip=False):
         result_path = os.path.join(workspace, "result_%s_%s.mp4" % (get_time_str(), refer_name))
         dfl.dfl_video_from_sequence(data_dst_merged, result_path, refer_path)
         # 移动到trash
-        trash_dir = os.path.join(workspace, "data_trash")
+        trash_dir = os.path.join(workspace, "../trash_workspace")
         import shutil
         shutil.move(data_dst, trash_dir)
 
@@ -820,7 +820,7 @@ def step(workspace):
                     if os.path.isfile(mf):
                         shutil.copy(os.path.join(model, m), model_dst)
             src = os.path.join(workspace, f)
-            dst = os.path.join(workspace, "data_trash")
+            dst = os.path.join(workspace, "../trash_workspace")
             io.log_info("Move %s To %s" % (src, dst))
             shutil.move(src, dst)
             return
@@ -918,13 +918,13 @@ def auto_extract_to_img():
     if data_dst is not None:
         name = "_".join(data_dst.split("_")[8:])
         print(name)
-        for f in os.listdir(os.path.join(workspace, "data_trash")):
+        for f in os.listdir(os.path.join(workspace, "../trash_workspace")):
             if f.startswith(name):
                 video_name = f
                 break
     io.log_info(video_name)
     if video_name is not None:
-        video_path = os.path.join(workspace, "data_trash", video_name)
+        video_path = os.path.join(workspace, "../trash_workspace", video_name)
         data_dst_path = os.path.join(workspace, data_dst)
         io.log_info(video_path)
         io.log_info(data_dst_path)
@@ -1001,6 +1001,15 @@ def get_workspace():
     raise Exception("No @Workspace File")
 
 
+def get_workspace_dst():
+    workspace = get_workspace()
+    for f in os.listdir(workspace):
+        f = os.path.join(workspace, f)
+        if not os.path.isdir(f) or not os.path.basename(f).startswith("data_dst_"):
+            continue
+        return f
+
+
 def main():
     import sys
 
@@ -1035,12 +1044,6 @@ def main():
     elif arg == '--train-dst':
         train_dst(get_workspace())
         convert_dst(get_workspace())
-    # elif arg == '--convert':
-    #     convert(get_workspace())
-    #     # mp4(get_workspace())
-    # elif arg == '--convert-no-skip':
-    #     convert(get_workspace(), False)
-    #     # mp4(get_workspace())
     elif arg == '--convert-skip-manual':
         convert(get_workspace(), skip=True)
     elif arg == '--convert-no-skip-manual':
@@ -1057,43 +1060,9 @@ def main():
         auto(get_workspace())
     elif arg == '--merge-dst-aligned':
         merge_dst_aligned()
-    # elif arg == '--skip-by-pitch':
-    #     skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
-    #                   os.path.join(get_root_path(), "workspace/data_dst/aligned"))
-    else:
-        # prepare(os.path.join(get_root_path(), "workspace"), "manual")
-        # match_by_pitch(os.path.join(get_root_path(), "workspace/data_src"),
-        #                get_first_dst(os.path.join(get_root_path(), "workspace")))
-        # sync_trash(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_trash"),
-        #            os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_all"))
-
-        # select(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_select"),
-        #        os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_all"))
-
-        # skip_by_pitch(os.path.join(get_root_path(), "workspace/data_src/aligned"),
-        #               os.path.join(get_root_path(), "workspace/data_dst/aligned"))
-        # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace_test", "data_src/aligned"))
-        # split(os.path.join(get_root_path(), "extract_workspace/_/_chuang_ye_4k/all"),
-        #       os.path.join(get_root_path(), "extract_workspace/_/_chuang_ye_4k/split"), 3000)
-        # merge(os.path.join(get_root_path(), "extract_workspace/aligned_reba_all/fin"),
-        #       os.path.join(get_root_path(), "extract_workspace/aligned_reba_all"),)
-        # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/_/_san_sheng_4k/all"))
-        # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace/aligned_ym_4k_all"))
-        # get_pitch_yaw_roll(os.path.join(get_root_path(), "workspace/data_src/aligned"))
-        manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ab_ex4"),
-                      os.path.join(get_root_path(), "workspace/data_src/aligned"))
-        # manual_select(os.path.join(get_root_path(), "workspace/data_src/aligned"),
-        #               os.path.join(get_root_path(), "workspace/data_src/aligned"))
-        # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"))
-        # auto_skip_by_pitch()
-        # auto_extract_to_img()
-        # fanseg(os.path.join(get_root_path(), "extract_workspace", "aligned_ty"))
-        # get_pitch_yaw_roll(os.path.join(get_root_path(), "extract_workspace", "aligned_fj_all"))
-        # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace", "aligned_ty"))
-        # split(os.path.join(get_root_path(), "extract_workspace/aligned_lyf"),
-        #       os.path.join(get_root_path(), "extract_workspace/aligned_lyf")
-        #       )
-        # merge_dst_aligned()
+    elif arg == '--test':
+        manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"),
+                      os.path.join(get_root_path(), "workspace_ab/data_src/aligned"))
         pass
 
 
