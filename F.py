@@ -17,6 +17,18 @@ def mid_point(points):
     return x, y
 
 
+def mid_point_by_range(points):
+    xmin = min(p[0] for p in points)
+    xmax = max(p[0] for p in points)
+    ymin = min(p[1] for p in points)
+    ymax = max(p[1] for p in points)
+    print("xrange", xmin, xmax)
+    print("yrange", ymin, ymax)
+    x = (xmin + xmax) / 2
+    y = (ymin + ymax) / 2
+    return x, y
+
+
 def poly_area(points):
     x = [p[0] for p in points]
     y = [p[1] for p in points]
@@ -765,7 +777,8 @@ def edit_mask(workspace):
     dst_aligned = os.path.join(dst, "aligned")
     _, confirmed, _ = dfl.dfl_edit_mask(dst_aligned)
     import shutil
-    shutil.move(confirmed, dst_aligned)
+    for f in os.listdir(confirmed):
+        shutil.move(os.path.join(confirmed, f), dst_aligned)
 
 
 def mp4(workspace, skip=False):

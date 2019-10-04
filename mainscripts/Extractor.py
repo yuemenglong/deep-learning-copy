@@ -317,8 +317,10 @@ class ExtractSubprocessor(Subprocessor):
         self.manual_window_size = manual_window_size
         self.max_faces_from_image = max_faces_from_image
         self.result = []
+        self.cur_outer = []
+        self.cur_landmarks = []
         self.last_outer = []
-        self.temp_outer = []
+        self.last_landmarks = []
         self.auto = False
         self.min_pixel = min_pixel
 
@@ -473,34 +475,39 @@ class ExtractSubprocessor(Subprocessor):
                         if (key == ord('f') or right_btn_down) and self.rect_locked:
                             # confirm frame
                             is_frame_done = True
-                            self.last_outer = self.temp_outer
+                            self.last_outer = self.cur_outer
+                            self.last_landmarks = self.cur_landmarks
                             data_rects.append(self.rect)
                             data_landmarks.append(self.landmarks)
                             self.auto = True
                             break
-                        elif (key == ord('f') or key == ord('s') or self.auto) and len(self.last_outer) != 0:
-                            last_mid = F.mid_point(self.last_outer)
+                        elif (key == ord('f') or key == ord('s') or self.auto) and len(self.last_outer) != 0 and len(self.last_landmarks) > 0:
+                            border_ratio = 0.9
+                            # 根据上次的外框算出这次的x/y,以及外框大小
+                            # last_mid = F.mid_point(self.last_outer)
+                            last_mid = F.mid_point_by_range(self.last_landmarks)
                             last_border = np.linalg.norm(np.array(self.last_outer[0]) - np.array(self.last_outer[1]))
                             last_area = F.poly_area(self.last_outer)
                             x, y = last_mid
                             new_x = np.clip(x, 0, w - 1) / self.view_scale
                             new_y = np.clip(y, 0, h - 1) / self.view_scale
-                            new_rect_size = last_border / 2 / self.view_scale * 0.9
+                            new_rect_size = last_border / 2 / self.view_scale * border_ratio
                             # make sure rect and landmarks have been refreshed
-                            # if self.x == new_x and self.y == new_y and len(self.temp_outer) != 0:
-                            if len(self.temp_outer) != 0:
-                                # compare dist and area
-                                temp_mid = F.mid_point(self.temp_outer)
-                                dist = np.linalg.norm(np.array(temp_mid) - np.array(last_mid))
+                            if len(self.cur_outer) != 0:
+                                # 根据本次外框大小算是否valid，通过边长，面积，角度
+                                # temp_mid = F.mid_point(self.temp_outer)
+                                cur_mid = F.mid_point_by_range(self.cur_landmarks)
+                                dist = np.linalg.norm(np.array(cur_mid) - np.array(last_mid))
                                 dist_r = dist / last_border
-                                temp_area = F.poly_area(self.temp_outer)
+                                temp_area = F.poly_area(self.cur_outer)
                                 area_r = temp_area / last_area
                                 v0 = np.array(last_mid) - np.array(self.last_outer[0])
-                                v1 = np.array(temp_mid) - np.array(self.temp_outer[0])
+                                v1 = np.array(cur_mid) - np.array(self.cur_outer[0])
                                 angle = math.fabs(F.angle_between(v0, v1))
                                 if dist_r < 0.5 and 0.5 < area_r < 1.5 and angle < 0.7:
                                     is_frame_done = True
-                                    self.last_outer = self.temp_outer
+                                    self.last_outer = self.cur_outer
+                                    self.last_landmarks = self.cur_landmarks
                                     data_rects.append(self.rect)
                                     data_landmarks.append(self.landmarks)
                                     self.auto = True
@@ -602,7 +609,7 @@ class ExtractSubprocessor(Subprocessor):
                     io.progress_bar_inc(1)
                     self.extract_needed = True
                     self.rect_locked = False
-                    self.temp_outer = []
+                    self.cur_outer = []
 
         return None
 
@@ -645,7 +652,8 @@ class ExtractSubprocessor(Subprocessor):
                 view_landmarks = LandmarksProcessor.transform_points (view_landmarks, mat)
 
             landmarks_color = (255,255,0) if self.rect_locked else (0,255,0)
-            self.temp_outer = LandmarksProcessor.draw_rect_landmarks (image, view_rect, view_landmarks, self.image_size, self.face_type, landmarks_color=landmarks_color)
+            self.cur_outer = LandmarksProcessor.draw_rect_landmarks (image, view_rect, view_landmarks, self.image_size, self.face_type, landmarks_color=landmarks_color)
+            self.cur_landmarks = view_landmarks
             self.extract_needed = False
 
             io.show_image (self.wnd_name, image)
