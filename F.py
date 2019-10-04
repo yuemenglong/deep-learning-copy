@@ -22,8 +22,6 @@ def mid_point_by_range(points):
     xmax = max(p[0] for p in points)
     ymin = min(p[1] for p in points)
     ymax = max(p[1] for p in points)
-    print("xrange", xmin, xmax)
-    print("yrange", ymin, ymax)
     x = (xmin + xmax) / 2
     y = (ymin + ymax) / 2
     return x, y

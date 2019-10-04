@@ -17,6 +17,12 @@ from utils.cv2_utils import *
 from utils.DFLJPG import DFLJPG
 from utils.DFLPNG import DFLPNG
 
+mode_ex = False
+mode_ex_mouse_xy = []
+mode_ex_last_mouse = []
+mode_ex_last_points = []
+
+
 class MaskEditor:
     STATE_NONE=0
     STATE_MASKING=1
@@ -60,7 +66,6 @@ class MaskEditor:
         self.screen_status_block = None
         self.screen_status_block_dirty = True
         self.screen_changed = True
-        self.mode_ex = False
 
     def set_state(self, state):
         self.state = state
@@ -88,12 +93,34 @@ class MaskEditor:
     def get_screen_overlay(self):
         img = np.zeros ( (self.sh, self.sw, 3) )
 
-        if self.state == self.STATE_MASKING:
+        global mode_ex_last_mouse
+        global mode_ex_last_points
+        global mode_ex_mouse_xy
+        if mode_ex and len(mode_ex_last_mouse) > 0 and len(mode_ex_last_points) > 0 and len(mode_ex_mouse_xy) > 0:
+            i = 0
+            color = (0,1,1)
+            while i < len(mode_ex_last_points):
+                v = np.array((mode_ex_mouse_xy - mode_ex_last_mouse)).astype("int")
+                f = mode_ex_last_points[i % len(mode_ex_last_points)].copy() + v + self.pwh
+                t = mode_ex_last_points[(i + 1) % len(mode_ex_last_points)].copy() + v + self.pwh
+                cv2.line(img, tuple(f), tuple(t), color)
+                i += 1
+        elif self.state == self.STATE_MASKING:
             mouse_xy = self.mouse_xy.copy() + self.pwh
             l = self.ie_polys.n_list()
+            color = (0,1,0) if l.type == 1 else (0,0,1)
+            ps = l.points_to_n()
+            i = 0
+            while i < len(ps) - 1:
+                f = ps[i].copy() + self.pwh
+                t = ps[i + 1].copy() + self.pwh
+                cv2.line(img, tuple(f), tuple(t), color)
+                i += 1
             if l.n > 0:
                 p = l.cur_point().copy() + self.pwh
-                color = (0,1,0) if l.type == 1 else (0,0,1)
+                # color = (0,1,0) if l.type == 1 else (0,0,1)
+                cv2.line(img, tuple(p), tuple(mouse_xy), color )
+                p = ps[0].copy() + self.pwh
                 cv2.line(img, tuple(p), tuple(mouse_xy), color )
 
         return img
@@ -287,6 +314,11 @@ class MaskEditor:
             self.screen_changed = True
             if self.ie_polys.n_list().n <= 2:
                 self.ie_polys.n_dec()
+            else:
+                global mode_ex_last_mouse
+                global mode_ex_last_points
+                mode_ex_last_mouse = self.mouse_xy.copy()
+                mode_ex_last_points = self.ie_polys.n_list().points_to_n()
             self.state = self.STATE_NONE
             if n_clip:
                 self.ie_polys.n_clip()
@@ -304,21 +336,21 @@ class MaskEditor:
             self.mouse_xy = np.array( [mouse_x, mouse_y] )
             self.mouse_x, self.mouse_y = self.mouse_xy
             self.screen_changed = True
+            global mode_ex_mouse_xy
+            mode_ex_mouse_xy = self.mouse_xy.copy()
 
     def mask_point(self, type):
         self.screen_changed = True
-        if self.mode_ex:
-            b = 4
-            B = 6
+        global mode_ex_last_mouse
+        global mode_ex_last_points
+        global mode_ex_mouse_xy
+        if mode_ex and len(mode_ex_last_mouse) > 0 and len(mode_ex_last_points) > 0 and len(mode_ex_mouse_xy) > 0:
             self.ie_polys.add(type)
-            self.ie_polys.n_list().add(self.mouse_x + int(-b), self.mouse_y + int(-b))
-            self.ie_polys.n_list().add(self.mouse_x + int(0), self.mouse_y + int(-B))
-            self.ie_polys.n_list().add(self.mouse_x + int(+b), self.mouse_y + int(-b))
-            self.ie_polys.n_list().add(self.mouse_x + int(+B), self.mouse_y + int(0))
-            self.ie_polys.n_list().add(self.mouse_x + int(+b), self.mouse_y + int(+b))
-            self.ie_polys.n_list().add(self.mouse_x + int(0), self.mouse_y + int(+B))
-            self.ie_polys.n_list().add(self.mouse_x + int(-b), self.mouse_y + int(+b))
-            self.ie_polys.n_list().add(self.mouse_x + int(-B), self.mouse_y + int(0))
+            for p in mode_ex_last_points:
+                v = np.array((mode_ex_mouse_xy - mode_ex_last_mouse)).astype("int")
+                px = (p + v)[0]
+                py = (p + v)[1]
+                self.ie_polys.n_list().add(px, py)
             self.mask_finish()
             return
         if self.state == self.STATE_MASKING and \
@@ -349,7 +381,7 @@ def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default
 
     if not skipped_path.exists():
         skipped_path.mkdir(parents=True)
-        
+
     if not no_default_mask:
         # eyebrows_expand_mod = np.clip ( io.input_int ("Default eyebrows expand modifier? (0..400, skip:100) : ", 100), 0, 400 ) / 100.0
         eyebrows_expand_mod = np.clip ( 100, 0, 400 ) / 100.0
@@ -487,8 +519,14 @@ def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default
 
                 for key, chr_key, ctrl_pressed, alt_pressed, shift_pressed in io.get_key_events(wnd_name):
                     if chr_key == 'x':
-                        ed.mode_ex = not ed.mode_ex
-                        io.log_info("Mode Ex Change To " + str(ed.mode_ex))
+                        global mode_ex
+                        mode_ex = not mode_ex
+                        ed.screen_changed = True
+                        if ed.state == MaskEditor.STATE_MASKING:
+                            ed.state = MaskEditor.STATE_NONE
+                            ed.ie_polys.n_dec()
+                            ed.ie_polys.n_clip()
+                        io.log_info("Mode Ex Change To " + str(mode_ex))
                     elif chr_key == 'q' or chr_key == 'z':
                         do_prev_count = 1 if not shift_pressed else 10
                     elif chr_key == '-':
@@ -508,8 +546,8 @@ def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default
                             do_save_count = 1 if not shift_pressed else 10
                         elif chr_key == 'w':
                             do_skip_move_count = 1 if not shift_pressed else 10
-                        elif chr_key == 'x':
-                            do_skip_count = 1 if not shift_pressed else 10
+                        # elif chr_key == 'x':
+                        #     do_skip_count = 1 if not shift_pressed else 10
 
             if do_prev_count > 0:
                 do_prev_count -= 1
