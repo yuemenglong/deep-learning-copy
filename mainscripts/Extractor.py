@@ -485,7 +485,7 @@ class ExtractSubprocessor(Subprocessor):
                             x, y = last_mid
                             new_x = np.clip(x, 0, w - 1) / self.view_scale
                             new_y = np.clip(y, 0, h - 1) / self.view_scale
-                            new_rect_size = last_border / 2 / self.view_scale * 0.8
+                            new_rect_size = last_border / 2 / self.view_scale * 0.9
                             # make sure rect and landmarks have been refreshed
                             # if self.x == new_x and self.y == new_y and len(self.temp_outer) != 0:
                             if len(self.temp_outer) != 0:

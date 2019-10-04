@@ -760,6 +760,14 @@ def convert_dst(workspace):
     dfl.dfl_convert(data_dst, data_dst_merged, data_dst_aligned, model_dir)
 
 
+def edit_mask(workspace):
+    dst = get_workspace_dst(workspace)
+    dst_aligned = os.path.join(dst, "aligned")
+    _, confirmed, _ = dfl.dfl_edit_mask(dst_aligned)
+    import shutil
+    shutil.move(confirmed, dst_aligned)
+
+
 def mp4(workspace, skip=False):
     import os
     for f in os.listdir(workspace):
@@ -1001,8 +1009,9 @@ def get_workspace():
     raise Exception("No @Workspace File")
 
 
-def get_workspace_dst():
-    workspace = get_workspace()
+def get_workspace_dst(workspace=None):
+    if workspace is None:
+        workspace = get_workspace()
     for f in os.listdir(workspace):
         f = os.path.join(workspace, f)
         if not os.path.isdir(f) or not os.path.basename(f).startswith("data_dst_"):
@@ -1038,6 +1047,11 @@ def main():
         prepare(get_workspace(), "manual")
         train(get_workspace())
         convert(get_workspace(), False)
+    elif arg == '--prepare-manual-edit-train':
+        prepare(get_workspace(), "manual")
+        edit_mask(get_workspace())
+        train(get_workspace())
+        convert(get_workspace(), False)
     elif arg == '--train':
         train(get_workspace())
         convert(get_workspace(), False)
@@ -1063,7 +1077,7 @@ def main():
     elif arg == '--test':
         # manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"),
         #               os.path.join(get_root_path(), "workspace_ab/data_src/aligned"))
-        dfl.dfl_edit_mask(os.path.join(get_root_path(),"extract_workspace/aligned_ab_all_fix"))
+        dfl.dfl_edit_mask(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all_fix"))
         pass
 
 

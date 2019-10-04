@@ -60,7 +60,7 @@ class MaskEditor:
         self.screen_status_block = None
         self.screen_status_block_dirty = True
         self.screen_changed = True
-        self.mode_ex = True
+        self.mode_ex = False
 
     def set_state(self, state):
         self.state = state
@@ -351,7 +351,8 @@ def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default
         skipped_path.mkdir(parents=True)
         
     if not no_default_mask:
-        eyebrows_expand_mod = np.clip ( io.input_int ("Default eyebrows expand modifier? (0..400, skip:100) : ", 100), 0, 400 ) / 100.0
+        # eyebrows_expand_mod = np.clip ( io.input_int ("Default eyebrows expand modifier? (0..400, skip:100) : ", 100), 0, 400 ) / 100.0
+        eyebrows_expand_mod = np.clip ( 100, 0, 400 ) / 100.0
     else:
         eyebrows_expand_mod = None
 

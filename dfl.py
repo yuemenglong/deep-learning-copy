@@ -80,6 +80,7 @@ def dfl_edit_mask(input_dir):
         "--skipped-dir": input_dir + "_skipped",
     }
     dfl_exec(cmd, args)
+    return [input_dir, input_dir + "_confirmed", input_dir + "_skipped"]
 
 
 def get_root_path():
