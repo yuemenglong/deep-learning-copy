@@ -1030,6 +1030,24 @@ def get_workspace_dst(workspace=None):
         return f
 
 
+def clean_trash():
+    import shutil
+    trash_workspace = os.path.join(get_root_path(), "trash_workspace")
+    for d in os.listdir(trash_workspace):
+        d = os.path.join(trash_workspace, d)
+        if os.path.isfile(d):
+            continue
+        for f in os.listdir(d):
+            if f == "aligned" or f == "video":
+                continue
+            f = os.path.join(d, f)
+            print(f)
+            if os.path.isdir(f):
+                shutil.rmtree(f)
+            else:
+                os.remove(f)
+
+
 def main():
     import sys
 
@@ -1085,6 +1103,8 @@ def main():
         auto(get_workspace())
     elif arg == '--merge-dst-aligned':
         merge_dst_aligned()
+    elif arg == '--clean-trash':
+        clean_trash()
     elif arg == '--test':
         # manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"),
         #               os.path.join(get_root_path(), "workspace_ab/data_src/aligned"))
