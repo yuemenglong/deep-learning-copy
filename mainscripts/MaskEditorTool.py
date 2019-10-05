@@ -21,6 +21,7 @@ mode_ex = False
 mode_ex_mouse_xy = []
 mode_ex_last_mouse = []
 mode_ex_last_points = []
+mode_ex_cont = False
 
 
 class MaskEditor:
@@ -368,6 +369,8 @@ class MaskEditor:
         return self.ie_polys
 
 def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default_mask=False):
+    global mode_ex
+    global mode_ex_cont
     input_path = Path(input_dir)
 
     confirmed_path = Path(confirmed_dir)
@@ -493,8 +496,10 @@ def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default
         next = False
         while not next:
             io.process_messages(0.005)
-
             if jobs_count() == 0:
+                if filepath is not None and mode_ex and mode_ex_cont:
+                    ed.mask_point(0)
+                    mode_ex_cont = False
                 for (x,y,ev,flags) in io.get_mouse_events(wnd_name):
                     x, y = int (x / zoom_factor), int(y / zoom_factor)
                     ed.set_mouse_pos(x, y)
@@ -519,7 +524,6 @@ def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default
 
                 for key, chr_key, ctrl_pressed, alt_pressed, shift_pressed in io.get_key_events(wnd_name):
                     if chr_key == 'x':
-                        global mode_ex
                         mode_ex = not mode_ex
                         ed.screen_changed = True
                         if ed.state == MaskEditor.STATE_MASKING:
@@ -540,7 +544,10 @@ def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default
                         next = True
                         break
                     elif filepath is not None:
-                        if chr_key == 'e':
+                        if chr_key == 'r':
+                            do_save_move_count = 1
+                            mode_ex_cont = True
+                        elif chr_key == 'e':
                             do_save_move_count = 1 if not shift_pressed else 10
                         elif chr_key == 'c':
                             do_save_count = 1 if not shift_pressed else 10
