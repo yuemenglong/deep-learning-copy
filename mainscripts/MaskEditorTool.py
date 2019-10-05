@@ -17,11 +17,6 @@ from utils.cv2_utils import *
 from utils.DFLJPG import DFLJPG
 from utils.DFLPNG import DFLPNG
 
-# mode_ex = False
-# mode_ex_mouse_xy = []
-# mode_ex_last_mouse = []
-# mode_ex_last_points = []
-# mode_ex_cont = False
 
 class ModeEx:
     def __init__(self):
@@ -135,19 +130,6 @@ class MaskEditor:
 
     def get_screen_overlay(self):
         img = np.zeros ( (self.sh, self.sw, 3) )
-
-        # global mode_ex_last_mouse
-        # global mode_ex_last_points
-        # global mode_ex_mouse_xy
-        # if mode_ex and len(mode_ex_last_mouse) > 0 and len(mode_ex_last_points) > 0 and len(mode_ex_mouse_xy) > 0:
-        #     i = 0
-        #     color = (0,1,1)
-        #     while i < len(mode_ex_last_points):
-        #         v = np.array((mode_ex_mouse_xy - mode_ex_last_mouse)).astype("int")
-        #         f = mode_ex_last_points[i % len(mode_ex_last_points)].copy() + v + self.pwh
-        #         t = mode_ex_last_points[(i + 1) % len(mode_ex_last_points)].copy() + v + self.pwh
-        #         cv2.line(img, tuple(f), tuple(t), color)
-        #         i += 1
         global mode_ex
         if mode_ex.is_enable():
             mode_ex.draw_outer_line(img, self.pwh)
@@ -361,8 +343,6 @@ class MaskEditor:
             if self.ie_polys.n_list().n <= 2:
                 self.ie_polys.n_dec()
             else:
-                # global mode_ex_last_mouse
-                # global mode_ex_last_points
                 global mode_ex
                 mode_ex.last_mouse_xy = self.mouse_xy.copy()
                 mode_ex.last_points = self.ie_polys.n_list().points_to_n()
@@ -388,18 +368,6 @@ class MaskEditor:
 
     def mask_point(self, type):
         self.screen_changed = True
-        # global mode_ex_last_mouse
-        # global mode_ex_last_points
-        # global mode_ex_mouse_xy
-        # if mode_ex and len(mode_ex_last_mouse) > 0 and len(mode_ex_last_points) > 0 and len(mode_ex_mouse_xy) > 0:
-        #     self.ie_polys.add(type)
-        #     for p in mode_ex_last_points:
-        #         v = np.array((mode_ex_mouse_xy - mode_ex_last_mouse)).astype("int")
-        #         px = (p + v)[0]
-        #         py = (p + v)[1]
-        #         self.ie_polys.n_list().add(px, py)
-        #     self.mask_finish()
-        #     return
         global mode_ex
         if mode_ex.is_enable():
             mode_ex.mask_point(self, type)
