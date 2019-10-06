@@ -796,7 +796,7 @@ def main(input_dir,
         if not manual_output_debug_fix and input_path != output_path:
             output_images_paths = Path_utils.get_image_paths(output_path)
             if len(output_images_paths) > 0:
-                io.input_bool("WARNING !!! \n %s contains files! \n They will be deleted. \n Press enter to continue." % (str(output_path)), False )
+                # io.input_bool("WARNING !!! \n %s contains files! \n They will be deleted. \n Press enter to continue." % (str(output_path)), False )
                 for filename in output_images_paths:
                     Path(filename).unlink()
     else:
@@ -909,7 +909,7 @@ def extract_umd_csv(input_file_csv,
     if output_path.exists():
         output_images_paths = Path_utils.get_image_paths(output_path)
         if len(output_images_paths) > 0:
-            io.input_bool("WARNING !!! \n %s contains files! \n They will be deleted. \n Press enter to continue." % (str(output_path)), False )
+            # io.input_bool("WARNING !!! \n %s contains files! \n They will be deleted. \n Press enter to continue." % (str(output_path)), False )
             for filename in output_images_paths:
                 Path(filename).unlink()
     else:
