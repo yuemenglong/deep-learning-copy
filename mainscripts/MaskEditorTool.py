@@ -24,6 +24,7 @@ class ModeEx:
         self.mouse_xy = []
         self.last_mouse_xy = []
         self.last_points = []
+        self.last_type = 0
         self.cont = False
 
     def is_enable(self):
@@ -370,6 +371,7 @@ class MaskEditor:
         self.screen_changed = True
         global mode_ex
         if mode_ex.is_enable():
+            mode_ex.last_type = type
             mode_ex.mask_point(self, type)
             return
         if self.state == self.STATE_MASKING and \
@@ -421,7 +423,7 @@ def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default
     done_images_types = {}
     image_paths_total = len(image_paths)
 
-    zoom_factor = 1.0
+    zoom_factor = 1.9
     preview_images_count = 9
     target_wh = 256
 
@@ -516,7 +518,7 @@ def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default
             io.process_messages(0.005)
             if jobs_count() == 0:
                 if filepath is not None and mode_ex.is_cont():
-                    ed.mask_point(0)
+                    ed.mask_point(mode_ex.last_type)
                     mode_ex.cont = False
                 for (x,y,ev,flags) in io.get_mouse_events(wnd_name):
                     x, y = int (x / zoom_factor), int(y / zoom_factor)
