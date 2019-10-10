@@ -17,6 +17,48 @@ from utils.cv2_utils import *
 from utils.DFLJPG import DFLJPG
 from utils.DFLPNG import DFLPNG
 
+
+class ModeEx:
+    def __init__(self):
+        self.enable = False
+        self.mouse_xy = []
+        self.last_mouse_xy = []
+        self.last_points = []
+        self.last_type = 0
+        self.cont = False
+
+    def is_enable(self):
+        return self.enable and \
+               len(self.last_mouse_xy) > 0 and \
+               len(self.last_points) > 0 and \
+               len(self.mouse_xy) > 0
+
+    def is_cont(self):
+        return self.enable and self.cont
+
+    def draw_outer_line(self, img, pwh):
+        i = 0
+        color = (0, 1, 1)
+        while i < len(self.last_points):
+            v = np.array(self.mouse_xy - self.last_mouse_xy).astype("int")
+            f = self.last_points[i % len(self.last_points)].copy() + v + pwh
+            t = self.last_points[(i + 1) % len(self.last_points)].copy() + v + pwh
+            cv2.line(img, tuple(f), tuple(t), color)
+            i += 1
+
+    def mask_point(self, ed, type):
+        ed.ie_polys.add(type)
+        for p in self.last_points:
+            v = np.array((self.mouse_xy - self.last_mouse_xy)).astype("int")
+            px = (p + v)[0]
+            py = (p + v)[1]
+            ed.ie_polys.n_list().add(px, py)
+        ed.mask_finish()
+
+
+mode_ex = ModeEx()
+
+
 class MaskEditor:
     STATE_NONE=0
     STATE_MASKING=1
@@ -57,6 +99,9 @@ class MaskEditor:
         self.preview_images = None
 
         self.mouse_x = self.mouse_y = 9999
+        if len(mode_ex.mouse_xy) > 0:
+            self.mouse_x = mode_ex.mouse_xy[0]
+            self.mouse_y = mode_ex.mouse_xy[1]
         self.screen_status_block = None
         self.screen_status_block_dirty = True
         self.screen_changed = True
@@ -86,13 +131,25 @@ class MaskEditor:
 
     def get_screen_overlay(self):
         img = np.zeros ( (self.sh, self.sw, 3) )
-
-        if self.state == self.STATE_MASKING:
+        global mode_ex
+        if mode_ex.is_enable():
+            mode_ex.draw_outer_line(img, self.pwh)
+        elif self.state == self.STATE_MASKING:
             mouse_xy = self.mouse_xy.copy() + self.pwh
             l = self.ie_polys.n_list()
+            color = (0,1,0) if l.type == 1 else (0,0,1)
+            ps = l.points_to_n()
+            i = 0
+            while i < len(ps) - 1:
+                f = ps[i].copy() + self.pwh
+                t = ps[i + 1].copy() + self.pwh
+                cv2.line(img, tuple(f), tuple(t), color)
+                i += 1
             if l.n > 0:
                 p = l.cur_point().copy() + self.pwh
-                color = (0,1,0) if l.type == 1 else (0,0,1)
+                # color = (0,1,0) if l.type == 1 else (0,0,1)
+                cv2.line(img, tuple(p), tuple(mouse_xy), color )
+                p = ps[0].copy() + self.pwh
                 cv2.line(img, tuple(p), tuple(mouse_xy), color )
 
         return img
@@ -286,6 +343,10 @@ class MaskEditor:
             self.screen_changed = True
             if self.ie_polys.n_list().n <= 2:
                 self.ie_polys.n_dec()
+            else:
+                global mode_ex
+                mode_ex.last_mouse_xy = self.mouse_xy.copy()
+                mode_ex.last_points = self.ie_polys.n_list().points_to_n()
             self.state = self.STATE_NONE
             if n_clip:
                 self.ie_polys.n_clip()
@@ -303,9 +364,16 @@ class MaskEditor:
             self.mouse_xy = np.array( [mouse_x, mouse_y] )
             self.mouse_x, self.mouse_y = self.mouse_xy
             self.screen_changed = True
+            global mode_ex
+            mode_ex.mouse_xy = self.mouse_xy.copy()
 
     def mask_point(self, type):
         self.screen_changed = True
+        global mode_ex
+        if mode_ex.is_enable():
+            mode_ex.last_type = type
+            mode_ex.mask_point(self, type)
+            return
         if self.state == self.STATE_MASKING and \
            self.ie_polys.n_list().type != type:
             self.mask_finish()
@@ -321,6 +389,8 @@ class MaskEditor:
         return self.ie_polys
 
 def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default_mask=False):
+    global mode_ex
+    # global mode_ex_cont
     input_path = Path(input_dir)
 
     confirmed_path = Path(confirmed_dir)
@@ -334,9 +404,10 @@ def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default
 
     if not skipped_path.exists():
         skipped_path.mkdir(parents=True)
-        
+
     if not no_default_mask:
-        eyebrows_expand_mod = np.clip ( io.input_int ("Default eyebrows expand modifier? (0..400, skip:100) : ", 100), 0, 400 ) / 100.0
+        # eyebrows_expand_mod = np.clip ( io.input_int ("Default eyebrows expand modifier? (0..400, skip:100) : ", 100), 0, 400 ) / 100.0
+        eyebrows_expand_mod = np.clip ( 100, 0, 400 ) / 100.0
     else:
         eyebrows_expand_mod = None
 
@@ -352,7 +423,7 @@ def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default
     done_images_types = {}
     image_paths_total = len(image_paths)
 
-    zoom_factor = 1.0
+    zoom_factor = 1.9
     preview_images_count = 9
     target_wh = 256
 
@@ -445,8 +516,10 @@ def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default
         next = False
         while not next:
             io.process_messages(0.005)
-
             if jobs_count() == 0:
+                if filepath is not None and mode_ex.is_cont():
+                    ed.mask_point(mode_ex.last_type)
+                    mode_ex.cont = False
                 for (x,y,ev,flags) in io.get_mouse_events(wnd_name):
                     x, y = int (x / zoom_factor), int(y / zoom_factor)
                     ed.set_mouse_pos(x, y)
@@ -470,7 +543,15 @@ def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default
                                     ed.redo_point()
 
                 for key, chr_key, ctrl_pressed, alt_pressed, shift_pressed in io.get_key_events(wnd_name):
-                    if chr_key == 'q' or chr_key == 'z':
+                    if chr_key == 'x':
+                        mode_ex.enable = not mode_ex.enable
+                        ed.screen_changed = True
+                        if ed.state == MaskEditor.STATE_MASKING:
+                            ed.state = MaskEditor.STATE_NONE
+                            ed.ie_polys.n_dec()
+                            ed.ie_polys.n_clip()
+                        io.log_info("Mode Ex Change To " + str(mode_ex.enable))
+                    elif chr_key == 'q' or chr_key == 'z':
                         do_prev_count = 1 if not shift_pressed else 10
                     elif chr_key == '-':
                         zoom_factor = np.clip (zoom_factor-0.1, 0.1, 4.0)
@@ -483,14 +564,17 @@ def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default
                         next = True
                         break
                     elif filepath is not None:
-                        if chr_key == 'e':
+                        if chr_key == 'r':
+                            do_save_move_count = 1
+                            mode_ex.cont = True
+                        elif chr_key == 'e':
                             do_save_move_count = 1 if not shift_pressed else 10
                         elif chr_key == 'c':
                             do_save_count = 1 if not shift_pressed else 10
                         elif chr_key == 'w':
                             do_skip_move_count = 1 if not shift_pressed else 10
-                        elif chr_key == 'x':
-                            do_skip_count = 1 if not shift_pressed else 10
+                        # elif chr_key == 'x':
+                        #     do_skip_count = 1 if not shift_pressed else 10
 
             if do_prev_count > 0:
                 do_prev_count -= 1

@@ -17,6 +17,16 @@ def mid_point(points):
     return x, y
 
 
+def mid_point_by_range(points):
+    xmin = min(p[0] for p in points)
+    xmax = max(p[0] for p in points)
+    ymin = min(p[1] for p in points)
+    ymax = max(p[1] for p in points)
+    x = (xmin + xmax) / 2
+    y = (ymin + ymax) / 2
+    return x, y
+
+
 def poly_area(points):
     x = [p[0] for p in points]
     y = [p[1] for p in points]
@@ -474,6 +484,17 @@ def recover_filename(input_path):
     Util.recover_original_aligned_filename(input_path)
 
 
+def recover_filename_if_nessesary(input_path):
+    # 恢复排序
+    need_recover = True
+    for img in os.listdir(input_path):
+        if img.endswith("_0.jpg") or img.endswith("_0.png"):
+            need_recover = False
+        break
+    if need_recover:
+        recover_filename(input_path)
+
+
 def low_prio():
     from utils import os_utils
     os_utils.set_process_lowest_prio()
@@ -760,6 +781,62 @@ def convert_dst(workspace):
     dfl.dfl_convert(data_dst, data_dst_merged, data_dst_aligned, model_dir)
 
 
+def edit_mask(workspace):
+    dst = get_workspace_dst(workspace)
+    dst_aligned = os.path.join(dst, "aligned")
+    _, confirmed, _ = dfl.dfl_edit_mask(dst_aligned)
+    import shutil
+    for f in os.listdir(confirmed):
+        shutil.move(os.path.join(confirmed, f), dst_aligned)
+
+
+def refix(workspace):
+    dst = get_workspace_dst(workspace)
+    dst_aligned = os.path.join(dst, "aligned")
+    recover_filename_if_nessesary(dst_aligned)
+    extract_imgs = [f if f.endswith(".jpg") or f.endswith(".png") else "" for f in os.listdir(dst)]
+    max_img_no = int(max(extract_imgs).split(".")[0])
+    ext = extract_imgs[0].split(".")[1]
+    aligned_imgs = list(sorted(filter(lambda x: x is not None,
+                                      [f if f.endswith(".jpg") or f.endswith(".png") else None for f in
+                                       os.listdir(dst_aligned)])))
+    need_fix_no = []
+    i = 0  # 当前文件下标
+    j = 1  # 期望文件名
+    while i <= max_img_no and j <= max_img_no and i < len(aligned_imgs):
+        if aligned_imgs[i].startswith("%05d" % j):
+            i += 1
+            j += 1
+        else:
+            # print(aligned_imgs[i], j)
+            need_fix_no.append(j)
+            j += 1
+    for k in range(j, max_img_no + 1):
+        need_fix_no.append(k)
+        # print(k)
+    if len(need_fix_no) == 0:
+        return
+
+    fix_workspace = os.path.join(dst, "fix")
+    import shutil
+    if os.path.exists(fix_workspace):
+        shutil.rmtree(fix_workspace)
+    os.mkdir(fix_workspace)
+    for no in need_fix_no:
+        f = os.path.join(dst, "%05d.%s" % (no, ext))
+        io.log_info(f)
+        shutil.copy(f, fix_workspace)
+    fix_workspace_aligned = os.path.join(fix_workspace, "aligned")
+    from mainscripts import Extractor
+    Extractor.main(fix_workspace, fix_workspace_aligned, detector="manual", manual_fix=False)
+    Extractor.extract_fanseg(fix_workspace_aligned)
+    for f in os.listdir(fix_workspace_aligned):
+        f = os.path.join(fix_workspace_aligned, f)
+        io.log_info(f)
+        shutil.move(f, dst_aligned)
+    shutil.rmtree(fix_workspace)
+
+
 def mp4(workspace, skip=False):
     import os
     for f in os.listdir(workspace):
@@ -1001,13 +1078,32 @@ def get_workspace():
     raise Exception("No @Workspace File")
 
 
-def get_workspace_dst():
-    workspace = get_workspace()
+def get_workspace_dst(workspace=None):
+    if workspace is None:
+        workspace = get_workspace()
     for f in os.listdir(workspace):
         f = os.path.join(workspace, f)
         if not os.path.isdir(f) or not os.path.basename(f).startswith("data_dst_"):
             continue
         return f
+
+
+def clean_trash():
+    import shutil
+    trash_workspace = os.path.join(get_root_path(), "trash_workspace")
+    for d in os.listdir(trash_workspace):
+        d = os.path.join(trash_workspace, d)
+        if os.path.isfile(d):
+            continue
+        for f in os.listdir(d):
+            if f == "aligned" or f == "video":
+                continue
+            f = os.path.join(d, f)
+            print(f)
+            if os.path.isdir(f):
+                shutil.rmtree(f)
+            else:
+                os.remove(f)
 
 
 def main():
@@ -1035,9 +1131,16 @@ def main():
         train(get_workspace())
         convert(get_workspace(), False)
     elif arg == '--prepare-manual-train':
-        prepare(get_workspace(), "manual")
+        prepare(get_workspace(), detector="manual")
         train(get_workspace())
         convert(get_workspace(), False)
+    elif arg == '--prepare-manual-edit-train':
+        prepare(get_workspace(), detector="manual")
+        edit_mask(get_workspace())
+        train(get_workspace())
+        convert(get_workspace(), False)
+    elif arg == '--refix':
+        refix(get_workspace())
     elif arg == '--train':
         train(get_workspace())
         convert(get_workspace(), False)
@@ -1060,10 +1163,15 @@ def main():
         auto(get_workspace())
     elif arg == '--merge-dst-aligned':
         merge_dst_aligned()
+    elif arg == '--clean-trash':
+        clean_trash()
     elif arg == '--test':
-        manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"),
-                      os.path.join(get_root_path(), "workspace_ab/data_src/aligned"))
+        # manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"),
+        #               os.path.join(get_root_path(), "workspace_ab/data_src/aligned"))
+        dfl.dfl_edit_mask(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all_fix"))
         pass
+    else:
+        refix(get_workspace())
 
 
 if __name__ == '__main__':

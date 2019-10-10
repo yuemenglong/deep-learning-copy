@@ -18,7 +18,7 @@ class ConverterConfig(object):
         self.type = type
 
         self.superres_func = None
-        self.sharpen_func = None
+        self.blursharpen_func = None
         self.fanseg_input_size = None
         self.fanseg_extract_func = None
         self.ebs_ct_func = None
@@ -29,7 +29,7 @@ class ConverterConfig(object):
         #default changeable params
         self.super_resolution_mode = 0
         self.sharpen_mode = 0
-        self.sharpen_amount = 0
+        self.blursharpen_amount = 0
 
     def copy(self):
         return copy.copy(self)
@@ -43,7 +43,7 @@ class ConverterConfig(object):
         self.sharpen_mode = io.input_int (s, 0, valid_list=self.sharpen_dict.keys(), help_message="Enhance details by applying sharpen filter.")
 
         if self.sharpen_mode != 0:
-            self.sharpen_amount = np.clip ( io.input_int ("Choose sharpen amount [0..100] (skip:%d) : " % 10, 10), 0, 100 )
+            self.blursharpen_amount = np.clip ( io.input_int ("Choose blur/sharpen amount [-100..100] (skip:0) : ", 0), -100, 100 )
 
         s = """Choose super resolution mode: \n"""
         for key in self.super_res_dict.keys():
@@ -55,8 +55,8 @@ class ConverterConfig(object):
         a = list( self.sharpen_dict.keys() )
         self.sharpen_mode = a[ (a.index(self.sharpen_mode)+1) % len(a) ]
 
-    def add_sharpen_amount(self, diff):
-        self.sharpen_amount = np.clip ( self.sharpen_amount+diff, 0, 100)
+    def add_blursharpen_amount(self, diff):
+        self.blursharpen_amount = np.clip ( self.blursharpen_amount+diff, -100, 100)
 
     def toggle_super_resolution_mode(self):
         a = list( self.super_res_dict.keys() )
@@ -68,20 +68,19 @@ class ConverterConfig(object):
 
         if isinstance(other, ConverterConfig):
             return self.sharpen_mode == other.sharpen_mode and \
-                   (self.sharpen_mode == 0 or ((self.sharpen_mode == other.sharpen_mode) and (self.sharpen_amount == other.sharpen_amount) )) and \
+                   self.blursharpen_amount == other.blursharpen_amount and \
                    self.super_resolution_mode == other.super_resolution_mode
 
         return False
 
     #overridable
-    def __str__(self):
+    def to_string(self, filename):
         r = ""
         r += f"sharpen_mode : {self.sharpen_dict[self.sharpen_mode]}\n"
-        if self.sharpen_mode != 0:
-            r += f"sharpen_amount : {self.sharpen_amount}\n"        
+        r += f"blursharpen_amount : {self.blursharpen_amount}\n"        
         r += f"super_resolution_mode : {self.super_res_dict[self.super_resolution_mode]}\n"
         return r
-
+        
 mode_dict = {0:'original',
              1:'overlay',
              2:'hist-match',
@@ -151,12 +150,12 @@ class ConverterConfigMasked(ConverterConfig):
         if self.mode == 'hist-match' or self.mode == 'hist-match-bw' or self.mode == 'seamless-hist-match':
             self.hist_match_threshold = np.clip ( self.hist_match_threshold+diff , 0, 255)
 
-    def toggle_mask_mode(self):
+    def toggle_mask_mode(self, diff):
         if self.face_type == FaceType.FULL:
             a = list( full_face_mask_mode_dict.keys() )
         else:
             a = list( half_face_mask_mode_dict.keys() )
-        self.mask_mode = a[ (a.index(self.mask_mode)+1) % len(a) ]
+        self.mask_mode = a[ (a.index(self.mask_mode)+diff) % len(a) ]
 
     def add_erode_mask_modifier(self, diff):
         self.erode_mask_modifier = np.clip ( self.erode_mask_modifier+diff , -400, 400)
@@ -249,9 +248,9 @@ class ConverterConfigMasked(ConverterConfig):
 
         return False
 
-    def __str__(self):
+    def to_string(self, filename):
         r = (
-            """ConverterConfig:\n"""
+            f"""ConverterConfig {filename}:\n"""
             f"""Mode: {self.mode}\n"""
             )
 
@@ -276,7 +275,7 @@ class ConverterConfigMasked(ConverterConfig):
         if 'raw' not in self.mode:
             r += f"""color_transfer_mode: { ctm_dict[self.color_transfer_mode]}\n"""
 
-        r += super().__str__()
+        r += super().to_string(filename)
 
         if 'raw' not in self.mode:
             r += (f"""color_degrade_power: {self.color_degrade_power}\n"""
@@ -318,8 +317,8 @@ class ConverterConfigFaceAvatar(ConverterConfig):
         return False
 
     #override
-    def __str__(self):
-        return ("ConverterConfig: \n"
+    def to_string(self, filename):
+        return (f"ConverterConfig {filename}:\n"
                 f"add_source_image : {self.add_source_image}\n") + \
-                super().__str__() + "================"
+                super().to_string(filename) + "================"
 

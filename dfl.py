@@ -63,6 +63,26 @@ def dfl_extract_video(input_file, output_dir, fps=0):
     dfl_exec(cmd, args)
 
 
+def dfl_edit_mask(input_dir):
+    # "%PYTHON_EXECUTABLE%" "%DFL_ROOT%\main.py"
+    # labelingtool
+    # edit_mask ^
+    # --input - dir
+    # "%WORKSPACE%\data_dst\aligned" ^
+    # --confirmed - dir
+    # "%WORKSPACE%\data_dst\aligned_confirmed" ^
+    # --skipped - dir
+    # "%WORKSPACE%\data_dst\aligned_skipped"
+    cmd = "labelingtool edit_mask"
+    args = {
+        "--input-dir": input_dir,
+        "--confirmed-dir": input_dir + "_confirmed",
+        "--skipped-dir": input_dir + "_skipped",
+    }
+    dfl_exec(cmd, args)
+    return [input_dir, input_dir + "_confirmed", input_dir + "_skipped"]
+
+
 def get_root_path():
     import os
     path = __file__

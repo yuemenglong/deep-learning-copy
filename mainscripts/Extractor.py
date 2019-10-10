@@ -1,19 +1,27 @@
 ﻿import traceback
+import math
+import multiprocessing
+import operator
 import os
+import shutil
 import sys
 import time
-import multiprocessing
-import shutil
 from pathlib import Path
-import numpy as np
-import math
-import mathlib
-import imagelib
+
 import cv2
+import numpy as np
+
+import facelib
+import imagelib
+import mathlib
+from facelib import FaceType, FANSegmentator, LandmarksProcessor
+from interact import interact as io
+from joblib import Subprocessor
+from nnlib import nnlib
 from utils import Path_utils
-from utils.DFLPNG import DFLPNG
-from utils.DFLJPG import DFLJPG
 from utils.cv2_utils import *
+from utils.DFLJPG import DFLJPG
+from utils.DFLPNG import DFLPNG
 import facelib
 from facelib import FaceType
 from facelib import LandmarksProcessor
@@ -46,6 +54,7 @@ class ExtractSubprocessor(Subprocessor):
             self.type         = client_dict['type']
             self.image_size   = client_dict['image_size']
             self.face_type    = client_dict['face_type']
+            self.max_faces_from_image = client_dict['max_faces_from_image']
             self.device_idx   = client_dict['device_idx']
             self.cpu_only     = client_dict['device_type'] == 'CPU'
             self.final_output_path  = Path(client_dict['final_output_dir']) if 'final_output_dir' in client_dict.keys() else None
@@ -87,7 +96,7 @@ class ExtractSubprocessor(Subprocessor):
 
             elif self.type == 'landmarks':
                 nnlib.import_all (device_config)
-                self.e = facelib.LandmarksExtractor(nnlib.keras)
+                self.e = facelib.FANExtractor()
                 self.e.__enter__()
                 if self.device_vram >= 2:
                     self.second_pass_e = facelib.S3FDExtractor()
@@ -158,6 +167,13 @@ class ExtractSubprocessor(Subprocessor):
                         rects = data.rects = self.e.extract (rotated_image, is_bgr=True)
                         if len(rects) != 0:
                             break
+                        
+                    if self.max_faces_from_image != 0 and len(data.rects) > 1:
+                        #sort by largest area first
+                        x = [ [(l,t,r,b), (r-l)*(b-t) ]  for (l,t,r,b) in data.rects]
+                        x = sorted(x, key=operator.itemgetter(1), reverse=True )
+                        x = [ a[0] for a in x]
+                        data.rects = x[0:self.max_faces_from_image]
 
                 return data
 
@@ -231,7 +247,7 @@ class ExtractSubprocessor(Subprocessor):
                             face_image_landmarks = image_landmarks
                         else:
                             image_to_face_mat = LandmarksProcessor.get_transform_mat (image_landmarks, self.image_size, self.face_type)
-
+                            
                             face_image = cv2.warpAffine(image, image_to_face_mat, (self.image_size, self.image_size), cv2.INTER_LANCZOS4)
                             face_image_landmarks = LandmarksProcessor.transform_points (image_landmarks, image_to_face_mat)
 
@@ -290,7 +306,7 @@ class ExtractSubprocessor(Subprocessor):
             return data.filename
 
     #override
-    def __init__(self, input_data, type, image_size=None, face_type=None, debug_dir=None, multi_gpu=False, cpu_only=False, manual=False, manual_window_size=0, final_output_path=None, min_pixel=0):
+    def __init__(self, input_data, type, image_size=None, face_type=None, debug_dir=None, multi_gpu=False, cpu_only=False, manual=False, manual_window_size=0, max_faces_from_image=0, final_output_path=None, min_pixel=0):
         self.input_data = input_data
         self.type = type
         self.image_size = image_size
@@ -299,9 +315,12 @@ class ExtractSubprocessor(Subprocessor):
         self.final_output_path = final_output_path
         self.manual = manual
         self.manual_window_size = manual_window_size
+        self.max_faces_from_image = max_faces_from_image
         self.result = []
+        self.cur_outer = []
+        self.cur_landmarks = []
         self.last_outer = []
-        self.temp_outer = []
+        self.last_landmarks = []
         self.auto = False
         self.min_pixel = min_pixel
 
@@ -352,6 +371,7 @@ class ExtractSubprocessor(Subprocessor):
         base_dict = {'type' : self.type,
                      'image_size': self.image_size,
                      'face_type': self.face_type,
+                     'max_faces_from_image':self.max_faces_from_image,
                      'debug_dir': self.debug_dir,
                      'final_output_dir': str(self.final_output_path),
                      'stdin_fd': sys.stdin.fileno(),
@@ -420,7 +440,6 @@ class ExtractSubprocessor(Subprocessor):
                                                             '[Enter] / [Space] - confirm / skip frame',
                                                             '[,] [.]- prev frame, next frame. [Q] - skip remaining frames',
                                                             '[a] - accuracy on/off (more fps)',
-                                                            '[f] - select face by last rect',
                                                             '[h] - hide this help'
                                                         ], (1, 1, 1) )*255).astype(np.uint8)
 
@@ -456,34 +475,39 @@ class ExtractSubprocessor(Subprocessor):
                         if (key == ord('f') or right_btn_down) and self.rect_locked:
                             # confirm frame
                             is_frame_done = True
-                            self.last_outer = self.temp_outer
+                            self.last_outer = self.cur_outer
+                            self.last_landmarks = self.cur_landmarks
                             data_rects.append(self.rect)
                             data_landmarks.append(self.landmarks)
                             self.auto = True
                             break
-                        elif (key == ord('f') or key == ord('s') or self.auto) and len(self.last_outer) != 0:
-                            last_mid = F.mid_point(self.last_outer)
+                        elif (key == ord('f') or key == ord('s') or self.auto) and len(self.last_outer) != 0 and len(self.last_landmarks) > 0:
+                            border_ratio = 0.9
+                            # 根据上次的外框算出这次的x/y,以及外框大小
+                            # last_mid = F.mid_point(self.last_outer)
+                            last_mid = F.mid_point_by_range(self.last_landmarks)
                             last_border = np.linalg.norm(np.array(self.last_outer[0]) - np.array(self.last_outer[1]))
                             last_area = F.poly_area(self.last_outer)
                             x, y = last_mid
                             new_x = np.clip(x, 0, w - 1) / self.view_scale
                             new_y = np.clip(y, 0, h - 1) / self.view_scale
-                            new_rect_size = last_border / 2 / self.view_scale * 0.8
+                            new_rect_size = last_border / 2 / self.view_scale * border_ratio
                             # make sure rect and landmarks have been refreshed
-                            # if self.x == new_x and self.y == new_y and len(self.temp_outer) != 0:
-                            if len(self.temp_outer) != 0:
-                                # compare dist and area
-                                temp_mid = F.mid_point(self.temp_outer)
-                                dist = np.linalg.norm(np.array(temp_mid) - np.array(last_mid))
+                            if len(self.cur_outer) != 0:
+                                # 根据本次外框大小算是否valid，通过边长，面积，角度
+                                # temp_mid = F.mid_point(self.temp_outer)
+                                cur_mid = F.mid_point_by_range(self.cur_landmarks)
+                                dist = np.linalg.norm(np.array(cur_mid) - np.array(last_mid))
                                 dist_r = dist / last_border
-                                temp_area = F.poly_area(self.temp_outer)
+                                temp_area = F.poly_area(self.cur_outer)
                                 area_r = temp_area / last_area
                                 v0 = np.array(last_mid) - np.array(self.last_outer[0])
-                                v1 = np.array(temp_mid) - np.array(self.temp_outer[0])
+                                v1 = np.array(cur_mid) - np.array(self.cur_outer[0])
                                 angle = math.fabs(F.angle_between(v0, v1))
                                 if dist_r < 0.5 and 0.5 < area_r < 1.5 and angle < 0.7:
                                     is_frame_done = True
-                                    self.last_outer = self.temp_outer
+                                    self.last_outer = self.cur_outer
+                                    self.last_landmarks = self.cur_landmarks
                                     data_rects.append(self.rect)
                                     data_landmarks.append(self.landmarks)
                                     self.auto = True
@@ -509,7 +533,7 @@ class ExtractSubprocessor(Subprocessor):
                             #confirm skip frame
                             is_frame_done = True
                             break
-                        elif key == ord('z')  and len(self.result) > 0:
+                        elif key == ord(',')  and len(self.result) > 0:
                             #go prev frame
 
                             if self.rect_locked:
@@ -517,6 +541,7 @@ class ExtractSubprocessor(Subprocessor):
                                 # Only save the face if the rect is still locked
                                 data_rects.append (self.rect)
                                 data_landmarks.append (self.landmarks)
+
 
                             self.input_data.insert(0, self.result.pop() )
                             io.progress_bar_inc(-1)
@@ -584,7 +609,7 @@ class ExtractSubprocessor(Subprocessor):
                     io.progress_bar_inc(1)
                     self.extract_needed = True
                     self.rect_locked = False
-                    self.temp_outer = []
+                    self.cur_outer = []
 
         return None
 
@@ -627,7 +652,8 @@ class ExtractSubprocessor(Subprocessor):
                 view_landmarks = LandmarksProcessor.transform_points (view_landmarks, mat)
 
             landmarks_color = (255,255,0) if self.rect_locked else (0,255,0)
-            self.temp_outer = LandmarksProcessor.draw_rect_landmarks (image, view_rect, view_landmarks, self.image_size, self.face_type, landmarks_color=landmarks_color)
+            self.cur_outer = LandmarksProcessor.draw_rect_landmarks (image, view_rect, view_landmarks, self.image_size, self.face_type, landmarks_color=landmarks_color)
+            self.cur_landmarks = view_landmarks
             self.extract_needed = False
 
             io.show_image (self.wnd_name, image)
@@ -743,111 +769,6 @@ class DeletedFilesSearcherSubprocessor(Subprocessor):
     def get_result(self):
         return self.result
 
-
-#currently unused
-def extract_fanseg(input_dir, device_args={} ):
-    multi_gpu = device_args.get('multi_gpu', False)
-    cpu_only = device_args.get('cpu_only', False)
-    
-    input_path = Path(input_dir)
-    if not input_path.exists():
-        raise ValueError('Input directory not found. Please ensure it exists.')
-    
-    paths_to_extract = []
-    for filename in Path_utils.get_image_paths(input_path) :
-        filepath = Path(filename)
-        if filepath.suffix == '.png':
-            dflimg = DFLPNG.load( str(filepath) )
-        elif filepath.suffix == '.jpg':
-            dflimg = DFLJPG.load ( str(filepath) )
-        else:
-            dflimg = None
-
-        if dflimg is not None:
-            paths_to_extract.append (filepath)
-    
-    paths_to_extract_len = len(paths_to_extract)
-    if paths_to_extract_len > 0:
-        io.log_info ("Performing extract fanseg for %d files..." % (paths_to_extract_len) )
-        data = ExtractSubprocessor ([ ExtractSubprocessor.Data(filename) for filename in paths_to_extract ], 'fanseg', multi_gpu=multi_gpu, cpu_only=cpu_only).run()
-
-def extract_umd_csv(input_file_csv, 
-                    image_size=256,
-                    face_type='full_face',
-                    device_args={} ):
-                    
-    #extract faces from umdfaces.io dataset csv file with pitch,yaw,roll info.
-    multi_gpu = device_args.get('multi_gpu', False)
-    cpu_only = device_args.get('cpu_only', False)
-    face_type = FaceType.fromString(face_type)
-    
-    input_file_csv_path = Path(input_file_csv)
-    if not input_file_csv_path.exists():
-        raise ValueError('input_file_csv not found. Please ensure it exists.')
-    
-    input_file_csv_root_path = input_file_csv_path.parent
-    output_path = input_file_csv_path.parent / ('aligned_' + input_file_csv_path.name)
-    
-    io.log_info("Output dir is %s." % (str(output_path)) )
-    
-    if output_path.exists():
-        output_images_paths = Path_utils.get_image_paths(output_path)
-        if len(output_images_paths) > 0:
-            io.input_bool("WARNING !!! \n %s contains files! \n They will be deleted. \n Press enter to continue." % (str(output_path)), False )
-            for filename in output_images_paths:
-                Path(filename).unlink()
-    else:
-        output_path.mkdir(parents=True, exist_ok=True)
-        
-    try:
-        with open( str(input_file_csv_path), 'r') as f:
-            csv_file = f.read()
-    except Exception as e:
-        io.log_err("Unable to open or read file " + str(input_file_csv_path) + ": " + str(e) )
-        return
-        
-    strings = csv_file.split('\n')        
-    keys = strings[0].split(',')
-    keys_len = len(keys)
-    csv_data = []
-    for i in range(1, len(strings)):
-        values = strings[i].split(',')
-        if keys_len != len(values):
-            io.log_err("Wrong string in csv file, skipping.")
-            continue
-            
-        csv_data += [ { keys[n] : values[n] for n in range(keys_len) } ]
-    
-    data = []
-    for d in csv_data:
-        filename = input_file_csv_root_path / d['FILE']
-        
-        pitch, yaw, roll = float(d['PITCH']), float(d['YAW']), float(d['ROLL']) 
-        if pitch < -90 or pitch > 90 or yaw < -90 or yaw > 90 or roll < -90 or roll > 90:
-            continue
-            
-        pitch_yaw_roll = pitch/90.0, yaw/90.0, roll/90.0
-        
-        x,y,w,h = float(d['FACE_X']), float(d['FACE_Y']), float(d['FACE_WIDTH']), float(d['FACE_HEIGHT'])
-
-        data += [ ExtractSubprocessor.Data(filename=filename, rects=[ [x,y,x+w,y+h] ], pitch_yaw_roll=pitch_yaw_roll) ]
-        
-    images_found = len(data)
-    faces_detected = 0
-    if len(data) > 0:
-        io.log_info ("Performing 2nd pass from csv file...")
-        data = ExtractSubprocessor (data, 'landmarks', multi_gpu=multi_gpu, cpu_only=cpu_only).run()
-        
-        io.log_info ('Performing 3rd pass...')
-        data = ExtractSubprocessor (data, 'final', image_size, face_type, None, multi_gpu=multi_gpu, cpu_only=cpu_only, manual=False, final_output_path=output_path).run()
-        faces_detected += sum([d.faces_detected for d in data])
-        
-        
-    io.log_info ('-------------------------')
-    io.log_info ('Images found:        %d' % (images_found) )
-    io.log_info ('Faces detected:      %d' % (faces_detected) )
-    io.log_info ('-------------------------')
-    
 def main(input_dir,
          output_dir,
          debug_dir=None,
@@ -857,6 +778,7 @@ def main(input_dir,
          manual_window_size=1368,
          image_size=256,
          face_type='full_face',
+         max_faces_from_image=0,
          device_args={},
          min_pixel=0):
 
@@ -912,7 +834,7 @@ def main(input_dir,
             data = ExtractSubprocessor ([ ExtractSubprocessor.Data(filename) for filename in input_path_image_paths ], 'landmarks', image_size, face_type, debug_dir, cpu_only=cpu_only, manual=True, manual_window_size=manual_window_size).run()
         else:
             io.log_info ('Performing 1st pass...')
-            data = ExtractSubprocessor ([ ExtractSubprocessor.Data(filename) for filename in input_path_image_paths ], 'rects-'+detector, image_size, face_type, debug_dir, multi_gpu=multi_gpu, cpu_only=cpu_only, manual=False).run()
+            data = ExtractSubprocessor ([ ExtractSubprocessor.Data(filename) for filename in input_path_image_paths ], 'rects-'+detector, image_size, face_type, debug_dir, multi_gpu=multi_gpu, cpu_only=cpu_only, manual=False, max_faces_from_image=max_faces_from_image).run()
 
             io.log_info ('Performing 2nd pass...')
             data = ExtractSubprocessor (data, 'landmarks', image_size, face_type, debug_dir, multi_gpu=multi_gpu, cpu_only=cpu_only, manual=False).run()
@@ -932,6 +854,111 @@ def main(input_dir,
                 faces_detected += sum([d.faces_detected for d in fix_data])
 
 
+    io.log_info ('-------------------------')
+    io.log_info ('Images found:        %d' % (images_found) )
+    io.log_info ('Faces detected:      %d' % (faces_detected) )
+    io.log_info ('-------------------------')
+         
+#unused in end user workflow
+def extract_fanseg(input_dir, device_args={} ):
+    multi_gpu = device_args.get('multi_gpu', False)
+    cpu_only = device_args.get('cpu_only', False)
+    
+    input_path = Path(input_dir)
+    if not input_path.exists():
+        raise ValueError('Input directory not found. Please ensure it exists.')
+    
+    paths_to_extract = []
+    for filename in Path_utils.get_image_paths(input_path) :
+        filepath = Path(filename)
+        if filepath.suffix == '.png':
+            dflimg = DFLPNG.load( str(filepath) )
+        elif filepath.suffix == '.jpg':
+            dflimg = DFLJPG.load ( str(filepath) )
+        else:
+            dflimg = None
+
+        if dflimg is not None:
+            paths_to_extract.append (filepath)
+    
+    paths_to_extract_len = len(paths_to_extract)
+    if paths_to_extract_len > 0:
+        io.log_info ("Performing extract fanseg for %d files..." % (paths_to_extract_len) )
+        data = ExtractSubprocessor ([ ExtractSubprocessor.Data(filename) for filename in paths_to_extract ], 'fanseg', multi_gpu=multi_gpu, cpu_only=cpu_only).run()
+
+#unused in end user workflow
+def extract_umd_csv(input_file_csv, 
+                    image_size=256,
+                    face_type='full_face',
+                    device_args={} ):
+                    
+    #extract faces from umdfaces.io dataset csv file with pitch,yaw,roll info.
+    multi_gpu = device_args.get('multi_gpu', False)
+    cpu_only = device_args.get('cpu_only', False)
+    face_type = FaceType.fromString(face_type)
+    
+    input_file_csv_path = Path(input_file_csv)
+    if not input_file_csv_path.exists():
+        raise ValueError('input_file_csv not found. Please ensure it exists.')
+    
+    input_file_csv_root_path = input_file_csv_path.parent
+    output_path = input_file_csv_path.parent / ('aligned_' + input_file_csv_path.name)
+    
+    io.log_info("Output dir is %s." % (str(output_path)) )
+    
+    if output_path.exists():
+        output_images_paths = Path_utils.get_image_paths(output_path)
+        if len(output_images_paths) > 0:
+            # io.input_bool("WARNING !!! \n %s contains files! \n They will be deleted. \n Press enter to continue." % (str(output_path)), False )
+            for filename in output_images_paths:
+                Path(filename).unlink()
+    else:
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+    try:
+        with open( str(input_file_csv_path), 'r') as f:
+            csv_file = f.read()
+    except Exception as e:
+        io.log_err("Unable to open or read file " + str(input_file_csv_path) + ": " + str(e) )
+        return
+        
+    strings = csv_file.split('\n')        
+    keys = strings[0].split(',')
+    keys_len = len(keys)
+    csv_data = []
+    for i in range(1, len(strings)):
+        values = strings[i].split(',')
+        if keys_len != len(values):
+            io.log_err("Wrong string in csv file, skipping.")
+            continue
+            
+        csv_data += [ { keys[n] : values[n] for n in range(keys_len) } ]
+    
+    data = []
+    for d in csv_data:
+        filename = input_file_csv_root_path / d['FILE']
+        
+        pitch, yaw, roll = float(d['PITCH']), float(d['YAW']), float(d['ROLL']) 
+        if pitch < -90 or pitch > 90 or yaw < -90 or yaw > 90 or roll < -90 or roll > 90:
+            continue
+            
+        pitch_yaw_roll = pitch/90.0, yaw/90.0, roll/90.0
+        
+        x,y,w,h = float(d['FACE_X']), float(d['FACE_Y']), float(d['FACE_WIDTH']), float(d['FACE_HEIGHT'])
+
+        data += [ ExtractSubprocessor.Data(filename=filename, rects=[ [x,y,x+w,y+h] ], pitch_yaw_roll=pitch_yaw_roll) ]
+        
+    images_found = len(data)
+    faces_detected = 0
+    if len(data) > 0:
+        io.log_info ("Performing 2nd pass from csv file...")
+        data = ExtractSubprocessor (data, 'landmarks', multi_gpu=multi_gpu, cpu_only=cpu_only).run()
+        
+        io.log_info ('Performing 3rd pass...')
+        data = ExtractSubprocessor (data, 'final', image_size, face_type, None, multi_gpu=multi_gpu, cpu_only=cpu_only, manual=False, final_output_path=output_path).run()
+        faces_detected += sum([d.faces_detected for d in data])
+        
+        
     io.log_info ('-------------------------')
     io.log_info ('Images found:        %d' % (images_found) )
     io.log_info ('Faces detected:      %d' % (faces_detected) )
