@@ -227,7 +227,7 @@ class ConvertSubprocessor(Subprocessor):
         if self.is_interactive and self.converter_session_filepath.exists():
             
             # if io.input_bool ("Use saved session? (y/n skip:y) : ", True):
-            if True:
+            if False:
                 try:
                     with open( str(self.converter_session_filepath), "rb") as f:
                         session_data = pickle.loads(f.read())
