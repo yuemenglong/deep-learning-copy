@@ -481,6 +481,9 @@ class ExtractSubprocessor(Subprocessor):
                             data_landmarks.append(self.landmarks)
                             self.auto = True
                             break
+                        elif key == ord('s'):
+                            self.auto = False
+                            break
                         elif self.auto and len(self.last_outer) != 0 and len(self.last_landmarks) > 0:
                             border_ratio = 0.9
                             # 根据上次的外框算出这次的x/y,以及外框大小
@@ -559,6 +562,32 @@ class ExtractSubprocessor(Subprocessor):
 
                             need_remark_face = True
                             is_frame_done = True
+                            break
+                        elif key == ord('n') and len(self.result) > 0:
+                            # go prev frame without save and clear result
+                            self.rect_locked = False
+                            n = 10 if shift_pressed else 1
+                            while n > 0 and len(self.result) > 0:
+                                self.input_data.insert(0, self.result.pop())
+                                self.input_data[0].rects.clear()
+                                self.input_data[0].landmarks.clear()
+                                io.progress_bar_inc(-1)
+                                n -= 1
+                            # 直接无视之前的结果，重新标注
+                            # need_remark_face = True
+                            self.extract_needed = True
+                            break
+                        elif key == ord('m') and len(self.input_data) > 0:
+                            # go next frame without save
+                            self.rect_locked = False
+                            n = 10 if shift_pressed else 1
+                            while n > 0:
+                                self.result.append(self.input_data.pop(0))
+                                io.progress_bar_inc(1)
+                                n -= 1
+                            # 直接无视之前的结果，重新标注
+                            # need_remark_face = True
+                            self.extract_needed = True
                             break
                         elif key == ord('q'):
                             #skip remaining
