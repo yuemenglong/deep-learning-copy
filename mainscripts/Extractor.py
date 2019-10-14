@@ -472,7 +472,7 @@ class ExtractSubprocessor(Subprocessor):
                         key_events = io.get_key_events(self.wnd_name)
                         key, chr_key, ctrl_pressed, alt_pressed, shift_pressed = key_events[-1] if len(key_events) > 0 else (0,0,False,False,False)
 
-                        if (key == ord('f') or right_btn_down) and self.rect_locked:
+                        if right_btn_down and self.rect_locked:
                             # confirm frame
                             is_frame_done = True
                             self.last_outer = self.cur_outer
@@ -481,7 +481,7 @@ class ExtractSubprocessor(Subprocessor):
                             data_landmarks.append(self.landmarks)
                             self.auto = True
                             break
-                        elif (key == ord('f') or key == ord('s') or self.auto) and len(self.last_outer) != 0 and len(self.last_landmarks) > 0:
+                        elif self.auto and len(self.last_outer) != 0 and len(self.last_landmarks) > 0:
                             border_ratio = 0.9
                             # 根据上次的外框算出这次的x/y,以及外框大小
                             # last_mid = F.mid_point(self.last_outer)
@@ -512,9 +512,9 @@ class ExtractSubprocessor(Subprocessor):
                                     data_landmarks.append(self.landmarks)
                                     self.auto = True
                                     break
-                                elif key == ord('s'):
-                                    is_frame_done = True
-                                    break
+                                # elif key == ord('s'):
+                                #     is_frame_done = True
+                                #     break
                                 elif self.x != new_x or self.y != new_y:
                                     # 可以在等一轮更新后试一下
                                     pass
