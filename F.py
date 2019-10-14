@@ -690,7 +690,7 @@ def prepare(workspace, detector="s3fd", manual_fix=True):
     print("\a")
 
 
-def train(workspace):
+def train(workspace, model="SAE"):
     import os
     model_dir = os.path.join(workspace, "model")
     for f in os.listdir(workspace):
@@ -703,7 +703,7 @@ def train(workspace):
             data_src_aligned = os.path.join(workspace, "data_src", "aligned")
         data_dst_aligned = os.path.join(data_dst, "aligned")
         # 训练
-        dfl.dfl_train(data_src_aligned, data_dst_aligned, model_dir)
+        dfl.dfl_train(data_src_aligned, data_dst_aligned, model_dir, model)
         return
 
 
@@ -716,7 +716,7 @@ def train_dst(workspace):
     dfl.dfl_train(data_src_aligned, data_dst_aligned, model_dir)
 
 
-def convert(workspace, skip=True):
+def convert(workspace, skip=False, model="SAE"):
     import os
     for f in os.listdir(workspace):
         if not os.path.isdir(os.path.join(workspace, f)) or not f.startswith("data_dst_"):
@@ -756,7 +756,7 @@ def convert(workspace, skip=True):
         if not has_img:
             dfl.dfl_extract_video(refer_path, data_dst)
         # 转换
-        dfl.dfl_convert(data_dst, data_dst_merged, data_dst_aligned, model_dir)
+        dfl.dfl_convert(data_dst, data_dst_merged, data_dst_aligned, model_dir, model)
         # ConverterMasked.enable_predef = enable_predef
         # 去掉没有脸的
         if skip:
@@ -1147,10 +1147,14 @@ def main():
     elif arg == '--train-dst':
         train_dst(get_workspace())
         convert_dst(get_workspace())
+    elif arg == '--train-hd':
+        train(get_workspace(), model="SAEHD")
     elif arg == '--convert-skip-manual':
         convert(get_workspace(), skip=True)
-    elif arg == '--convert-no-skip-manual':
+    elif arg == '--convert':
         convert(get_workspace(), skip=False)
+    elif arg == '--convert-hd':
+        convert(get_workspace(), skip=False, model="SAEHD")
     elif arg == '--convert-dst':
         convert_dst(get_workspace())
     elif arg == '--mp4':
