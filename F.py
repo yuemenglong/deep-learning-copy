@@ -1134,6 +1134,10 @@ def main():
         prepare(get_workspace(), detector="manual")
         train(get_workspace())
         convert(get_workspace(), False)
+    elif arg == '--prepare-manual-train-hd':
+        prepare(get_workspace(), detector="manual")
+        train(get_workspace(), model="SAEHD")
+        convert(get_workspace(), False, model="SAEHD")
     elif arg == '--prepare-manual-edit-train':
         prepare(get_workspace(), detector="manual")
         edit_mask(get_workspace())
@@ -1149,6 +1153,7 @@ def main():
         convert_dst(get_workspace())
     elif arg == '--train-hd':
         train(get_workspace(), model="SAEHD")
+        convert(get_workspace(), False, model="SAEHD")
     elif arg == '--convert-skip-manual':
         convert(get_workspace(), skip=True)
     elif arg == '--convert':
