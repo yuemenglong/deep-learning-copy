@@ -472,7 +472,7 @@ class ExtractSubprocessor(Subprocessor):
                         key_events = io.get_key_events(self.wnd_name)
                         key, chr_key, ctrl_pressed, alt_pressed, shift_pressed = key_events[-1] if len(key_events) > 0 else (0,0,False,False,False)
 
-                        if (key == ord('f') or right_btn_down) and self.rect_locked:
+                        if right_btn_down and self.rect_locked:
                             # confirm frame
                             is_frame_done = True
                             self.last_outer = self.cur_outer
@@ -481,7 +481,10 @@ class ExtractSubprocessor(Subprocessor):
                             data_landmarks.append(self.landmarks)
                             self.auto = True
                             break
-                        elif (key == ord('f') or key == ord('s') or self.auto) and len(self.last_outer) != 0 and len(self.last_landmarks) > 0:
+                        elif key == ord('s'):
+                            self.auto = False
+                            break
+                        elif self.auto and len(self.last_outer) != 0 and len(self.last_landmarks) > 0:
                             border_ratio = 0.9
                             # 根据上次的外框算出这次的x/y,以及外框大小
                             # last_mid = F.mid_point(self.last_outer)
@@ -512,9 +515,9 @@ class ExtractSubprocessor(Subprocessor):
                                     data_landmarks.append(self.landmarks)
                                     self.auto = True
                                     break
-                                elif key == ord('s'):
-                                    is_frame_done = True
-                                    break
+                                # elif key == ord('s'):
+                                #     is_frame_done = True
+                                #     break
                                 elif self.x != new_x or self.y != new_y:
                                     # 可以在等一轮更新后试一下
                                     pass
@@ -559,6 +562,32 @@ class ExtractSubprocessor(Subprocessor):
 
                             need_remark_face = True
                             is_frame_done = True
+                            break
+                        elif key == ord('n') and len(self.result) > 0:
+                            # go prev frame without save and clear result
+                            self.rect_locked = False
+                            n = 10 if shift_pressed else 1
+                            while n > 0 and len(self.result) > 0:
+                                self.input_data.insert(0, self.result.pop())
+                                self.input_data[0].rects.clear()
+                                self.input_data[0].landmarks.clear()
+                                io.progress_bar_inc(-1)
+                                n -= 1
+                            # 直接无视之前的结果，重新标注
+                            # need_remark_face = True
+                            self.extract_needed = True
+                            break
+                        elif key == ord('m') and len(self.input_data) > 0:
+                            # go next frame without save
+                            self.rect_locked = False
+                            n = 10 if shift_pressed else 1
+                            while n > 0:
+                                self.result.append(self.input_data.pop(0))
+                                io.progress_bar_inc(1)
+                                n -= 1
+                            # 直接无视之前的结果，重新标注
+                            # need_remark_face = True
+                            self.extract_needed = True
                             break
                         elif key == ord('q'):
                             #skip remaining
@@ -694,12 +723,20 @@ class ExtractSubprocessor(Subprocessor):
                 for idx in devices:
                     dev_name = nnlib.device.getDeviceName(idx)
                     dev_vram = nnlib.device.getDeviceVRAMTotalGb(idx)
-
-                    if not manual and (type == 'rects-dlib' or type == 'rects-mt' ):
-                        for i in range ( int (max (1, dev_vram / 2) ) ):
-                            result += [ (idx, 'GPU', '%s #%d' % (dev_name,i) , dev_vram) ]
-                    else:
+                    
+                    count = 1
+                    
+                    if not manual:
+                        if (type == 'rects-dlib' or type == 'rects-mt' ):
+                            count = int (max (1, dev_vram / 2) )
+                        if type == 'rects-s3fd':
+                            count = int (max (1, dev_vram / 5) )
+                            
+                    if count == 1:
                         result += [ (idx, 'GPU', dev_name, dev_vram) ]
+                    else:
+                        for i in range (count):
+                            result += [ (idx, 'GPU', '%s #%d' % (dev_name,i) , dev_vram) ]
 
                 return result
 
