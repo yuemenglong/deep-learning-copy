@@ -485,7 +485,7 @@ class ExtractSubprocessor(Subprocessor):
                             self.auto = False
                             break
                         elif self.auto and len(self.last_outer) != 0 and len(self.last_landmarks) > 0:
-                            border_ratio = 0.9
+                            border_ratio = 0.8
                             # 根据上次的外框算出这次的x/y,以及外框大小
                             # last_mid = F.mid_point(self.last_outer)
                             last_mid = F.mid_point_by_range(self.last_landmarks)
