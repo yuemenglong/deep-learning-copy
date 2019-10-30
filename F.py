@@ -1174,13 +1174,27 @@ def main():
         merge_dst_aligned()
     elif arg == '--clean-trash':
         clean_trash()
+    elif arg == 'pickle':
+        import pickle
+        data_path = "D:/DeepFaceLabCUDA10.1AVX/workspace_ab/model/SAEHD_data.dat"
+        model_data = pickle.loads(open(data_path, "rb").read())
+        for k in model_data["options"]:
+            print(k, model_data["options"][k])
+        model_data["options"]['face_type'] = "mf"
+        open(data_path, "wb").write(pickle.dumps(model_data))
     elif arg == '--test':
         # manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"),
         #               os.path.join(get_root_path(), "workspace_ab/data_src/aligned"))
         dfl.dfl_edit_mask(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all_fix"))
         pass
     else:
-        refix(get_workspace())
+        import pickle
+        data_path = "D:/DeepFaceLabCUDA10.1AVX/workspace_ab/model/SAEHD_data.dat"
+        model_data = pickle.loads(open(data_path, "rb").read())
+        for k in model_data["options"]:
+            print(k, model_data["options"][k])
+        model_data["options"]['face_type'] = "mf"
+        open(data_path, "wb").write(pickle.dumps(model_data))
 
 
 if __name__ == '__main__':
