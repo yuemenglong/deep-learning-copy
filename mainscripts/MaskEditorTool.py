@@ -388,6 +388,13 @@ class MaskEditor:
     def get_ie_polys(self):
         return self.ie_polys
 
+    def set_ie_polys(self, saved_ie_polys):
+        self.state = self.STATE_NONE
+        self.ie_polys = saved_ie_polys
+        self.redo_to_end_point()
+        self.mask_finish()
+
+
 def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default_mask=False):
     global mode_ex
     # global mode_ex_cont
@@ -422,8 +429,8 @@ def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default
     done_paths = []
     done_images_types = {}
     image_paths_total = len(image_paths)
-
-    zoom_factor = 1.9
+    saved_ie_polys = IEPolys()
+    zoom_factor = 1.0
     preview_images_count = 9
     target_wh = 256
 
@@ -498,6 +505,7 @@ def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default
                     '[Right mouse button] - mark exclude mask.',
                     '[Middle mouse button] - finish current poly.',
                     '[Mouse wheel] - undo/redo poly or point. [+ctrl] - undo to begin/redo to end',
+                    '[r] - applies edits made to last saved image.',
                     '[q] - prev image. [w] - skip and move to %s. [e] - save and move to %s. ' % (skipped_path.name, confirmed_path.name),
                     '[z] - prev image. [x] - skip. [c] - save. ',
                     'hold [shift] - speed up the frame counter by 10.',
@@ -516,6 +524,7 @@ def mask_editor_main(input_dir, confirmed_dir=None, skipped_dir=None, no_default
         next = False
         while not next:
             io.process_messages(0.005)
+
             if jobs_count() == 0:
                 if filepath is not None and mode_ex.is_cont():
                     ed.mask_point(mode_ex.last_type)
