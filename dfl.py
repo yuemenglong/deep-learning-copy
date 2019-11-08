@@ -34,6 +34,15 @@ def dfl_sort_by_hist(input_dir):
     dfl_exec(cmd, args)
 
 
+def dfl_sort_by_vggface(input_dir):
+    cmd = "sort"
+    args = {
+        "--input-dir": input_dir,
+        "--by": "vggface",
+    }
+    dfl_exec(cmd, args)
+
+
 def dfl_video_from_sequence(input_dir, output_file, reference_file):
     cmd = "videoed video-from-sequence"
     args = {
