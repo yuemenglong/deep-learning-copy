@@ -577,7 +577,7 @@ class ExtractSubprocessor(Subprocessor):
                             # go next frame without save
                             self.rect_locked = False
                             n = 10 if shift_pressed else 1
-                            while n > 0:
+                            while n > 0 and len(self.input_data) > 0:
                                 self.result.append(self.input_data.pop(0))
                                 io.progress_bar_inc(1)
                                 n -= 1
