@@ -675,7 +675,7 @@ def prepare(workspace, detector="s3fd", manual_fix=True):
             #     # 两组人脸匹配
             #     skip_by_pitch(os.path.join(workspace, "data_src", "aligned"), os.path.join(tmp_dir, "aligned"))
             # 排序
-            dfl.dfl_sort_by_hist(tmp_aligned)
+            dfl.dfl_sort_by_vggface(tmp_aligned)
         # 保存video
         shutil.copy(video, tmp_video_dir)
         # 重命名
@@ -707,13 +707,13 @@ def train(workspace, model="SAE"):
         return
 
 
-def train_dst(workspace):
+def train_dst(workspace, model="SAE"):
     import os
     model_dir = os.path.join(workspace, "model")
     data_src_aligned = os.path.join(workspace, "data_src", "aligned")
     data_dst_aligned = os.path.join(workspace, "data_dst", "aligned")
     # 训练
-    dfl.dfl_train(data_src_aligned, data_dst_aligned, model_dir)
+    dfl.dfl_train(data_src_aligned, data_dst_aligned, model_dir, model=model)
 
 
 def convert(workspace, skip=False, model="SAE"):
@@ -771,14 +771,14 @@ def convert(workspace, skip=False, model="SAE"):
         shutil.move(data_dst, trash_dir)
 
 
-def convert_dst(workspace):
+def convert_dst(workspace, model="SAE"):
     import os
     model_dir = os.path.join(workspace, "model")
     data_dst = os.path.join(workspace, "data_dst")
     data_dst_merged = os.path.join(data_dst, "merged")
     data_dst_aligned = os.path.join(data_dst, "aligned")
     # 转换
-    dfl.dfl_convert(data_dst, data_dst_merged, data_dst_aligned, model_dir)
+    dfl.dfl_convert(data_dst, data_dst_merged, data_dst_aligned, model_dir, model=model)
 
 
 def edit_mask(workspace):
@@ -1118,8 +1118,8 @@ def main():
         extract()
     elif arg == '--extract-dst-image':
         extract_dst_image(get_workspace())
-        train_dst(get_workspace())
-        convert_dst(get_workspace())
+        train_dst(get_workspace(), model="SAEHD")
+        convert_dst(get_workspace(), model="SAEHD")
     elif arg == '--prepare':
         prepare(get_workspace())
     elif arg == '--prepare-train':
@@ -1161,7 +1161,7 @@ def main():
     elif arg == '--convert-hd':
         convert(get_workspace(), skip=False, model="SAEHD")
     elif arg == '--convert-dst':
-        convert_dst(get_workspace())
+        convert_dst(get_workspace(), model="SAEHD")
     elif arg == '--mp4':
         mp4(get_workspace())
     elif arg == '--mp4-skip':
