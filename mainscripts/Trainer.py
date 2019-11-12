@@ -192,6 +192,8 @@ def trainerThread (s2c, c2s, e, args, device_args):
                         model_save()
                         i = -1
                         break
+                    elif op == 'true_face_training':
+                        model.true_face_training = input['value']
 
                 if i == -1:
                     break
@@ -246,6 +248,7 @@ def main(args, device_args):
         is_waiting_preview = False
         show_last_history_iters_count = 0
         iter = 0
+        true_face_training = False
         while True:
             if not c2s.empty():
                 input = c2s.get()
@@ -289,7 +292,7 @@ def main(args, device_args):
 
                 # HEAD
                 head_lines = [
-                    '[s]:save [enter]:exit',
+                    '[s]:save [enter]:exit' + ' [t]: true face ' + ('On' if true_face_training else 'Off'),
                     '[p]:update [space]:next preview [l]:change history range',
                     'Preview: "%s" [%d/%d]' % (selected_preview_name,selected_preview+1, len(previews) )
                     ]
@@ -344,6 +347,10 @@ def main(args, device_args):
                 update_preview = True
             elif key == ord(' '):
                 selected_preview = (selected_preview + 1) % len(previews)
+                update_preview = True
+            elif key == ord('t'):
+                true_face_training = ~true_face_training
+                s2c.put({'op': 'true_face_training', 'value': true_face_training})
                 update_preview = True
 
             try:
