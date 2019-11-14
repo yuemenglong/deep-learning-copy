@@ -115,7 +115,8 @@ class SAEHDModel(ModelBase):
         bgr_shape = (resolution, resolution, 3)
         mask_shape = (resolution, resolution, 1)
 
-        self.true_face_training = self.options.get('true_face_training', False)
+        # self.true_face_training = self.options.get('true_face_training', False)
+        self.true_face_training = False
         masked_training = True
 
         class CommonModel(object):
@@ -390,38 +391,38 @@ class SAEHDModel(ModelBase):
 
         self.opt_dis_model = []
 
-        if self.true_face_training:
-            def dis_flow(ndf=256):
-                def func(x):
-                    x, = x
+        # if self.true_face_training:
+        def dis_flow(ndf=256):
+            def func(x):
+                x, = x
 
-                    code_res = K.int_shape(x)[1]
+                code_res = K.int_shape(x)[1]
 
-                    x = Conv2D( ndf, 4, strides=2, padding='valid')( ZeroPadding2D(1)(x) )
+                x = Conv2D( ndf, 4, strides=2, padding='valid')( ZeroPadding2D(1)(x) )
+                x = LeakyReLU(0.1)(x)
+
+                x = Conv2D( ndf*2, 3, strides=2, padding='valid')( ZeroPadding2D(1)(x) )
+                x = LeakyReLU(0.1)(x)
+
+                if code_res > 8:
+                    x = Conv2D( ndf*4, 3, strides=2, padding='valid')( ZeroPadding2D(1)(x) )
                     x = LeakyReLU(0.1)(x)
 
-                    x = Conv2D( ndf*2, 3, strides=2, padding='valid')( ZeroPadding2D(1)(x) )
+                if code_res > 16:
+                    x = Conv2D( ndf*8, 3, strides=2, padding='valid')( ZeroPadding2D(1)(x) )
                     x = LeakyReLU(0.1)(x)
 
-                    if code_res > 8:
-                        x = Conv2D( ndf*4, 3, strides=2, padding='valid')( ZeroPadding2D(1)(x) )
-                        x = LeakyReLU(0.1)(x)
+                if code_res > 32:
+                    x = Conv2D( ndf*8, 3, strides=2, padding='valid')( ZeroPadding2D(1)(x) )
+                    x = LeakyReLU(0.1)(x)
 
-                    if code_res > 16:
-                        x = Conv2D( ndf*8, 3, strides=2, padding='valid')( ZeroPadding2D(1)(x) )
-                        x = LeakyReLU(0.1)(x)
+                return Conv2D( 1, 1, strides=1, padding='valid', activation='sigmoid')(x)
+            return func
 
-                    if code_res > 32:
-                        x = Conv2D( ndf*8, 3, strides=2, padding='valid')( ZeroPadding2D(1)(x) )
-                        x = LeakyReLU(0.1)(x)
+        sh = [ Input( K.int_shape(self.model.src_code)[1:] ) ]
+        self.dis = modelify(dis_flow()) (sh)
 
-                    return Conv2D( 1, 1, strides=1, padding='valid', activation='sigmoid')(x)
-                return func
-
-            sh = [ Input( K.int_shape(self.model.src_code)[1:] ) ]
-            self.dis = modelify(dis_flow()) (sh)
-
-            self.opt_dis_model = [ (self.dis, 'dis.h5') ]
+        self.opt_dis_model = [ (self.dis, 'dis.h5') ]
 
         loaded, not_loaded = [], self.model.get_model_filename_list()+self.opt_dis_model
         if not self.is_first_run():
@@ -473,21 +474,21 @@ class SAEHDModel(ModelBase):
 
             G_loss = src_loss+dst_loss
 
-            if self.true_face_training:
-                def DLoss(labels,logits):
-                    return K.mean(K.binary_crossentropy(labels,logits))
+            # if self.true_face_training:
+            def DLoss(labels,logits):
+                return K.mean(K.binary_crossentropy(labels,logits))
 
-                src_code_d = self.dis( self.model.src_code )
-                src_code_d_ones = K.ones_like(src_code_d)
-                src_code_d_zeros = K.zeros_like(src_code_d)
-                dst_code_d = self.dis( self.model.dst_code )
-                dst_code_d_ones = K.ones_like(dst_code_d)
-                G_loss += 0.01*DLoss(src_code_d_ones, src_code_d)
+            src_code_d = self.dis( self.model.src_code )
+            src_code_d_ones = K.ones_like(src_code_d)
+            src_code_d_zeros = K.zeros_like(src_code_d)
+            dst_code_d = self.dis( self.model.dst_code )
+            dst_code_d_ones = K.ones_like(dst_code_d)
+            G_loss += 0.01*DLoss(src_code_d_ones, src_code_d)
 
-                loss_D = (DLoss(dst_code_d_ones , dst_code_d) + \
-                          DLoss(src_code_d_zeros, src_code_d) ) * 0.5
+            loss_D = (DLoss(dst_code_d_ones , dst_code_d) + \
+                      DLoss(src_code_d_zeros, src_code_d) ) * 0.5
 
-                self.D_train = K.function ([self.model.warped_src, self.model.warped_dst],[loss_D], self.D_opt.get_updates(loss_D, self.dis.trainable_weights) )
+            self.D_train = K.function ([self.model.warped_src, self.model.warped_dst],[loss_D], self.D_opt.get_updates(loss_D, self.dis.trainable_weights) )
 
             self.src_dst_train = K.function ([self.model.warped_src, self.model.warped_dst, self.model.target_src, self.model.target_srcm, self.model.target_dst, self.model.target_dstm],
                                              [src_loss,dst_loss],
