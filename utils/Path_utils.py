@@ -78,7 +78,7 @@ def get_first_file_by_stem (dir_path, stem, exts=None):
             if not x.is_file():
                 continue
             xp = Path(x.path)
-            if xp.stem.lower() == stem and (exts is None or xp.suffix.lower() in exts):
+            if stem in xp.stem.lower() and (exts is None or xp.suffix.lower() in exts):
                 return xp
 
     return None

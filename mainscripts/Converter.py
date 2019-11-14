@@ -251,7 +251,8 @@ class ConvertSubprocessor(Subprocessor):
         session_data = None
         if self.is_interactive and self.converter_session_filepath.exists():
 
-            if io.input_bool ("Use saved session? (y/n skip:y) : ", True):
+            # if io.input_bool ("Use saved session? (y/n skip:y) : ", True):
+            if False:
                 try:
                     with open( str(self.converter_session_filepath), "rb") as f:
                         session_data = pickle.loads(f.read())
@@ -384,7 +385,7 @@ class ConvertSubprocessor(Subprocessor):
 
             io.log_info ("Session is saved to " + '/'.join (self.converter_session_filepath.parts[-2:]) )
 
-    cfg_change_keys = ['`','1', '2', '3', '4', '5', '6', '7', '8', 
+    cfg_change_keys = ['`','1', '2', '3', '4', '5', '6', '7', '8',
                                  'q', 'a', 'w', 's', 'e', 'd', 'r', 'f', 'y','h','u','j','i','k','o','l','p', ';',':',#'t', 'g',
                                  'z', 'x', 'c', 'v', 'b','n'   ]
     #override
@@ -392,6 +393,7 @@ class ConvertSubprocessor(Subprocessor):
         self.predictor_func_host.process_messages()
         self.dcscn_host.process_messages()
 
+        go_first_frame = False
         go_prev_frame = False
         go_prev_frame_overriding_cfg = False
         go_next_frame = self.process_remain_frames
@@ -454,13 +456,13 @@ class ConvertSubprocessor(Subprocessor):
                                 elif chr_key == 'a':
                                     cfg.add_hist_match_threshold(-1 if not shift_pressed else -5)
                                 elif chr_key == 'w':
-                                    cfg.add_erode_mask_modifier(1 if not shift_pressed else 5)
+                                    cfg.add_erode_mask_modifier(1 if not shift_pressed else 10)
                                 elif chr_key == 's':
-                                    cfg.add_erode_mask_modifier(-1 if not shift_pressed else -5)
+                                    cfg.add_erode_mask_modifier(-1 if not shift_pressed else -10)
                                 elif chr_key == 'e':
-                                    cfg.add_blur_mask_modifier(1 if not shift_pressed else 5)
+                                    cfg.add_blur_mask_modifier(1 if not shift_pressed else 10)
                                 elif chr_key == 'd':
-                                    cfg.add_blur_mask_modifier(-1 if not shift_pressed else -5)
+                                    cfg.add_blur_mask_modifier(-1 if not shift_pressed else -10)
                                 elif chr_key == 'r':
                                     cfg.add_motion_blur_power(1 if not shift_pressed else 5)
                                 elif chr_key == 'f':
@@ -492,9 +494,9 @@ class ConvertSubprocessor(Subprocessor):
                                 elif chr_key == 'z':
                                     cfg.toggle_masked_hist_match()
                                 elif chr_key == 'x':
-                                    cfg.toggle_mask_mode()
+                                    cfg.toggle_mask_mode(1 if not shift_pressed else -1)
                                 elif chr_key == 'c':
-                                    cfg.toggle_color_transfer_mode()
+                                    cfg.toggle_color_transfer_mode(1 if not shift_pressed else -1)
                                 elif chr_key == 'v':
                                     cfg.toggle_super_resolution_mode()
                                 elif chr_key == 'b':
@@ -519,7 +521,10 @@ class ConvertSubprocessor(Subprocessor):
                                 cur_frame.is_done = False
                                 cur_frame.is_shown = False
                     else:
-                        if chr_key == ',' or chr_key == 'm':
+                        if chr_key == 'm' and shift_pressed:
+                            self.process_remain_frames = False
+                            go_first_frame = True
+                        elif chr_key == ',' or chr_key == 'm':
                             self.process_remain_frames = False
                             go_prev_frame = True
                             go_prev_frame_overriding_cfg = chr_key == 'm'
@@ -534,8 +539,24 @@ class ConvertSubprocessor(Subprocessor):
                         elif chr_key == '=':
                             self.screen_manager.get_current().diff_scale(0.1)
 
+        if go_first_frame:
+            if cur_frame is None or cur_frame.is_done:
+                if cur_frame is not None:
+                    cur_frame.image = None
 
-        if go_prev_frame:
+                prev_frame = None
+                while len(self.frames_done_idxs) > 0:
+                    prev_frame = self.frames[self.frames_done_idxs.pop()]
+                    self.frames_idxs.insert(0, prev_frame.idx)
+                    prev_frame.is_shown = False
+                    io.progress_bar_inc(-1)
+
+                    # if cur_frame is not None and go_prev_frame_overriding_cfg:
+                if prev_frame is not None and prev_frame.cfg != cur_frame.cfg:
+                    prev_frame.cfg = cur_frame.cfg.copy()
+                    prev_frame.is_done = False
+
+        elif go_prev_frame:
             if cur_frame is None or cur_frame.is_done:
                 if cur_frame is not None:
                     cur_frame.image = None
@@ -648,7 +669,8 @@ def main (args, device_args):
             io.log_err('Model directory not found. Please ensure it exists.')
             return
 
-        is_interactive = io.input_bool ("Use interactive converter? (y/n skip:y) : ", True) if not io.is_colab() else False
+        is_interactive = True
+        # is_interactive = io.input_bool ("Use interactive converter? (y/n skip:y) : ", True) if not io.is_colab() else False
 
         import models
         model = models.import_model( args['model_name'])(model_path, device_args=device_args, training_data_src_path=training_data_src_path)
@@ -690,10 +712,10 @@ def main (args, device_args):
                 source_filename = dflimg.get_source_filename()
                 if source_filename is None or source_filename == "_":
                     continue
-                
+
                 source_filename = Path(source_filename)
                 source_filename_stem = source_filename.stem
-                
+
                 if source_filename_stem not in alignments.keys():
                     alignments[ source_filename_stem ] = []
 
