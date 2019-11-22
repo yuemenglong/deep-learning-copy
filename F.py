@@ -1106,6 +1106,40 @@ def clean_trash():
                 os.remove(f)
 
 
+def pre_extract_dst(workspace):
+    merged = os.path.join(workspace, "data_dst/merged")
+    merged_res = os.path.join(workspace, "data_dst/merged_res")
+    if not os.path.exists(merged):
+        return
+    if not os.path.exists(merged_res):
+        os.mkdir(merged_res)
+    for f in os.listdir(merged):
+        src = os.path.join(merged, f)
+        if os.path.isdir(src):
+            continue
+        dst = os.path.join(merged_res, f)
+        import shutil
+        shutil.move(src, dst)
+    pass
+
+
+def post_extract_dst(workspace):
+    data_dst = os.path.join(workspace, "data_dst")
+    orig = os.path.join(workspace, "data_dst/orig")
+    if not os.path.exists(data_dst):
+        return
+    if not os.path.exists(orig):
+        os.mkdir(orig)
+    for f in os.listdir(data_dst):
+        src = os.path.join(data_dst, f)
+        if os.path.isdir(src):
+            continue
+        dst = os.path.join(orig, f)
+        import shutil
+        shutil.move(src, dst)
+    pass
+
+
 def main():
     import sys
 
@@ -1117,9 +1151,11 @@ def main():
     elif arg == '--extract':
         extract()
     elif arg == '--extract-dst-image':
+        pre_extract_dst(get_workspace())
         extract_dst_image(get_workspace())
         train_dst(get_workspace(), model="SAEHD")
         convert_dst(get_workspace(), model="SAEHD")
+        post_extract_dst(get_workspace())
     elif arg == '--prepare':
         prepare(get_workspace())
     elif arg == '--prepare-train':
@@ -1149,8 +1185,9 @@ def main():
         train(get_workspace())
         convert(get_workspace(), False)
     elif arg == '--train-dst':
-        train_dst(get_workspace())
-        convert_dst(get_workspace())
+        train_dst(get_workspace(), model="SAEHD")
+        convert_dst(get_workspace(), model="SAEHD")
+        post_extract_dst(get_workspace())
     elif arg == '--train-hd':
         train(get_workspace(), model="SAEHD")
         convert(get_workspace(), False, model="SAEHD")
