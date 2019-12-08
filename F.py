@@ -675,7 +675,7 @@ def prepare(workspace, detector="s3fd", manual_fix=True):
             #     # 两组人脸匹配
             #     skip_by_pitch(os.path.join(workspace, "data_src", "aligned"), os.path.join(tmp_dir, "aligned"))
             # 排序
-            dfl.dfl_sort_by_vggface(tmp_aligned)
+            dfl.dfl_sort_by_hist(tmp_aligned)
         # 保存video
         shutil.copy(video, tmp_video_dir)
         # 重命名
@@ -790,6 +790,15 @@ def edit_mask(workspace):
         shutil.move(os.path.join(confirmed, f), dst_aligned)
 
 
+def edit_mask_dst(workspace):
+    dst = os.path.join(workspace, "data_dst")
+    dst_aligned = os.path.join(dst, "aligned")
+    _, confirmed, _ = dfl.dfl_edit_mask(dst_aligned)
+    import shutil
+    for f in os.listdir(confirmed):
+        shutil.move(os.path.join(confirmed, f), dst_aligned)
+
+
 def refix(workspace):
     dst = get_workspace_dst(workspace)
     dst_aligned = os.path.join(dst, "aligned")
@@ -855,6 +864,7 @@ def mp4(workspace, skip=False):
         if not refer_path:
             io.log_err("No Refer File In " + data_dst_video)
             return
+        io.log_info("Refer File " + refer_path)
         # 恢复排序
         need_recover = True
         for img in os.listdir(data_dst_aligned):
@@ -1153,6 +1163,7 @@ def main():
     elif arg == '--extract-dst-image':
         pre_extract_dst(get_workspace())
         extract_dst_image(get_workspace())
+        # edit_mask_dst(get_workspace())
         train_dst(get_workspace(), model="SAEHD")
         convert_dst(get_workspace(), model="SAEHD")
         post_extract_dst(get_workspace())
@@ -1164,8 +1175,8 @@ def main():
         convert(get_workspace(), False)
     elif arg == '--prepare-nofix-train':
         prepare(get_workspace(), manual_fix=False)
-        train(get_workspace())
-        convert(get_workspace(), False)
+        train(get_workspace(), model="SAEHD")
+        convert(get_workspace(), False, model="SAEHD")
     elif arg == '--prepare-manual-train':
         prepare(get_workspace(), detector="manual")
         train(get_workspace())
@@ -1181,6 +1192,7 @@ def main():
         convert(get_workspace(), False)
     elif arg == '--refix':
         refix(get_workspace())
+        edit_mask(get_workspace())
     elif arg == '--train':
         train(get_workspace())
         convert(get_workspace(), False)
@@ -1225,13 +1237,7 @@ def main():
         dfl.dfl_edit_mask(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all_fix"))
         pass
     else:
-        import pickle
-        data_path = "D:/DeepFaceLabCUDA10.1AVX/workspace_ab/model/SAEHD_data.dat"
-        model_data = pickle.loads(open(data_path, "rb").read())
-        for k in model_data["options"]:
-            print(k, model_data["options"][k])
-        model_data["options"]['face_type'] = "mf"
-        open(data_path, "wb").write(pickle.dumps(model_data))
+        dfl.dfl_sort_by_vggface(os.path.join(get_workspace(), "data_src/aligned2"))
 
 
 if __name__ == '__main__':
