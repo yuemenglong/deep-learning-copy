@@ -642,7 +642,7 @@ def manual_select(input_path, src_path=None):
             reload_src()
 
 
-def prepare(workspace, detector="s3fd", manual_fix=True):
+def prepare(workspace, detector="s3fd", manual_fix=False):
     import os
     import shutil
     from mainscripts import Extractor
@@ -759,8 +759,8 @@ def convert(workspace, skip=False, model="SAE"):
         dfl.dfl_convert(data_dst, data_dst_merged, data_dst_aligned, model_dir, model)
         # ConverterMasked.enable_predef = enable_predef
         # 去掉没有脸的
-        if skip:
-            skip_no_face(data_dst)
+        # if skip:
+        #     skip_no_face(data_dst)
         # 转mp4
         refer_name = ".".join(os.path.basename(refer_path).split(".")[:-1])
         result_path = os.path.join(workspace, "result_%s_%s.mp4" % (get_time_str(), refer_name))
@@ -881,8 +881,8 @@ def mp4(workspace, skip=False):
         if not has_img:
             dfl.dfl_extract_video(refer_path, data_dst)
         # 去掉没有脸的
-        if skip:
-            skip_no_face(data_dst)
+        # if skip:
+        #     skip_no_face(data_dst)
         # 转mp4
         refer_name = ".".join(os.path.basename(refer_path).split(".")[:-1])
         result_path = os.path.join(workspace, "result_%s_%s.mp4" % (get_time_str(), refer_name))
@@ -1036,9 +1036,8 @@ def auto_fanseg():
             break
 
 
-def merge_dst_aligned():
+def merge_dst_aligned(workspace):
     import shutil
-    workspace = os.path.join(get_root_path(), "workspace")
     counter = 0
     target_dst = os.path.join(workspace, "data_dst")
     if os.path.exists(target_dst):
@@ -1118,7 +1117,7 @@ def clean_trash():
 
 def pre_extract_dst(workspace):
     merged = os.path.join(workspace, "data_dst/merged")
-    merged_res = os.path.join(workspace, "data_dst/merged_res")
+    merged_res = os.path.join(workspace, "data_merged")
     if not os.path.exists(merged):
         return
     if not os.path.exists(merged_res):
@@ -1220,7 +1219,7 @@ def main():
     elif arg == '--auto':
         auto(get_workspace())
     elif arg == '--merge-dst-aligned':
-        merge_dst_aligned()
+        merge_dst_aligned(get_workspace())
     elif arg == '--clean-trash':
         clean_trash()
     elif arg == 'pickle':
@@ -1237,7 +1236,7 @@ def main():
         dfl.dfl_edit_mask(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all_fix"))
         pass
     else:
-        dfl.dfl_sort_by_vggface(os.path.join(get_workspace(), "data_src/aligned2"))
+        get_pitch_yaw_roll(os.path.join(get_workspace(),"data_src/aligned"))
 
 
 if __name__ == '__main__':
