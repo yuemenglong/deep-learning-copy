@@ -389,6 +389,7 @@ class ExtractSubprocessor(Subprocessor):
         else:
             need_remark_face = False
             redraw_needed = False
+            sound_counter = 0
             while len (self.input_data) > 0:
                 data = self.input_data[0]
                 filename, data_rects, data_landmarks = data.filename, data.rects, data.landmarks
@@ -443,6 +444,9 @@ class ExtractSubprocessor(Subprocessor):
 
                     while True:
                         io.process_messages(0.0001)
+                        sound_counter += 1
+                        if sound_counter % 1000 == 0 and not self.auto:
+                            print('\a')
 
                         new_x = self.x
                         new_y = self.y
@@ -519,9 +523,7 @@ class ExtractSubprocessor(Subprocessor):
                                     pass
                                 else:
                                     self.auto = False
-                                    for i in range(3):
-                                        time.sleep(0.1)
-                                        print('\a')
+                                    print('\a')
                         elif key == ord('\r') or key == ord('\n'):
                             # confirm frame
                             is_frame_done = True
