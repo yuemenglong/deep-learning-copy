@@ -667,7 +667,8 @@ def prepare(workspace, detector="s3fd", manual_fix=False):
         VideoEd.extract_video(video, tmp_dir, "png", 0)
         # 提取人脸
         if detector == "manual":
-            print('\a')
+            import winsound
+            winsound.Beep(440, 500)
         Extractor.main(tmp_dir, tmp_aligned, detector=detector, manual_fix=manual_fix)
         # fanseg
         Extractor.extract_fanseg(tmp_aligned)
