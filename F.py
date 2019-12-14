@@ -668,7 +668,7 @@ def prepare(workspace, detector="s3fd", manual_fix=False):
         # 提取人脸
         if detector == "manual":
             import winsound
-            winsound.Beep(440, 500)
+            winsound.Beep(300, 500)
         Extractor.main(tmp_dir, tmp_aligned, detector=detector, manual_fix=manual_fix)
         # fanseg
         Extractor.extract_fanseg(tmp_aligned)
@@ -688,7 +688,8 @@ def prepare(workspace, detector="s3fd", manual_fix=False):
         if not os.path.exists(data_trash):
             os.mkdir(data_trash)
         shutil.move(video, data_trash)
-    print("\a")
+    import winsound
+    winsound.Beep(300, 500)
 
 
 def train(workspace, model="SAE"):

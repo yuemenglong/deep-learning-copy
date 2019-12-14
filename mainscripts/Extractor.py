@@ -445,9 +445,9 @@ class ExtractSubprocessor(Subprocessor):
                     while True:
                         io.process_messages(0.0001)
                         sound_counter += 1
-                        if sound_counter % 1000 == 0 and not self.auto:
+                        if sound_counter % 3000 == 0 and not self.auto:
                             import winsound
-                            winsound.Beep(440, 500)
+                            winsound.Beep(300, 500)
 
                         new_x = self.x
                         new_y = self.y
@@ -525,7 +525,7 @@ class ExtractSubprocessor(Subprocessor):
                                 else:
                                     self.auto = False
                                     import winsound
-                                    winsound.Beep(440, 500)
+                                    winsound.Beep(300, 500)
                         elif key == ord('\r') or key == ord('\n'):
                             # confirm frame
                             is_frame_done = True
