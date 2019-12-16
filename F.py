@@ -642,7 +642,7 @@ def manual_select(input_path, src_path=None):
             reload_src()
 
 
-def prepare(workspace, detector="s3fd", manual_fix=True):
+def prepare(workspace, detector="s3fd", manual_fix=False):
     import os
     import shutil
     from mainscripts import Extractor
@@ -667,7 +667,8 @@ def prepare(workspace, detector="s3fd", manual_fix=True):
         VideoEd.extract_video(video, tmp_dir, "png", 0)
         # 提取人脸
         if detector == "manual":
-            print('\a')
+            import winsound
+            winsound.Beep(300, 500)
         Extractor.main(tmp_dir, tmp_aligned, detector=detector, manual_fix=manual_fix)
         # fanseg
         Extractor.extract_fanseg(tmp_aligned)
@@ -675,7 +676,7 @@ def prepare(workspace, detector="s3fd", manual_fix=True):
             #     # 两组人脸匹配
             #     skip_by_pitch(os.path.join(workspace, "data_src", "aligned"), os.path.join(tmp_dir, "aligned"))
             # 排序
-            dfl.dfl_sort_by_vggface(tmp_aligned)
+            dfl.dfl_sort_by_hist(tmp_aligned)
         # 保存video
         shutil.copy(video, tmp_video_dir)
         # 重命名
@@ -687,7 +688,8 @@ def prepare(workspace, detector="s3fd", manual_fix=True):
         if not os.path.exists(data_trash):
             os.mkdir(data_trash)
         shutil.move(video, data_trash)
-    print("\a")
+    import winsound
+    winsound.Beep(300, 500)
 
 
 def train(workspace, model="SAE"):
@@ -759,8 +761,8 @@ def convert(workspace, skip=False, model="SAE"):
         dfl.dfl_convert(data_dst, data_dst_merged, data_dst_aligned, model_dir, model)
         # ConverterMasked.enable_predef = enable_predef
         # 去掉没有脸的
-        if skip:
-            skip_no_face(data_dst)
+        # if skip:
+        #     skip_no_face(data_dst)
         # 转mp4
         refer_name = ".".join(os.path.basename(refer_path).split(".")[:-1])
         result_path = os.path.join(workspace, "result_%s_%s.mp4" % (get_time_str(), refer_name))
@@ -783,6 +785,15 @@ def convert_dst(workspace, model="SAE"):
 
 def edit_mask(workspace):
     dst = get_workspace_dst(workspace)
+    dst_aligned = os.path.join(dst, "aligned")
+    _, confirmed, _ = dfl.dfl_edit_mask(dst_aligned)
+    import shutil
+    for f in os.listdir(confirmed):
+        shutil.move(os.path.join(confirmed, f), dst_aligned)
+
+
+def edit_mask_dst(workspace):
+    dst = os.path.join(workspace, "data_dst")
     dst_aligned = os.path.join(dst, "aligned")
     _, confirmed, _ = dfl.dfl_edit_mask(dst_aligned)
     import shutil
@@ -855,6 +866,7 @@ def mp4(workspace, skip=False):
         if not refer_path:
             io.log_err("No Refer File In " + data_dst_video)
             return
+        io.log_info("Refer File " + refer_path)
         # 恢复排序
         need_recover = True
         for img in os.listdir(data_dst_aligned):
@@ -871,8 +883,8 @@ def mp4(workspace, skip=False):
         if not has_img:
             dfl.dfl_extract_video(refer_path, data_dst)
         # 去掉没有脸的
-        if skip:
-            skip_no_face(data_dst)
+        # if skip:
+        #     skip_no_face(data_dst)
         # 转mp4
         refer_name = ".".join(os.path.basename(refer_path).split(".")[:-1])
         result_path = os.path.join(workspace, "result_%s_%s.mp4" % (get_time_str(), refer_name))
@@ -1026,9 +1038,8 @@ def auto_fanseg():
             break
 
 
-def merge_dst_aligned():
+def merge_dst_aligned(workspace):
     import shutil
-    workspace = os.path.join(get_root_path(), "workspace")
     counter = 0
     target_dst = os.path.join(workspace, "data_dst")
     if os.path.exists(target_dst):
@@ -1106,6 +1117,40 @@ def clean_trash():
                 os.remove(f)
 
 
+def pre_extract_dst(workspace):
+    merged = os.path.join(workspace, "data_dst/merged")
+    merged_res = os.path.join(workspace, "data_merged")
+    if not os.path.exists(merged):
+        return
+    if not os.path.exists(merged_res):
+        os.mkdir(merged_res)
+    for f in os.listdir(merged):
+        src = os.path.join(merged, f)
+        if os.path.isdir(src):
+            continue
+        dst = os.path.join(merged_res, f)
+        import shutil
+        shutil.move(src, dst)
+    pass
+
+
+def post_extract_dst(workspace):
+    data_dst = os.path.join(workspace, "data_dst")
+    orig = os.path.join(workspace, "data_dst/orig")
+    if not os.path.exists(data_dst):
+        return
+    if not os.path.exists(orig):
+        os.mkdir(orig)
+    for f in os.listdir(data_dst):
+        src = os.path.join(data_dst, f)
+        if os.path.isdir(src):
+            continue
+        dst = os.path.join(orig, f)
+        import shutil
+        shutil.move(src, dst)
+    pass
+
+
 def main():
     import sys
 
@@ -1117,9 +1162,12 @@ def main():
     elif arg == '--extract':
         extract()
     elif arg == '--extract-dst-image':
+        pre_extract_dst(get_workspace())
         extract_dst_image(get_workspace())
+        # edit_mask_dst(get_workspace())
         train_dst(get_workspace(), model="SAEHD")
         convert_dst(get_workspace(), model="SAEHD")
+        post_extract_dst(get_workspace())
     elif arg == '--prepare':
         prepare(get_workspace())
     elif arg == '--prepare-train':
@@ -1128,8 +1176,8 @@ def main():
         convert(get_workspace(), False)
     elif arg == '--prepare-nofix-train':
         prepare(get_workspace(), manual_fix=False)
-        train(get_workspace())
-        convert(get_workspace(), False)
+        train(get_workspace(), model="SAEHD")
+        convert(get_workspace(), False, model="SAEHD")
     elif arg == '--prepare-manual-train':
         prepare(get_workspace(), detector="manual")
         train(get_workspace())
@@ -1145,12 +1193,14 @@ def main():
         convert(get_workspace(), False)
     elif arg == '--refix':
         refix(get_workspace())
+        edit_mask(get_workspace())
     elif arg == '--train':
         train(get_workspace())
         convert(get_workspace(), False)
     elif arg == '--train-dst':
-        train_dst(get_workspace())
-        convert_dst(get_workspace())
+        train_dst(get_workspace(), model="SAEHD")
+        convert_dst(get_workspace(), model="SAEHD")
+        post_extract_dst(get_workspace())
     elif arg == '--train-hd':
         train(get_workspace(), model="SAEHD")
         convert(get_workspace(), False, model="SAEHD")
@@ -1171,7 +1221,7 @@ def main():
     elif arg == '--auto':
         auto(get_workspace())
     elif arg == '--merge-dst-aligned':
-        merge_dst_aligned()
+        merge_dst_aligned(get_workspace())
     elif arg == '--clean-trash':
         clean_trash()
     elif arg == 'pickle':
@@ -1188,13 +1238,7 @@ def main():
         dfl.dfl_edit_mask(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all_fix"))
         pass
     else:
-        import pickle
-        data_path = "D:/DeepFaceLabCUDA10.1AVX/workspace_ab/model/SAEHD_data.dat"
-        model_data = pickle.loads(open(data_path, "rb").read())
-        for k in model_data["options"]:
-            print(k, model_data["options"][k])
-        model_data["options"]['face_type'] = "mf"
-        open(data_path, "wb").write(pickle.dumps(model_data))
+        get_pitch_yaw_roll(os.path.join(get_workspace(),"data_src/aligned"))
 
 
 if __name__ == '__main__':

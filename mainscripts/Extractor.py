@@ -269,7 +269,7 @@ class ExtractSubprocessor(Subprocessor):
                                 shutil.copy ( str(filename_path), str(output_file) )
                         else:
                             output_file = '{}_{}{}'.format(str(self.final_output_path / filename_path.stem), str(face_idx), '.jpg')
-                            cv2_imwrite(output_file, face_image, [int(cv2.IMWRITE_JPEG_QUALITY), 85] )
+                            cv2_imwrite(output_file, face_image, [int(cv2.IMWRITE_JPEG_QUALITY), 100] )
 
                         DFLJPG.embed_data(output_file, face_type=FaceType.toString(self.face_type),
                                                        landmarks=face_image_landmarks.tolist(),
@@ -389,6 +389,7 @@ class ExtractSubprocessor(Subprocessor):
         else:
             need_remark_face = False
             redraw_needed = False
+            sound_counter = 0
             while len (self.input_data) > 0:
                 data = self.input_data[0]
                 filename, data_rects, data_landmarks = data.filename, data.rects, data.landmarks
@@ -443,6 +444,10 @@ class ExtractSubprocessor(Subprocessor):
 
                     while True:
                         io.process_messages(0.0001)
+                        sound_counter += 1
+                        if sound_counter % 3000 == 0 and not self.auto:
+                            import winsound
+                            winsound.Beep(300, 500)
 
                         new_x = self.x
                         new_y = self.y
@@ -519,9 +524,8 @@ class ExtractSubprocessor(Subprocessor):
                                     pass
                                 else:
                                     self.auto = False
-                                    for i in range(3):
-                                        time.sleep(0.1)
-                                        print('\a')
+                                    import winsound
+                                    winsound.Beep(300, 500)
                         elif key == ord('\r') or key == ord('\n'):
                             # confirm frame
                             is_frame_done = True
@@ -724,10 +728,8 @@ class ExtractSubprocessor(Subprocessor):
                     count = 1
                     
                     if not manual:
-                        if (type == 'rects-dlib' or type == 'rects-mt' ):
+                        if (type == 'rects-mt' ):
                             count = int (max (1, dev_vram / 2) )
-                        if type == 'rects-s3fd':
-                            count = int (max (1, dev_vram / 5) )
                             
                     if count == 1:
                         result += [ (idx, 'GPU', dev_name, dev_vram) ]
