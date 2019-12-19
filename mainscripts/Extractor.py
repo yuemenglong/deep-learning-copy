@@ -37,13 +37,14 @@ DEBUG = False
 
 class ExtractSubprocessor(Subprocessor):
     class Data(object):
-        def __init__(self, filename=None, rects=None, landmarks = None, landmarks_accurate=True, pitch_yaw_roll=None, final_output_files = None):
+        def __init__(self, filename=None, rects=None, landmarks = None, landmarks_accurate=True, pitch_yaw_roll=None, force_output_path=None, final_output_files = None):
             self.filename = filename
             self.rects = rects or []
             self.rects_rotation = 0
             self.landmarks_accurate = landmarks_accurate
             self.landmarks = landmarks or []
             self.pitch_yaw_roll = pitch_yaw_roll
+            self.force_output_path = force_output_path
             self.final_output_files = final_output_files or []
             self.faces_detected = 0
 
@@ -253,7 +254,7 @@ class ExtractSubprocessor(Subprocessor):
                             rect_area      = mathlib.polygon_area(np.array(rect[[0,2,2,0]]), np.array(rect[[1,1,3,3]]))
                             landmarks_area = mathlib.polygon_area(landmarks_bbox[:,0], landmarks_bbox[:,1] )
 
-                            if landmarks_area > 4*rect_area: #get rid of faces which umeyama-landmark-area > 4*detector-rect-area
+                            if self.face_type <= FaceType.FULL_NO_ALIGN and landmarks_area > 4*rect_area: #get rid of faces which umeyama-landmark-area > 4*detector-rect-area
                                 continue
 
                         if self.debug_dir is not None:
@@ -262,13 +263,18 @@ class ExtractSubprocessor(Subprocessor):
                             if dist < int(self.min_pixel):
                                 continue
 
+                        final_output_path = self.final_output_path                        
+                        if data.force_output_path is not None:
+                            final_output_path = data.force_output_path
+                        
                         if src_dflimg is not None and filename_path.suffix == '.jpg':
                             #if extracting from dflimg and jpg copy it in order not to lose quality
-                            output_file = str(self.final_output_path / filename_path.name)
+                            output_file = str(final_output_path / filename_path.name)
                             if str(filename_path) != str(output_file):
                                 shutil.copy ( str(filename_path), str(output_file) )
                         else:
-                            output_file = '{}_{}{}'.format(str(self.final_output_path / filename_path.stem), str(face_idx), '.jpg')
+                            
+                            output_file = '{}_{}{}'.format(str(final_output_path / filename_path.stem), str(face_idx), '.jpg')
                             cv2_imwrite(output_file, face_image, [int(cv2.IMWRITE_JPEG_QUALITY), 100] )
 
                         DFLJPG.embed_data(output_file, face_type=FaceType.toString(self.face_type),
@@ -321,9 +327,15 @@ class ExtractSubprocessor(Subprocessor):
         self.min_pixel = min_pixel
 
         self.devices = ExtractSubprocessor.get_devices_for_config(self.manual, self.type, multi_gpu, cpu_only)
-
-        no_response_time_sec = 60 if not self.manual and not DEBUG else 999999
-        super().__init__('Extractor', ExtractSubprocessor.Cli, no_response_time_sec)
+        
+        if self.manual or DEBUG:
+            no_response_time_sec = 999999 
+        elif nnlib.device.backend == 'plaidML':
+            no_response_time_sec = 600
+        else:
+            no_response_time_sec = 60
+            
+        super().__init__('Extractor', ExtractSubprocessor.Cli, no_response_time_sec, initialize_subprocesses_in_serial=(type != 'final'))
 
     #override
     def on_check_run(self):

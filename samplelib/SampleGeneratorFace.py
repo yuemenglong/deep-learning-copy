@@ -24,8 +24,8 @@ class SampleGeneratorFace(SampleGeneratorBase):
                         random_ct_samples_path=None, 
                         sample_process_options=SampleProcessor.Options(), 
                         output_sample_types=[], 
-                        person_id_mode=False,
                         add_sample_idx=False, 
+                        use_caching=False,
                         generators_count=2, 
                         generators_random_seed=None, 
                         **kwargs):
@@ -34,7 +34,6 @@ class SampleGeneratorFace(SampleGeneratorBase):
         self.sample_process_options = sample_process_options
         self.output_sample_types = output_sample_types
         self.add_sample_idx = add_sample_idx
-        self.person_id_mode = person_id_mode
 
         if sort_by_yaw_target_samples_path is not None:
             self.sample_type = SampleType.FACE_YAW_SORTED_AS_TARGET
@@ -48,7 +47,7 @@ class SampleGeneratorFace(SampleGeneratorBase):
 
         self.generators_random_seed = generators_random_seed
         
-        samples = SampleLoader.load (self.sample_type, self.samples_path, sort_by_yaw_target_samples_path, person_id_mode=person_id_mode)
+        samples = SampleLoader.load (self.sample_type, self.samples_path, sort_by_yaw_target_samples_path, use_caching=use_caching)
         np.random.shuffle(samples)
         self.samples_len = len(samples)
         
@@ -56,7 +55,6 @@ class SampleGeneratorFace(SampleGeneratorBase):
             raise ValueError('No training data provided.')
         
         ct_samples = SampleLoader.load (SampleType.FACE, random_ct_samples_path) if random_ct_samples_path is not None else None
-        self.random_ct_sample_chance = 100
 
         if self.debug:
             self.generators_count = 1
@@ -134,34 +132,23 @@ class SampleGeneratorFace(SampleGeneratorBase):
                         try:
                             ct_sample=None                            
                             if ct_samples is not None:                                
-                                if np.random.randint(100) < self.random_ct_sample_chance:
-                                    ct_sample=ct_samples[np.random.randint(ct_samples_len)]
+                                ct_sample=ct_samples[np.random.randint(ct_samples_len)]
                             
-                            x = SampleProcessor.process (sample, self.sample_process_options, self.output_sample_types, self.debug, ct_sample=ct_sample)
+                            x, = SampleProcessor.process ([sample], self.sample_process_options, self.output_sample_types, self.debug, ct_sample=ct_sample)
                         except:
                             raise Exception ("Exception occured in sample %s. Error: %s" % (sample.filename, traceback.format_exc() ) )
-
-                        if type(x) != tuple and type(x) != list:
-                            raise Exception('SampleProcessor.process returns NOT tuple/list')
 
                         if batches is None:
                             batches = [ [] for _ in range(len(x)) ]
                             if self.add_sample_idx:
                                 batches += [ [] ]
                                 i_sample_idx = len(batches)-1
-                                
-                            if self.person_id_mode:
-                                batches += [ [] ]
-                                i_person_id = len(batches)-1
 
                         for i in range(len(x)):
                             batches[i].append ( x[i] )
 
                         if self.add_sample_idx:
                             batches[i_sample_idx].append (idx)
-                            
-                        if self.person_id_mode:
-                            batches[i_person_id].append ( np.array([sample.person_id]) )
 
                         break
 
