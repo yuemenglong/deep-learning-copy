@@ -19,9 +19,7 @@ from joblib import Subprocessor
 from nnlib import VGGFace, nnlib
 from utils import Path_utils
 from utils.cv2_utils import *
-from utils.DFLJPG import DFLJPG
-from utils.DFLPNG import DFLPNG
-
+from DFLIMG import *
 
 class BlurEstimatorSubprocessor(Subprocessor):
     class Cli(Subprocessor.Cli):
@@ -33,13 +31,7 @@ class BlurEstimatorSubprocessor(Subprocessor):
         #override
         def process_data(self, data):
             filepath = Path( data[0] )
-
-            if filepath.suffix == '.png':
-                dflimg = DFLPNG.load( str(filepath) )
-            elif filepath.suffix == '.jpg':
-                dflimg = DFLJPG.load ( str(filepath) )
-            else:
-                dflimg = None
+            dflimg = DFLIMG.load (filepath)
 
             if dflimg is not None:
                 image = cv2_imread( str(filepath) )
@@ -119,12 +111,7 @@ def sort_by_face(input_path):
     for filepath in io.progress_bar_generator( Path_utils.get_image_paths(input_path), "Loading"):
         filepath = Path(filepath)
 
-        if filepath.suffix == '.png':
-            dflimg = DFLPNG.load( str(filepath) )
-        elif filepath.suffix == '.jpg':
-            dflimg = DFLJPG.load ( str(filepath) )
-        else:
-            dflimg = None
+        dflimg = DFLIMG.load (filepath)
 
         if dflimg is None:
             io.log_err ("%s is not a dfl image file" % (filepath.name) )
@@ -160,12 +147,7 @@ def sort_by_face_dissim(input_path):
     for filepath in io.progress_bar_generator( Path_utils.get_image_paths(input_path), "Loading"):
         filepath = Path(filepath)
 
-        if filepath.suffix == '.png':
-            dflimg = DFLPNG.load( str(filepath) )
-        elif filepath.suffix == '.jpg':
-            dflimg = DFLJPG.load ( str(filepath) )
-        else:
-            dflimg = None
+        dflimg = DFLIMG.load (filepath)
 
         if dflimg is None:
             io.log_err ("%s is not a dfl image file" % (filepath.name) )
@@ -198,23 +180,14 @@ def sort_by_face_yaw(input_path):
     for filepath in io.progress_bar_generator( Path_utils.get_image_paths(input_path), "Loading"):
         filepath = Path(filepath)
 
-        if filepath.suffix == '.png':
-            dflimg = DFLPNG.load( str(filepath) )
-        elif filepath.suffix == '.jpg':
-            dflimg = DFLJPG.load ( str(filepath) )
-        else:
-            dflimg = None
+        dflimg = DFLIMG.load (filepath)
 
         if dflimg is None:
             io.log_err ("%s is not a dfl image file" % (filepath.name) )
             trash_img_list.append ( [str(filepath)] )
             continue
 
-        pitch_yaw_roll = dflimg.get_pitch_yaw_roll()
-        if pitch_yaw_roll is not None:
-            pitch, yaw, roll = pitch_yaw_roll
-        else:
-            pitch, yaw, roll = LandmarksProcessor.estimate_pitch_yaw_roll ( dflimg.get_landmarks() )
+        pitch, yaw, roll = LandmarksProcessor.estimate_pitch_yaw_roll ( dflimg.get_landmarks() )
 
         img_list.append( [str(filepath), yaw ] )
 
@@ -230,23 +203,14 @@ def sort_by_face_pitch(input_path):
     for filepath in io.progress_bar_generator( Path_utils.get_image_paths(input_path), "Loading"):
         filepath = Path(filepath)
 
-        if filepath.suffix == '.png':
-            dflimg = DFLPNG.load( str(filepath) )
-        elif filepath.suffix == '.jpg':
-            dflimg = DFLJPG.load ( str(filepath) )
-        else:
-            dflimg = None
+        dflimg = DFLIMG.load (filepath)
 
         if dflimg is None:
             io.log_err ("%s is not a dfl image file" % (filepath.name) )
             trash_img_list.append ( [str(filepath)] )
             continue
 
-        pitch_yaw_roll = dflimg.get_pitch_yaw_roll()
-        if pitch_yaw_roll is not None:
-            pitch, yaw, roll = pitch_yaw_roll
-        else:
-            pitch, yaw, roll = LandmarksProcessor.estimate_pitch_yaw_roll ( dflimg.get_landmarks() )
+        pitch, yaw, roll = LandmarksProcessor.estimate_pitch_yaw_roll ( dflimg.get_landmarks() )
 
         img_list.append( [str(filepath), pitch ] )
 
@@ -424,12 +388,7 @@ def sort_by_hist_dissim(input_path):
     for filepath in io.progress_bar_generator( Path_utils.get_image_paths(input_path), "Loading"):
         filepath = Path(filepath)
 
-        if filepath.suffix == '.png':
-            dflimg = DFLPNG.load( str(filepath) )
-        elif filepath.suffix == '.jpg':
-            dflimg = DFLJPG.load ( str(filepath) )
-        else:
-            dflimg = None
+        dflimg = DFLIMG.load (filepath)
 
         image = cv2_imread(str(filepath))
 
@@ -481,12 +440,7 @@ def sort_by_origname(input_path):
     for filepath in io.progress_bar_generator( Path_utils.get_image_paths(input_path), "Loading"):
         filepath = Path(filepath)
 
-        if filepath.suffix == '.png':
-            dflimg = DFLPNG.load( str(filepath) )
-        elif filepath.suffix == '.jpg':
-            dflimg = DFLJPG.load( str(filepath) )
-        else:
-            dflimg = None
+        dflimg = DFLIMG.load (filepath)
 
         if dflimg is None:
             io.log_err ("%s is not a dfl image file" % (filepath.name) )
@@ -528,12 +482,7 @@ class FinalLoaderSubprocessor(Subprocessor):
             filepath = Path(data[0])
 
             try:
-                if filepath.suffix == '.png':
-                    dflimg = DFLPNG.load( str(filepath) )
-                elif filepath.suffix == '.jpg':
-                    dflimg = DFLJPG.load( str(filepath) )
-                else:
-                    dflimg = None
+                dflimg = DFLIMG.load (filepath)
 
                 if dflimg is None:
                     self.log_err("%s is not a dfl image file" % (filepath.name))
