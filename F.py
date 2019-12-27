@@ -1233,12 +1233,15 @@ def main():
         model_data["options"]['face_type'] = "mf"
         open(data_path, "wb").write(pickle.dumps(model_data))
     elif arg == '--test':
-        # manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"),
-        #               os.path.join(get_root_path(), "workspace_ab/data_src/aligned"))
         dfl.dfl_edit_mask(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all_fix"))
         pass
     else:
-        get_pitch_yaw_roll(os.path.join(get_workspace(),"data_src/aligned"))
+        # merge(os.path.join(get_root_path(),"extract_workspace/split/fin"),
+        #       os.path.join(get_root_path(), "extract_workspace/split/fin"))
+        # dfl.dfl_faceset_metadata_save(os.path.join(get_workspace(),"data_src/aligned"))
+        # dfl.dfl_faceset_metadata_restore(os.path.join(get_workspace(),"data_src/aligned_ai"))
+        dfl.dfl_extract_faces(os.path.join(get_workspace(), "data_src/aligned_ai"),
+                              os.path.join(get_workspace(), "data_src/aligned"))
 
 
 if __name__ == '__main__':
