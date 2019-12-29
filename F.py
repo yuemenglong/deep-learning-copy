@@ -1128,7 +1128,7 @@ def pre_extract_dst(workspace):
         src = os.path.join(merged, f)
         if os.path.isdir(src):
             continue
-        dst = os.path.join(merged_res, f)
+        dst = os.path.join(merged_res, "%s_%s" % (get_time_str(), f))
         import shutil
         shutil.move(src, dst)
     pass
@@ -1148,6 +1148,7 @@ def post_extract_dst(workspace):
         dst = os.path.join(orig, f)
         import shutil
         shutil.move(src, dst)
+    pre_extract_dst(workspace)
     pass
 
 
@@ -1233,12 +1234,17 @@ def main():
         model_data["options"]['face_type'] = "mf"
         open(data_path, "wb").write(pickle.dumps(model_data))
     elif arg == '--test':
-        # manual_select(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all"),
-        #               os.path.join(get_root_path(), "workspace_ab/data_src/aligned"))
         dfl.dfl_edit_mask(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all_fix"))
         pass
     else:
-        get_pitch_yaw_roll(os.path.join(get_workspace(),"data_src/aligned"))
+        # merge(os.path.join(get_root_path(),"extract_workspace/split/fin"),
+        #       os.path.join(get_root_path(), "extract_workspace/split/fin"))
+        # dfl.dfl_faceset_metadata_save(os.path.join(get_workspace(),"data_src/aligned"))
+        # dfl.dfl_faceset_metadata_restore(os.path.join(get_workspace(),"data_src/aligned_ai"))
+        # dfl.dfl_extract_faces(os.path.join(get_root_path(), "workspace_ly/data_src/ai"),
+        #                       os.path.join(get_root_path(), "workspace_ly/data_src/aligned_ai"))
+        dfl.dfl_extract_fanseg(os.path.join(get_root_path(),"workspace_ym/data_src/aligned"))
+        # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "workspace_fbb/data_src/aligned_ai_"))
 
 
 if __name__ == '__main__':

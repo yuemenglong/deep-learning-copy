@@ -5,7 +5,6 @@ import cv2
 import numpy as np
 
 from facelib import FaceType
-from imagelib import IEPolys
 from utils.struct_utils import *
 from interact import interact as io
 
@@ -18,10 +17,13 @@ class DFLJPG(object):
         self.shape = (0,0,0)
 
     @staticmethod
-    def load_raw(filename):
+    def load_raw(filename, loader_func=None):
         try:
-            with open(filename, "rb") as f:
-                data = f.read()
+            if loader_func is not None:
+                data = loader_func(filename)
+            else:
+                with open(filename, "rb") as f:
+                    data = f.read()
         except:
             raise FileNotFoundError(filename)
 
@@ -116,9 +118,9 @@ class DFLJPG(object):
             raise Exception ("Corrupted JPG file: %s" % (str(e)))
 
     @staticmethod
-    def load(filename):
+    def load(filename, loader_func=None):
         try:
-            inst = DFLJPG.load_raw (filename)
+            inst = DFLJPG.load_raw (filename, loader_func=loader_func)
             inst.dfl_dict = None
 
             for chunk in inst.chunks:
@@ -160,6 +162,17 @@ class DFLJPG(object):
             return None
 
     @staticmethod
+    def embed_dfldict(filename, dfl_dict):
+        inst = DFLJPG.load_raw (filename)
+        inst.setDFLDictData (dfl_dict)
+
+        try:
+            with open(filename, "wb") as f:
+                f.write ( inst.dump() )
+        except:
+            raise Exception( 'cannot save %s' % (filename) )
+
+    @staticmethod
     def embed_data(filename, face_type=None,
                              landmarks=None,
                              ie_polys=None,
@@ -168,7 +181,6 @@ class DFLJPG(object):
                              source_landmarks=None,
                              image_to_face_mat=None,
                              fanseg_mask=None,
-                             pitch_yaw_roll=None,
                              eyebrows_expand_mod=None,
                              relighted=None,
                              **kwargs
@@ -185,26 +197,17 @@ class DFLJPG(object):
                 io.log_err("Unable to encode fanseg_mask for %s" % (filename) )
                 fanseg_mask = None
 
-        inst = DFLJPG.load_raw (filename)
-        inst.setDFLDictData ({
-                                'face_type': face_type,
-                                'landmarks': landmarks,
-                                'ie_polys' : ie_polys.dump() if ie_polys is not None else None,
-                                'source_filename': source_filename,
-                                'source_rect': source_rect,
-                                'source_landmarks': source_landmarks,
-                                'image_to_face_mat': image_to_face_mat,
-                                'fanseg_mask' : fanseg_mask,
-                                'pitch_yaw_roll' : pitch_yaw_roll,
-                                'eyebrows_expand_mod' : eyebrows_expand_mod,
-                                'relighted' : relighted
-                             })
-
-        try:
-            with open(filename, "wb") as f:
-                f.write ( inst.dump() )
-        except:
-            raise Exception( 'cannot save %s' % (filename) )
+        DFLJPG.embed_dfldict (filename, {'face_type': face_type,
+                                         'landmarks': landmarks,
+                                         'ie_polys' : ie_polys.dump() if ie_polys is not None else None,
+                                         'source_filename': source_filename,
+                                         'source_rect': source_rect,
+                                         'source_landmarks': source_landmarks,
+                                         'image_to_face_mat': image_to_face_mat,
+                                         'fanseg_mask' : fanseg_mask,
+                                         'eyebrows_expand_mod' : eyebrows_expand_mod,
+                                         'relighted' : relighted
+                                        })
 
     def embed_and_set(self, filename, face_type=None,
                                 landmarks=None,
@@ -214,7 +217,6 @@ class DFLJPG(object):
                                 source_landmarks=None,
                                 image_to_face_mat=None,
                                 fanseg_mask=None,
-                                pitch_yaw_roll=None,
                                 eyebrows_expand_mod=None,
                                 relighted=None,
                                 **kwargs
@@ -227,7 +229,6 @@ class DFLJPG(object):
         if source_landmarks is None: source_landmarks = self.get_source_landmarks()
         if image_to_face_mat is None: image_to_face_mat = self.get_image_to_face_mat()
         if fanseg_mask is None: fanseg_mask = self.get_fanseg_mask()
-        if pitch_yaw_roll is None: pitch_yaw_roll = self.get_pitch_yaw_roll()
         if eyebrows_expand_mod is None: eyebrows_expand_mod = self.get_eyebrows_expand_mod()
         if relighted is None: relighted = self.get_relighted()
         DFLJPG.embed_data (filename, face_type=face_type,
@@ -238,7 +239,6 @@ class DFLJPG(object):
                                      source_landmarks=source_landmarks,
                                      image_to_face_mat=image_to_face_mat,
                                      fanseg_mask=fanseg_mask,
-                                     pitch_yaw_roll=pitch_yaw_roll,
                                      relighted=relighted)
 
     def remove_ie_polys(self):
@@ -246,7 +246,7 @@ class DFLJPG(object):
 
     def remove_fanseg_mask(self):
         self.dfl_dict['fanseg_mask'] = None
-        
+
     def remove_source_filename(self):
         self.dfl_dict['source_filename'] = None
 
@@ -300,7 +300,7 @@ class DFLJPG(object):
 
     def get_face_type(self): return self.dfl_dict['face_type']
     def get_landmarks(self): return np.array ( self.dfl_dict['landmarks'] )
-    def get_ie_polys(self): return IEPolys.load(self.dfl_dict.get('ie_polys',None))
+    def get_ie_polys(self): return self.dfl_dict.get('ie_polys',None)
     def get_source_filename(self): return self.dfl_dict['source_filename']
     def get_source_rect(self): return self.dfl_dict['source_rect']
     def get_source_landmarks(self): return np.array ( self.dfl_dict['source_landmarks'] )
@@ -314,8 +314,6 @@ class DFLJPG(object):
         if fanseg_mask is not None:
             return np.clip ( np.array (fanseg_mask) / 255.0, 0.0, 1.0 )[...,np.newaxis]
         return None
-    def get_pitch_yaw_roll(self):
-        return self.dfl_dict.get ('pitch_yaw_roll', None)
     def get_eyebrows_expand_mod(self):
         return self.dfl_dict.get ('eyebrows_expand_mod', None)
     def get_relighted(self):

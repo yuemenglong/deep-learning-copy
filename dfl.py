@@ -34,6 +34,24 @@ def dfl_sort_by_hist(input_dir):
     dfl_exec(cmd, args)
 
 
+def dfl_sort_by_final(input_dir):
+    cmd = "sort"
+    args = {
+        "--input-dir": input_dir,
+        "--by": "final",
+    }
+    dfl_exec(cmd, args)
+
+
+def dfl_sort_by_absdiff(input_dir):
+    cmd = "sort"
+    args = {
+        "--input-dir": input_dir,
+        "--by": "absdiff",
+    }
+    dfl_exec(cmd, args)
+
+
 def dfl_sort_by_vggface(input_dir):
     cmd = "sort"
     args = {
@@ -68,6 +86,14 @@ def dfl_extract_video(input_file, output_dir, fps=0):
         "--input-file": input_file,
         "--output-dir": output_dir,
         "--fps": fps,
+    }
+    dfl_exec(cmd, args)
+
+
+def dfl_extract_fanseg(input_dir):
+    cmd = "extract_fanseg"
+    args = {
+        "--input-dir": input_dir,
     }
     dfl_exec(cmd, args)
 
@@ -139,3 +165,49 @@ def dfl_load_img(path):
 def dfl_estimate_pitch_yaw_roll(dfl_img):
     from facelib import LandmarksProcessor
     return LandmarksProcessor.estimate_pitch_yaw_roll(dfl_img.get_landmarks())
+
+
+def dfl_faceset_metadata_save(input_dir):
+    # "%PYTHON_EXECUTABLE%" "%DFL_ROOT%\main.py"
+    # util ^
+    # --input - dir
+    # "%WORKSPACE%\data_src\aligned" ^
+    # --save - faceset - metadata
+    cmd = "util"
+    args = {
+        "--input-dir": input_dir,
+        "--save-faceset-metadata": "",
+    }
+    dfl_exec(cmd, args)
+
+
+def dfl_faceset_metadata_restore(input_dir):
+    # "%PYTHON_EXECUTABLE%" "%DFL_ROOT%\main.py"
+    # util ^
+    # --input - dir
+    # "%WORKSPACE%\data_src\aligned" ^
+    # --save - faceset - metadata
+    cmd = "util"
+    args = {
+        "--input-dir": input_dir,
+        "--restore-faceset-metadata": "",
+    }
+    dfl_exec(cmd, args)
+
+
+def dfl_extract_faces(input_dir, output_dir):
+    # "%PYTHON_EXECUTABLE%" "%DFL_ROOT%\main.py"
+    # extract ^
+    # --input - dir
+    # "%WORKSPACE%\data_src" ^
+    # --output - dir
+    # "%WORKSPACE%\data_src\aligned" ^
+    # --detector
+    # s3fd
+    cmd = "extract"
+    args = {
+        "--input-dir": input_dir,
+        "--output-dir": output_dir,
+        "--detector": "s3fd"
+    }
+    dfl_exec(cmd, args)

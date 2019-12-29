@@ -20,30 +20,19 @@ from joblib import Subprocessor
 from nnlib import TernausNet, nnlib
 from utils import Path_utils
 from utils.cv2_utils import *
-from utils.DFLJPG import DFLJPG
-from utils.DFLPNG import DFLPNG
-import facelib
-from facelib import FaceType
-from facelib import LandmarksProcessor
-# from facelib import FANSegmentator
-from nnlib import nnlib
-from joblib import Subprocessor
-from interact import interact as io
+from DFLIMG import *
 import F
-import math
-
 
 DEBUG = False
 
 class ExtractSubprocessor(Subprocessor):
     class Data(object):
-        def __init__(self, filename=None, rects=None, landmarks = None, landmarks_accurate=True, pitch_yaw_roll=None, force_output_path=None, final_output_files = None):
+        def __init__(self, filename=None, rects=None, landmarks = None, landmarks_accurate=True, force_output_path=None, final_output_files = None):
             self.filename = filename
             self.rects = rects or []
             self.rects_rotation = 0
             self.landmarks_accurate = landmarks_accurate
             self.landmarks = landmarks or []
-            self.pitch_yaw_roll = pitch_yaw_roll
             self.force_output_path = force_output_path
             self.final_output_files = final_output_files or []
             self.faces_detected = 0
@@ -121,8 +110,11 @@ class ExtractSubprocessor(Subprocessor):
         #override
         def process_data(self, data):
             filename_path = Path( data.filename )
-
             filename_path_str = str(filename_path)
+
+            if self.type == 'landmarks' and len(data.rects) == 0:
+                return data
+
             if self.cached_image[0] == filename_path_str:
                 image = self.cached_image[1] #cached image for manual extractor
             else:
@@ -144,10 +136,7 @@ class ExtractSubprocessor(Subprocessor):
             h, w, ch = image.shape
             if h == w:
                 #extracting from already extracted jpg image?
-                if filename_path.suffix == '.png':
-                    src_dflimg = DFLPNG.load ( str(filename_path) )
-                if filename_path.suffix == '.jpg':
-                    src_dflimg = DFLJPG.load ( str(filename_path) )
+                src_dflimg = DFLIMG.load (filename_path)
 
             if 'rects' in self.type:
                 if min(w,h) < 128:
@@ -175,7 +164,6 @@ class ExtractSubprocessor(Subprocessor):
                 return data
 
             elif self.type == 'landmarks':
-
                 if data.rects_rotation == 0:
                     rotated_image = image
                 elif data.rects_rotation == 90:
@@ -282,8 +270,7 @@ class ExtractSubprocessor(Subprocessor):
                                                        source_filename=filename_path.name,
                                                        source_rect=rect,
                                                        source_landmarks=image_landmarks.tolist(),
-                                                       image_to_face_mat=image_to_face_mat,
-                                                       pitch_yaw_roll=data.pitch_yaw_roll
+                                                       image_to_face_mat=image_to_face_mat
                                             )
 
                         data.final_output_files.append (output_file)
@@ -335,7 +322,7 @@ class ExtractSubprocessor(Subprocessor):
         else:
             no_response_time_sec = 60
             
-        super().__init__('Extractor', ExtractSubprocessor.Cli, no_response_time_sec, initialize_subprocesses_in_serial=(type != 'final'))
+        super().__init__('Extractor', ExtractSubprocessor.Cli, no_response_time_sec)
 
     #override
     def on_check_run(self):
