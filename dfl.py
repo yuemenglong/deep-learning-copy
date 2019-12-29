@@ -90,6 +90,14 @@ def dfl_extract_video(input_file, output_dir, fps=0):
     dfl_exec(cmd, args)
 
 
+def dfl_extract_fanseg(input_dir):
+    cmd = "extract_fanseg"
+    args = {
+        "--input-dir": input_dir,
+    }
+    dfl_exec(cmd, args)
+
+
 def dfl_edit_mask(input_dir):
     # "%PYTHON_EXECUTABLE%" "%DFL_ROOT%\main.py"
     # labelingtool

@@ -1148,6 +1148,7 @@ def post_extract_dst(workspace):
         dst = os.path.join(orig, f)
         import shutil
         shutil.move(src, dst)
+    pre_extract_dst(workspace)
     pass
 
 
@@ -1240,8 +1241,9 @@ def main():
         #       os.path.join(get_root_path(), "extract_workspace/split/fin"))
         # dfl.dfl_faceset_metadata_save(os.path.join(get_workspace(),"data_src/aligned"))
         # dfl.dfl_faceset_metadata_restore(os.path.join(get_workspace(),"data_src/aligned_ai"))
-        dfl.dfl_extract_faces(os.path.join(get_root_path(), "workspace_cy/data_src"),
-                              os.path.join(get_root_path(), "workspace_cy/data_src/aligned_t"))
+        # dfl.dfl_extract_faces(os.path.join(get_root_path(), "workspace_ly/data_src/ai"),
+        #                       os.path.join(get_root_path(), "workspace_ly/data_src/aligned_ai"))
+        dfl.dfl_extract_fanseg(os.path.join(get_root_path(),"workspace_ym/data_src/aligned"))
         # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "workspace_fbb/data_src/aligned_ai_"))
 
 
