@@ -1128,7 +1128,7 @@ def pre_extract_dst(workspace):
         src = os.path.join(merged, f)
         if os.path.isdir(src):
             continue
-        dst = os.path.join(merged_res, f)
+        dst = os.path.join(merged_res, "%s_%s" % (get_time_str(), f))
         import shutil
         shutil.move(src, dst)
     pass
@@ -1240,8 +1240,9 @@ def main():
         #       os.path.join(get_root_path(), "extract_workspace/split/fin"))
         # dfl.dfl_faceset_metadata_save(os.path.join(get_workspace(),"data_src/aligned"))
         # dfl.dfl_faceset_metadata_restore(os.path.join(get_workspace(),"data_src/aligned_ai"))
-        dfl.dfl_extract_faces(os.path.join(get_workspace(), "data_src/aligned_ai"),
-                              os.path.join(get_workspace(), "data_src/aligned"))
+        dfl.dfl_extract_faces(os.path.join(get_root_path(), "workspace_cy/data_src"),
+                              os.path.join(get_root_path(), "workspace_cy/data_src/aligned_t"))
+        # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "workspace_fbb/data_src/aligned_ai_"))
 
 
 if __name__ == '__main__':
