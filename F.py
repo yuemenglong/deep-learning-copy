@@ -2,7 +2,12 @@ import os
 import dfl
 from typing import Any, Callable
 import numpy as np
-from interact import interact as io
+from core.interact import interact as io
+
+
+def beep():
+    import winsound
+    winsound.Beep(300, 500)
 
 
 def print_stack():
@@ -146,7 +151,6 @@ def extract():
     import shutil
     from mainscripts import VideoEd
     from mainscripts import Extractor
-    from interact import interact as io
 
     root_dir = get_root_path()
     extract_workspace = os.path.join(root_dir, "extract_workspace")
@@ -233,7 +237,6 @@ def get_pitch_yaw_roll(input_path, r=0.05):
     from facelib import LandmarksProcessor
     from joblib import Subprocessor
     import multiprocessing
-    from interact import interact as io
     from imagelib import estimate_sharpness
     io.log_info("Sorting by face yaw...")
     img_list = []
@@ -642,8 +645,6 @@ def manual_select(input_path, src_path=None):
 def prepare(workspace, detector="s3fd", manual_fix=False):
     import os
     import shutil
-    from mainscripts import Extractor
-    from mainscripts import VideoEd
     for f in os.listdir(workspace):
         ext = os.path.splitext(f)[-1]
         if ext not in ['.mp4', '.avi']:
@@ -661,15 +662,15 @@ def prepare(workspace, detector="s3fd", manual_fix=False):
             os.mkdir(tmp_video_dir)
         video = os.path.join(workspace, f)
         # 提取帧
-        VideoEd.extract_video(video, tmp_dir, "png", 0)
+        # VideoEd.extract_video(video, tmp_dir, "png", 0)
+        dfl.dfl_extract_video(video, tmp_dir, 0)
         # 提取人脸
         if detector == "manual":
-            import winsound
-            winsound.Beep(300, 500)
-        Extractor.main(tmp_dir, tmp_aligned, detector=detector, manual_fix=manual_fix)
+            beep()
+        dfl.dfl_extract_faces(tmp_dir, tmp_aligned, detector, manual_fix)
+        # Extractor.main(tmp_dir, tmp_aligned, detector=detector, manual_fix=manual_fix)
         # fanseg
         # Extractor.extract_fanseg(tmp_aligned)
-        dfl.dfl_extract_fanseg(tmp_aligned)
         if detector != "manual":
             #     # 两组人脸匹配
             #     skip_by_pitch(os.path.join(workspace, "data_src", "aligned"), os.path.join(tmp_dir, "aligned"))
@@ -686,8 +687,7 @@ def prepare(workspace, detector="s3fd", manual_fix=False):
         if not os.path.exists(data_trash):
             os.mkdir(data_trash)
         shutil.move(video, data_trash)
-    import winsound
-    winsound.Beep(300, 500)
+    beep()
 
 
 def train(workspace, model="SAE"):
@@ -1059,7 +1059,7 @@ def change_workspace():
     inputs = "1234567890"[0:len(wss)]
     for i in range(0, len(wss)):
         io.log_info("[ %s ] %s" % (inputs[i], wss[i]))
-    no = io.input_str("Select Workspace:", 0)[0]
+    no = io.input_str("Select Workspace:", 1)[0]
     idx = inputs.find(no)
     if idx < 0:
         raise Exception("Invalid Idx " + no)
@@ -1145,117 +1145,120 @@ def main():
     import sys
 
     arg = sys.argv[-1]
-    if arg == '--skip-no-face':
-        skip_no_face(os.path.join(get_root_path(), "workspace", "data_dst"))
-    elif arg == '--change-workspace':
+    if arg == '--change-workspace':
         change_workspace()
-    elif arg == '--extract':
-        extract()
-    elif arg == '--extract-dst-image':
-        pre_extract_dst(get_workspace())
-        extract_dst_image(get_workspace())
-        # edit_mask_dst(get_workspace())
-        train_dst(get_workspace(), model="SAEHD")
-        convert_dst(get_workspace(), model="SAEHD")
-        post_extract_dst(get_workspace())
-    elif arg == '--prepare':
-        prepare(get_workspace())
-    elif arg == '--prepare-train':
-        prepare(get_workspace())
-        train(get_workspace())
-        convert(get_workspace(), False)
-    elif arg == '--prepare-nofix-train':
-        prepare(get_workspace(), manual_fix=False)
-        train(get_workspace(), model="SAEHD")
-        convert(get_workspace(), False, model="SAEHD")
     elif arg == '--prepare-manual-train':
-        prepare(get_workspace(), detector="manual")
-        train(get_workspace())
-        convert(get_workspace(), False)
-    elif arg == '--prepare-manual-train-hd':
-        prepare(get_workspace(), detector="manual")
-        train(get_workspace(), model="SAEHD")
-        convert(get_workspace(), False, model="SAEHD")
-    elif arg == '--prepare-manual-edit-train':
-        prepare(get_workspace(), detector="manual")
-        edit_mask(get_workspace())
-        train(get_workspace())
-        convert(get_workspace(), False)
-    elif arg == '--refix':
-        refix(get_workspace())
-        edit_mask(get_workspace())
-    elif arg == '--train':
-        train(get_workspace())
-        convert(get_workspace(), False)
-    elif arg == '--train-dst':
-        train_dst(get_workspace(), model="SAEHD")
-        convert_dst(get_workspace(), model="SAEHD")
-        post_extract_dst(get_workspace())
-    elif arg == '--train-hd':
-        train(get_workspace(), model="SAEHD")
-        convert(get_workspace(), False, model="SAEHD")
-    elif arg == '--convert-skip-manual':
-        convert(get_workspace(), skip=True)
-    elif arg == '--convert':
-        convert(get_workspace(), skip=False)
-    elif arg == '--convert-hd':
-        convert(get_workspace(), skip=False, model="SAEHD")
-    elif arg == '--convert-dst':
-        convert_dst(get_workspace(), model="SAEHD")
-    elif arg == '--mp4':
-        mp4(get_workspace())
-    elif arg == '--mp4-skip':
-        mp4(get_workspace(), True)
-    elif arg == '--step':
-        step(get_workspace())
-    elif arg == '--auto':
-        auto(get_workspace())
-    elif arg == '--merge-dst-aligned':
-        merge_dst_aligned(get_workspace())
-    elif arg == '--clean-trash':
-        clean_trash()
-    elif arg == 'pickle':
-        import pickle
-        data_path = "D:/DeepFaceLabCUDA10.1AVX/workspace_ab/model/SAEHD_data.dat"
-        model_data = pickle.loads(open(data_path, "rb").read())
-        for k in model_data["options"]:
-            print(k, model_data["options"][k])
-        model_data["options"]['face_type'] = "mf"
-        open(data_path, "wb").write(pickle.dumps(model_data))
-    elif arg == '--test':
-        dfl.dfl_edit_mask(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all_fix"))
-        pass
+        prepare(get_workspace(), "manual")
     else:
-        # merge(os.path.join(get_root_path(),"extract_workspace/split/fin"),
-        #       os.path.join(get_root_path(), "extract_workspace/split/fin"))
-        # dfl.dfl_extract_faces(os.path.join(get_root_path(), "workspace_fbb/data_src/ai"),
-        #                       os.path.join(get_root_path(), "workspace_fbb/data_src/aligned_ai"))
-        # dfl.dfl_edit_mask_old(os.path.join(get_root_path(), "workspace_ym/data_dst/aligned_2"))
-        # dfl.dfl_extract_fanseg(os.path.join(get_root_path(), "workspace_ab/data_src/aligned_ai2"))
-        # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "workspace_ab/data_src/aligned_ai"))
-        # dfl.dfl_recover_filename(os.path.join(get_root_path(), "workspace_ab/data_src/aligned_ai"))
-        # dfl.dfl_edit_mask_old(os.path.join(get_root_path(), "workspace_ym/data_dst/aligned"))
-        # dfl.dfl_extract_fanseg_old(os.path.join(get_first_dst(get_workspace()), "aligned"))
-        # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "workspace_fbb/data_src/aligned_ai_"))
-        split(os.path.join(get_root_path(), "extract_workspace/split"),
-              os.path.join(get_root_path(), "extract_workspace/split"),
-              3000)
-        # r = {}
-        # for extt in os.listdir(os.path.join(get_root_path(), "workspace_ab/data_src/aligned_ai")):
-        #     if extt.endswith(".jpg"):
-        #         no = extt.split("_")[0]
-        #         r[no] = True
-        # for ai in os.listdir(os.path.join(get_root_path(), "workspace_ab/data_src/ai")):
-        #     if ai.endswith(".jpg"):
-        #         no = ai.split(".jpg")[0]
-        #         if no not in r:
-        #             print(no)
-        # for no in open("D:/no.txt").readlines():
-        #     fname = no.strip() + ".jpg"
-        #     src = os.path.join(get_root_path(), "workspace_ab/data_src/ai", fname)
-        #     dst = os.path.join(get_root_path(), "workspace_ab/data_src/ai2", fname)
-        #     import shutil
-        #     shutil.copy(src, dst)
+        dst = get_workspace_dst(get_workspace())
+        dfl.dfl_extract_faces(dst, os.path.join(dst, "aligned"), detector="manual")
+    # elif arg == '--extract':
+    #     extract()
+    # elif arg == '--extract-dst-image':
+    #     pre_extract_dst(get_workspace())
+    #     extract_dst_image(get_workspace())
+    #     # edit_mask_dst(get_workspace())
+    #     train_dst(get_workspace(), model="SAEHD")
+    #     convert_dst(get_workspace(), model="SAEHD")
+    #     post_extract_dst(get_workspace())
+    # elif arg == '--prepare':
+    #     prepare(get_workspace())
+    # elif arg == '--prepare-train':
+    #     prepare(get_workspace())
+    #     train(get_workspace())
+    #     convert(get_workspace(), False)
+    # elif arg == '--prepare-nofix-train':
+    #     prepare(get_workspace(), manual_fix=False)
+    #     train(get_workspace(), model="SAEHD")
+    #     convert(get_workspace(), False, model="SAEHD")
+    # elif arg == '--prepare-manual-train':
+    #     prepare(get_workspace(), detector="manual")
+    #     train(get_workspace())
+    #     convert(get_workspace(), False)
+    # elif arg == '--prepare-manual-train-hd':
+    #     prepare(get_workspace(), detector="manual")
+    #     train(get_workspace(), model="SAEHD")
+    #     convert(get_workspace(), False, model="SAEHD")
+    # elif arg == '--prepare-manual-edit-train':
+    #     prepare(get_workspace(), detector="manual")
+    #     edit_mask(get_workspace())
+    #     train(get_workspace())
+    #     convert(get_workspace(), False)
+    # elif arg == '--refix':
+    #     refix(get_workspace())
+    #     edit_mask(get_workspace())
+    # elif arg == '--train':
+    #     train(get_workspace())
+    #     convert(get_workspace(), False)
+    # elif arg == '--train-dst':
+    #     train_dst(get_workspace(), model="SAEHD")
+    #     convert_dst(get_workspace(), model="SAEHD")
+    #     post_extract_dst(get_workspace())
+    # elif arg == '--train-hd':
+    #     train(get_workspace(), model="SAEHD")
+    #     convert(get_workspace(), False, model="SAEHD")
+    # elif arg == '--convert-skip-manual':
+    #     convert(get_workspace(), skip=True)
+    # elif arg == '--convert':
+    #     convert(get_workspace(), skip=False)
+    # elif arg == '--convert-hd':
+    #     convert(get_workspace(), skip=False, model="SAEHD")
+    # elif arg == '--convert-dst':
+    #     convert_dst(get_workspace(), model="SAEHD")
+    # elif arg == '--mp4':
+    #     mp4(get_workspace())
+    # elif arg == '--mp4-skip':
+    #     mp4(get_workspace(), True)
+    # elif arg == '--step':
+    #     step(get_workspace())
+    # elif arg == '--auto':
+    #     auto(get_workspace())
+    # elif arg == '--merge-dst-aligned':
+    #     merge_dst_aligned(get_workspace())
+    # elif arg == '--clean-trash':
+    #     clean_trash()
+    # elif arg == 'pickle':
+    #     import pickle
+    #     data_path = "D:/DeepFaceLabCUDA10.1AVX/workspace_ab/model/SAEHD_data.dat"
+    #     model_data = pickle.loads(open(data_path, "rb").read())
+    #     for k in model_data["options"]:
+    #         print(k, model_data["options"][k])
+    #     model_data["options"]['face_type'] = "mf"
+    #     open(data_path, "wb").write(pickle.dumps(model_data))
+    # elif arg == '--test':
+    #     dfl.dfl_edit_mask(os.path.join(get_root_path(), "extract_workspace/aligned_ab_all_fix"))
+    #     pass
+    # else:
+    #     # merge(os.path.join(get_root_path(),"extract_workspace/split/fin"),
+    #     #       os.path.join(get_root_path(), "extract_workspace/split/fin"))
+    #     # dfl.dfl_extract_faces(os.path.join(get_root_path(), "workspace_fbb/data_src/ai"),
+    #     #                       os.path.join(get_root_path(), "workspace_fbb/data_src/aligned_ai"))
+    #     # dfl.dfl_edit_mask_old(os.path.join(get_root_path(), "workspace_ym/data_dst/aligned_2"))
+    #     # dfl.dfl_extract_fanseg(os.path.join(get_root_path(), "workspace_ab/data_src/aligned_ai2"))
+    #     # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "workspace_ab/data_src/aligned_ai"))
+    #     # dfl.dfl_recover_filename(os.path.join(get_root_path(), "workspace_ab/data_src/aligned_ai"))
+    #     # dfl.dfl_edit_mask_old(os.path.join(get_root_path(), "workspace_ym/data_dst/aligned"))
+    #     # dfl.dfl_extract_fanseg_old(os.path.join(get_first_dst(get_workspace()), "aligned"))
+    #     # dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "workspace_fbb/data_src/aligned_ai_"))
+    #     split(os.path.join(get_root_path(), "extract_workspace/split"),
+    #           os.path.join(get_root_path(), "extract_workspace/split"),
+    #           3000)
+    #     # r = {}
+    #     # for extt in os.listdir(os.path.join(get_root_path(), "workspace_ab/data_src/aligned_ai")):
+    #     #     if extt.endswith(".jpg"):
+    #     #         no = extt.split("_")[0]
+    #     #         r[no] = True
+    #     # for ai in os.listdir(os.path.join(get_root_path(), "workspace_ab/data_src/ai")):
+    #     #     if ai.endswith(".jpg"):
+    #     #         no = ai.split(".jpg")[0]
+    #     #         if no not in r:
+    #     #             print(no)
+    #     # for no in open("D:/no.txt").readlines():
+    #     #     fname = no.strip() + ".jpg"
+    #     #     src = os.path.join(get_root_path(), "workspace_ab/data_src/ai", fname)
+    #     #     dst = os.path.join(get_root_path(), "workspace_ab/data_src/ai2", fname)
+    #     #     import shutil
+    #     #     shutil.copy(src, dst)
 
 
 if __name__ == '__main__':

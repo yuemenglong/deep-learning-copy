@@ -1,4 +1,3 @@
-from interact import interact as io
 import os
 
 
@@ -85,7 +84,7 @@ def dfl_video_from_sequence(input_dir, output_file, reference_file):
     dfl_exec(cmd, args)
 
 
-def dfl_extract_video(input_file, output_dir, fps=0):
+def dfl_extract_video(input_file, output_dir, fps=0, output_ext="png"):
     # "%PYTHON_EXECUTABLE%" "%DFL_ROOT%\main.py"
     # videoed
     # extract - video ^
@@ -99,25 +98,10 @@ def dfl_extract_video(input_file, output_dir, fps=0):
     args = {
         "--input-file": input_file,
         "--output-dir": output_dir,
+        "--output-ext": output_ext,
         "--fps": fps,
     }
     dfl_exec(cmd, args)
-
-
-def dfl_extract_fanseg(input_dir):
-    cmd = "extract_fanseg"
-    args = {
-        "--input-dir": input_dir,
-    }
-    dfl_exec(cmd, args)
-
-
-def dfl_extract_fanseg_old(input_dir):
-    cmd = "extract_fanseg"
-    args = {
-        "--input-dir": input_dir,
-    }
-    dfl_exec(cmd, args, "_Fanseg")
 
 
 def dfl_edit_mask(input_dir):
@@ -140,17 +124,6 @@ def dfl_edit_mask(input_dir):
     return [input_dir, input_dir + "_confirmed", input_dir + "_skipped"]
 
 
-def dfl_edit_mask_old(input_dir):
-    cmd = "labelingtool edit_mask"
-    args = {
-        "--input-dir": input_dir,
-        "--confirmed-dir": input_dir + "_confirmed",
-        "--skipped-dir": input_dir + "_skipped",
-    }
-    dfl_exec(cmd, args, "_Fanseg")
-    return [input_dir, input_dir + "_confirmed", input_dir + "_skipped"]
-
-
 def get_root_path():
     import os
     path = __file__
@@ -169,8 +142,12 @@ def dfl_exec(cmd, args, env=""):
         v = args[k]
         if isinstance(v, str):
             v = "\"" + v + "\""
+        # 2相当于只有引号的空字符串
         if isinstance(v, str) and len(v) == 2:
             s += " ^\n    %s" % k
+        elif isinstance(v, bool):
+            if v:
+                s += " ^\n    %s" % k
         else:
             s += " ^\n    %s %s" % (k, v)
     fpath = os.path.join(get_root_path(), "@exec.bat")
@@ -191,7 +168,7 @@ def dfl_load_img(path):
     else:
         dflimg = None
     if dflimg is None:
-        io.log_err("%s is not a dfl image file" % (filepath.name))
+        print("%s is not a dfl image file" % (filepath.name))
     return dflimg
 
 
@@ -228,7 +205,7 @@ def dfl_faceset_metadata_restore(input_dir):
     dfl_exec(cmd, args)
 
 
-def dfl_extract_faces(input_dir, output_dir, detector="s3fd"):
+def dfl_extract_faces(input_dir, output_dir, detector="s3fd", manual_fix=False):
     # "%PYTHON_EXECUTABLE%" "%DFL_ROOT%\main.py"
     # extract ^
     # --input - dir
@@ -242,5 +219,6 @@ def dfl_extract_faces(input_dir, output_dir, detector="s3fd"):
         "--input-dir": input_dir,
         "--output-dir": output_dir,
         "--detector": detector,
+        "--manual-fix": manual_fix,
     }
     dfl_exec(cmd, args)
