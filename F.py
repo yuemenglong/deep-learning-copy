@@ -690,7 +690,7 @@ def prepare(workspace, detector="s3fd", manual_fix=False):
     beep()
 
 
-def train(workspace, model="SAE"):
+def train(workspace, model="SAEHD"):
     import os
     model_dir = os.path.join(workspace, "model")
     for f in os.listdir(workspace):
@@ -1149,6 +1149,8 @@ def main():
         change_workspace()
     elif arg == '--prepare-manual-train':
         prepare(get_workspace(), "manual")
+    elif arg == '--train':
+        train(get_workspace())
     else:
         dst = get_workspace_dst(get_workspace())
         dfl.dfl_extract_faces(dst, os.path.join(dst, "aligned"), detector="manual")

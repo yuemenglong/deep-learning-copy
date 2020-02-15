@@ -8,6 +8,7 @@ def dfl_train(src_aligned, dst_aligned, model_dir, model="SAE"):
         "--training-data-dst-dir": dst_aligned,
         "--model-dir": model_dir,
         "--model": model,
+        "--pretraining-data-dir": "%INTERNAL%\\pretrain_CelebA",
     }
     dfl_exec(cmd, args)
 
