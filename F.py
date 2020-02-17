@@ -707,7 +707,7 @@ def train(workspace, model="SAEHD"):
         return
 
 
-def train_dst(workspace, model="SAE"):
+def train_dst(workspace, model="SAEHD"):
     import os
     model_dir = os.path.join(workspace, "model")
     data_src_aligned = os.path.join(workspace, "data_src", "aligned")
@@ -716,7 +716,7 @@ def train_dst(workspace, model="SAE"):
     dfl.dfl_train(data_src_aligned, data_dst_aligned, model_dir, model=model)
 
 
-def convert(workspace, skip=False, model="SAE"):
+def convert(workspace, model="SAEHD"):
     import os
     for f in os.listdir(workspace):
         if not os.path.isdir(os.path.join(workspace, f)) or not f.startswith("data_dst_"):
@@ -756,19 +756,19 @@ def convert(workspace, skip=False, model="SAE"):
         if not has_img:
             dfl.dfl_extract_video(refer_path, data_dst)
         # 转换
-        dfl.dfl_convert(data_dst, data_dst_merged, data_dst_aligned, model_dir, model)
+        dfl.dfl_merge(data_dst, data_dst_merged, data_dst_aligned, model_dir, model)
         # ConverterMasked.enable_predef = enable_predef
         # 去掉没有脸的
         # if skip:
         #     skip_no_face(data_dst)
         # 转mp4
-        refer_name = ".".join(os.path.basename(refer_path).split(".")[:-1])
-        result_path = os.path.join(workspace, "result_%s_%s.mp4" % (get_time_str(), refer_name))
-        dfl.dfl_video_from_sequence(data_dst_merged, result_path, refer_path)
-        # 移动到trash
-        trash_dir = os.path.join(workspace, "../trash_workspace")
-        import shutil
-        shutil.move(data_dst, trash_dir)
+        # refer_name = ".".join(os.path.basename(refer_path).split(".")[:-1])
+        # result_path = os.path.join(workspace, "result_%s_%s.mp4" % (get_time_str(), refer_name))
+        # dfl.dfl_video_from_sequence(data_dst_merged, result_path, refer_path)
+        # # 移动到trash
+        # trash_dir = os.path.join(workspace, "../trash_workspace")
+        # import shutil
+        # shutil.move(data_dst, trash_dir)
 
 
 def convert_dst(workspace, model="SAE"):
@@ -778,7 +778,7 @@ def convert_dst(workspace, model="SAE"):
     data_dst_merged = os.path.join(data_dst, "merged")
     data_dst_aligned = os.path.join(data_dst, "aligned")
     # 转换
-    dfl.dfl_convert(data_dst, data_dst_merged, data_dst_aligned, model_dir, model=model)
+    dfl.dfl_merge(data_dst, data_dst_merged, data_dst_aligned, model_dir, model=model)
 
 
 def edit_mask(workspace):
@@ -847,7 +847,7 @@ def refix(workspace):
     shutil.rmtree(fix_workspace)
 
 
-def mp4(workspace, skip=False):
+def mp4(workspace):
     import os
     for f in os.listdir(workspace):
         if not os.path.isdir(os.path.join(workspace, f)) or not f.startswith("data_dst_"):
@@ -1151,6 +1151,13 @@ def main():
         prepare(get_workspace(), "manual")
     elif arg == '--train':
         train(get_workspace())
+    elif arg == '--train-dst':
+        train_dst(get_workspace())
+    elif arg == '--convert':
+        convert(get_workspace())
+        mp4(get_workspace())
+    elif arg == '--mp4':
+        mp4(get_workspace())
     else:
         dst = get_workspace_dst(get_workspace())
         dfl.dfl_extract_faces(dst, os.path.join(dst, "aligned"), detector="manual")

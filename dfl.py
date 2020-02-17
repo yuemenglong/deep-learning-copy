@@ -13,11 +13,12 @@ def dfl_train(src_aligned, dst_aligned, model_dir, model="SAE"):
     dfl_exec(cmd, args)
 
 
-def dfl_convert(input_dir, output_dir, aligned_dir, model_dir, model="SAE"):
-    cmd = "convert"
+def dfl_merge(input_dir, output_dir, aligned_dir, model_dir, model="SAE"):
+    cmd = "merge"
     args = {
         "--input-dir": input_dir,
         "--output-dir": output_dir,
+        "--output-mask-dir": output_dir + "_mask",
         "--aligned-dir": aligned_dir,
         "--model-dir": model_dir,
         "--model": model,
