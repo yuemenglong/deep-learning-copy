@@ -5,9 +5,9 @@
 		}
 	],
 	"settings": {
-        "workbench.colorTheme": "Visual Studio Light",
+        // "workbench.colorTheme": "Visual Studio Light",
         "diffEditor.ignoreTrimWhitespace": true,
-        "workbench.sideBar.location": "right",
+        // "workbench.sideBar.location": "right",
         "breadcrumbs.enabled": false,
         "editor.renderWhitespace": "none",
         "editor.minimap.enabled": false,
