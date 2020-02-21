@@ -166,12 +166,12 @@ class MergerConfigMasked(MergerConfig):
         if self.mode == 'hist-match' or self.mode == 'seamless-hist-match':
             self.hist_match_threshold = np.clip ( self.hist_match_threshold+diff , 0, 255)
 
-    def toggle_mask_mode(self):
+    def toggle_mask_mode(self, diff):
         if self.face_type == FaceType.FULL:
             a = list( full_face_mask_mode_dict.keys() )
         else:
             a = list( half_face_mask_mode_dict.keys() )
-        self.mask_mode = a[ (a.index(self.mask_mode)+1) % len(a) ]
+        self.mask_mode = a[ (a.index(self.mask_mode)+diff) % len(a) ]
 
     def add_erode_mask_modifier(self, diff):
         self.erode_mask_modifier = np.clip ( self.erode_mask_modifier+diff , -400, 400)
@@ -185,8 +185,8 @@ class MergerConfigMasked(MergerConfig):
     def add_output_face_scale(self, diff):
         self.output_face_scale = np.clip ( self.output_face_scale+diff , -50, 50)
 
-    def toggle_color_transfer_mode(self):
-        self.color_transfer_mode = (self.color_transfer_mode+1) % ( max(ctm_dict.keys())+1 )
+    def toggle_color_transfer_mode(self, diff):
+        self.color_transfer_mode = (self.color_transfer_mode+diff) % ( max(ctm_dict.keys())+1 )
 
     def add_super_resolution_power(self, diff):
         self.super_resolution_power = np.clip ( self.super_resolution_power+diff , 0, 100)
