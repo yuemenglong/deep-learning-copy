@@ -658,7 +658,8 @@ def main (model_class_name=None,
             io.log_err('Model directory not found. Please ensure it exists.')
             return
 
-        is_interactive = io.input_bool ("Use interactive merger?", True) if not io.is_colab() else False
+        # is_interactive = io.input_bool ("Use interactive merger?", True) if not io.is_colab() else False
+        is_interactive = True
 
         import models
         model = models.import_model(model_class_name)(is_training=False,

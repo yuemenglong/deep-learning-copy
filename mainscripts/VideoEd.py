@@ -168,6 +168,7 @@ def video_from_sequence( input_dir, output_file, reference_file=None, ext=None, 
         #if fps not specified and not overwritten by reference-file
         fps = max (1, io.input_int ("Enter FPS", 25) )
 
+    bitrate = 16
     if not lossless and bitrate is None:
         bitrate = max (1, io.input_int ("Bitrate of output file in MB/s", 16) )
 
