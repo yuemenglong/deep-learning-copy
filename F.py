@@ -210,18 +210,11 @@ def extract():
         os.rmdir(output_dir)
 
 
-def extract_dst_image(workspace):
-    import os
-    from mainscripts import Extractor
-
+def extract_dst(workspace):
     # 提取人脸
     input_dir = os.path.join(workspace, "data_dst")
     output_dir = os.path.join(workspace, "data_dst/aligned")
-    debug_dir = os.path.join(workspace, "data_dst/aligned_debug")
-    Extractor.main(input_dir, output_dir, debug_dir, "s3fd", manual_fix=True)
-    # fanseg
-    # Extractor.extract_fanseg(output_dir)
-    dfl.dfl_extract_fanseg(output_dir)
+    dfl.dfl_extract_faces(input_dir, output_dir, "s3fd", True)
 
 
 # noinspection PyUnresolvedReferences
@@ -771,7 +764,7 @@ def convert(workspace, model="SAEHD"):
         # shutil.move(data_dst, trash_dir)
 
 
-def convert_dst(workspace, model="SAE"):
+def convert_dst(workspace, model="SAEHD"):
     import os
     model_dir = os.path.join(workspace, "model")
     data_dst = os.path.join(workspace, "data_dst")
@@ -1137,8 +1130,15 @@ def post_extract_dst(workspace):
         dst = os.path.join(orig, f)
         import shutil
         shutil.move(src, dst)
-    pre_extract_dst(workspace)
     pass
+
+
+def prepare_dst(workspace):
+    pre_extract_dst(workspace)
+    extract_dst(workspace)
+    train_dst(workspace)
+    convert_dst(workspace)
+    post_extract_dst(workspace)
 
 
 def main():
@@ -1147,20 +1147,42 @@ def main():
     arg = sys.argv[-1]
     if arg == '--change-workspace':
         change_workspace()
-    elif arg == '--prepare-manual-train':
+    elif arg == '--prepare':
+        prepare(get_workspace())
+    elif arg == '--prepare-manual':
         prepare(get_workspace(), "manual")
+    elif arg == '--prepare-dst':
+        prepare_dst(get_workspace())
+    elif arg == '--clean-trash':
+        clean_trash()
     elif arg == '--train':
         train(get_workspace())
+        convert(get_workspace())
+        mp4(get_workspace())
+    elif arg == '--train-quick96':
+        train(get_workspace(), "Quick96")
+        convert(get_workspace(), "Quick96")
+        mp4(get_workspace())
     elif arg == '--train-dst':
         train_dst(get_workspace())
+        convert(get_workspace())
+        mp4(get_workspace())
+    elif arg == '--train-quick96-dst':
+        train_dst(get_workspace(), "Quick96")
+        convert(get_workspace(), "Quick96")
+        mp4(get_workspace())
     elif arg == '--convert':
         convert(get_workspace())
         mp4(get_workspace())
+    elif arg == '--convert-quick96':
+        convert(get_workspace(), "Quick96")
+        mp4(get_workspace())
+    elif arg == '--convert-dst':
+        convert_dst(get_workspace())
     elif arg == '--mp4':
         mp4(get_workspace())
     else:
-        dst = get_workspace_dst(get_workspace())
-        dfl.dfl_extract_faces(dst, os.path.join(dst, "aligned"), detector="manual")
+        pre_extract_dst(get_workspace())
     # elif arg == '--extract':
     #     extract()
     # elif arg == '--extract-dst-image':
