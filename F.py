@@ -1141,6 +1141,36 @@ def prepare_dst(workspace):
     post_extract_dst(workspace)
 
 
+def prepare2(workspace):
+    import shutil
+    dst = get_workspace_dst(workspace)
+    aligned = os.path.join(dst, "aligned")
+    merged = os.path.join(dst, "merged")
+    if not os.path.exists(aligned):
+        io.log_err("No Aligned Dir Exists")
+        return
+    if not os.path.exists(merged):
+        io.log_err("No Merged Dir Exists")
+        return
+    aligned_nos = {}
+    for f in os.listdir(aligned):
+        if not f.endswith(".png") and not f.endswith(".jpg"):
+            continue
+        no = f.split("_")[0]
+        aligned_nos[no] = True
+    for f in os.listdir(merged):
+        if not f.endswith(".png") and not f.endswith(".jpg"):
+            continue
+        no = f.split(".")[0]
+        if no not in aligned_nos:
+            os.remove(os.path.join(merged, f))
+    aligned2 = os.path.join(dst, "aligned2")
+    if os.path.exists(aligned2):
+        shutil.rmtree(aligned2)
+    shutil.move(aligned, aligned2)
+    dfl.dfl_extract_faces(merged, aligned)
+
+
 def main():
     import sys
 
@@ -1149,8 +1179,16 @@ def main():
         change_workspace()
     elif arg == '--prepare':
         prepare(get_workspace())
+    elif arg == '--prepare2':
+        prepare2(get_workspace())
+        train(get_workspace())
+        convert(get_workspace())
+        mp4(get_workspace())
     elif arg == '--prepare-manual':
         prepare(get_workspace(), "manual")
+        train(get_workspace())
+        convert(get_workspace())
+        mp4(get_workspace())
     elif arg == '--prepare-dst':
         prepare_dst(get_workspace())
     elif arg == '--clean-trash':
