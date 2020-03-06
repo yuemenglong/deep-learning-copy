@@ -221,15 +221,15 @@ class MergeSubprocessor(Subprocessor):
         self.prefetch_frame_count = self.process_count = multiprocessing.cpu_count()
 
         session_data = None
-        if self.is_interactive and self.merger_session_filepath.exists():
-            io.input_skip_pending()
-            if io.input_bool ("Use saved session?", True):
-                try:
-                    with open( str(self.merger_session_filepath), "rb") as f:
-                        session_data = pickle.loads(f.read())
-
-                except Exception as e:
-                    pass
+        # if self.is_interactive and self.merger_session_filepath.exists():
+        #     io.input_skip_pending()
+        #     if io.input_bool ("Use saved session?", False):
+        #         try:
+        #             with open( str(self.merger_session_filepath), "rb") as f:
+        #                 session_data = pickle.loads(f.read())
+        #
+        #         except Exception as e:
+        #             pass
 
         rewind_to_frame_idx = None
         self.frames = frames
