@@ -683,6 +683,56 @@ def prepare(workspace, detector="s3fd", manual_fix=False):
     beep()
 
 
+def prepare_vr(workspace):
+    import os
+    import shutil
+    for f in os.listdir(workspace):
+        ext = os.path.splitext(f)[-1]
+        if ext not in ['.mp4', '.avi']:
+            continue
+        if f.startswith("result"):
+            continue
+        # 获取所有的data_dst文件
+        tmp_dir = os.path.join(workspace, "_tmp")
+        tmp_aligned = os.path.join(tmp_dir, "aligned")
+        tmp_video_dir = os.path.join(tmp_dir, "video")
+        if os.path.exists(tmp_dir):
+            shutil.rmtree(tmp_dir)
+        if not os.path.exists(tmp_dir):
+            os.mkdir(tmp_dir)
+            os.mkdir(tmp_video_dir)
+        video = os.path.join(workspace, f)
+        # 提取帧
+        # VideoEd.extract_video(video, tmp_dir, "png", 0)
+        dfl.dfl_extract_video(video, tmp_dir, 0)
+        # 提取人脸
+        beep()
+        dfl.dfl_extract_faces(tmp_dir, tmp_aligned, "manual", False)
+        # aligned重命名
+        tmp_aligned2 = os.path.join(tmp_dir, "aligned2")
+        shutil.move(tmp_aligned, tmp_aligned2)
+        # 再次提取
+        beep()
+        dfl.dfl_extract_faces(tmp_dir, tmp_aligned, "manual", False)
+        # 两个aligned merge
+        for f2 in os.listdir(tmp_aligned2):
+            src = os.path.join(tmp_aligned2, f2)
+            dst = os.path.join(tmp_aligned, "0_" + f2)
+            shutil.move(src, dst)
+        # 保存video
+        shutil.copy(video, tmp_video_dir)
+        # 重命名
+        fname = f.replace(ext, "")
+        dst_dir = os.path.join(workspace, "data_dst_%s_%s" % (get_time_str(), fname))
+        shutil.move(tmp_dir, dst_dir)
+        # 移动video
+        data_trash = os.path.join(workspace, "../trash_workspace")
+        if not os.path.exists(data_trash):
+            os.mkdir(data_trash)
+        shutil.move(video, data_trash)
+    beep()
+
+
 def train(workspace, model="SAEHD"):
     import os
     model_dir = os.path.join(workspace, "model")
@@ -709,7 +759,7 @@ def train_dst(workspace, model="SAEHD"):
     dfl.dfl_train(data_src_aligned, data_dst_aligned, model_dir, model=model)
 
 
-def convert(workspace, model="SAEHD"):
+def convert(workspace, model="SAEHD", force_recover=False):
     import os
     for f in os.listdir(workspace):
         if not os.path.isdir(os.path.join(workspace, f)) or not f.startswith("data_dst_"):
@@ -738,7 +788,7 @@ def convert(workspace, model="SAEHD"):
             if img.endswith("_0.jpg") or img.endswith("_0.png"):
                 need_recover = False
             break
-        if need_recover:
+        if need_recover or force_recover:
             recover_filename(data_dst_aligned)
         # 如果data_dst里没有脸则extract
         has_img = False
@@ -1179,6 +1229,12 @@ def main():
         change_workspace()
     elif arg == '--prepare':
         prepare(get_workspace())
+        train(get_workspace())
+    elif arg == '--prepare-vr':
+        prepare_vr(get_workspace())
+        train(get_workspace())
+        convert(get_workspace(), force_recover=True)
+        mp4(get_workspace())
     elif arg == '--prepare2':
         prepare2(get_workspace())
         train(get_workspace())
@@ -1190,7 +1246,11 @@ def main():
         convert(get_workspace())
         mp4(get_workspace())
     elif arg == '--prepare-dst':
-        prepare_dst(get_workspace())
+        pre_extract_dst(get_workspace())
+        extract_dst(get_workspace())
+        train_dst(get_workspace())
+        convert_dst(get_workspace())
+        post_extract_dst(get_workspace())
     elif arg == '--clean-trash':
         clean_trash()
     elif arg == '--train':
@@ -1203,12 +1263,12 @@ def main():
         mp4(get_workspace())
     elif arg == '--train-dst':
         train_dst(get_workspace())
-        convert(get_workspace())
-        mp4(get_workspace())
+        convert_dst(get_workspace())
+        post_extract_dst(get_workspace())
     elif arg == '--train-quick96-dst':
         train_dst(get_workspace(), "Quick96")
         convert(get_workspace(), "Quick96")
-        mp4(get_workspace())
+        post_extract_dst(get_workspace())
     elif arg == '--convert':
         convert(get_workspace())
         mp4(get_workspace())
@@ -1217,6 +1277,7 @@ def main():
         mp4(get_workspace())
     elif arg == '--convert-dst':
         convert_dst(get_workspace())
+        post_extract_dst(get_workspace())
     elif arg == '--mp4':
         mp4(get_workspace())
     else:

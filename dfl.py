@@ -82,6 +82,7 @@ def dfl_video_from_sequence(input_dir, output_file, reference_file):
         "--input-dir": input_dir,
         "--output-file": output_file,
         "--reference-file": reference_file,
+        "--include-audio": True,
     }
     dfl_exec(cmd, args)
 
