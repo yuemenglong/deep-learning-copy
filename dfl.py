@@ -1,7 +1,7 @@
 import os
 
 
-def dfl_train(src_aligned, dst_aligned, model_dir, model="SAE"):
+def dfl_train(src_aligned, dst_aligned, model_dir, model="SAEHD"):
     cmd = "train"
     args = {
         "--training-data-src-dir": src_aligned,
@@ -13,7 +13,7 @@ def dfl_train(src_aligned, dst_aligned, model_dir, model="SAE"):
     dfl_exec(cmd, args)
 
 
-def dfl_merge(input_dir, output_dir, aligned_dir, model_dir, model="SAE"):
+def dfl_merge(input_dir, output_dir, aligned_dir, model_dir, model="SAEHD"):
     cmd = "merge"
     args = {
         "--input-dir": input_dir,
@@ -221,3 +221,23 @@ def dfl_extract_faces(input_dir, output_dir, manual_fix=False, output_debug=Fals
         "--face-type": "whole_face",
     }
     dfl_exec(cmd, args)
+
+
+def dfl_xseg_editor(input_dir):
+    cmd = "xseg editor"
+    args = {
+        "--input-dir": input_dir,
+    }
+    dfl_exec(cmd, args)
+
+
+def dfl_xseg_fetch(input_dir):
+    cmd = "xseg fetch"
+    args = {
+        "--input-dir": input_dir,
+    }
+    dfl_exec(cmd, args)
+
+
+def dfl_xseg_train(src_aligned, dst_aligned, model_dir):
+    dfl_train(src_aligned, dst_aligned, model_dir, "XSeg")

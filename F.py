@@ -209,7 +209,7 @@ def extract_dst(workspace):
     # 提取人脸
     input_dir = os.path.join(workspace, "data_dst")
     output_dir = os.path.join(workspace, "data_dst/aligned")
-    dfl.dfl_extract_faces(input_dir, output_dir, "s3fd", True)
+    dfl.dfl_extract_faces(input_dir, output_dir, True)
 
 
 # noinspection PyUnresolvedReferences
@@ -630,7 +630,7 @@ def manual_select(input_path, src_path=None):
             reload_src()
 
 
-def prepare(workspace, detector="s3fd", manual_fix=False):
+def prepare(workspace, manual_fix=False):
     import os
     import shutil
     for f in os.listdir(workspace):
@@ -653,17 +653,9 @@ def prepare(workspace, detector="s3fd", manual_fix=False):
         # VideoEd.extract_video(video, tmp_dir, "png", 0)
         dfl.dfl_extract_video(video, tmp_dir, 0)
         # 提取人脸
-        if detector == "manual":
-            beep()
-        dfl.dfl_extract_faces(tmp_dir, tmp_aligned, detector, manual_fix)
-        # Extractor.main(tmp_dir, tmp_aligned, detector=detector, manual_fix=manual_fix)
-        # fanseg
-        # Extractor.extract_fanseg(tmp_aligned)
-        if detector != "manual":
-            #     # 两组人脸匹配
-            #     skip_by_pitch(os.path.join(workspace, "data_src", "aligned"), os.path.join(tmp_dir, "aligned"))
-            # 排序
-            dfl.dfl_sort_by_hist(tmp_aligned)
+        dfl.dfl_extract_faces(tmp_dir, tmp_aligned, manual_fix)
+        # 排序
+        dfl.dfl_sort_by_hist(tmp_aligned)
         # 保存video
         shutil.copy(video, tmp_video_dir)
         # 重命名
@@ -1216,6 +1208,36 @@ def prepare2(workspace):
     dfl.dfl_extract_faces(merged, aligned)
 
 
+def xseg_src_edit(workspace):
+    src_aligned = os.path.join(workspace, "data_src/aligned")
+    dfl.dfl_xseg_editor(src_aligned)
+
+
+def xseg_src_fetch(workspace):
+    src_aligned = os.path.join(workspace, "data_src/aligned")
+    dfl.dfl_xseg_fetch(src_aligned)
+
+
+def xseg_dst_edit(workspace):
+    dst_dir = get_workspace_dst(workspace)
+    dst_aligned = os.path.join(dst_dir, "aligned")
+    dfl.dfl_xseg_editor(dst_aligned)
+
+
+def xseg_dst_fetch(workspace):
+    dst_dir = get_workspace_dst(workspace)
+    dst_aligned = os.path.join(dst_dir, "aligned")
+    dfl.dfl_xseg_fetch(dst_aligned)
+
+
+def xseg_train(workspace):
+    src_aligned = os.path.join(workspace, "data_src/aligned")
+    dst_dir = get_workspace_dst(workspace)
+    dst_aligned = os.path.join(dst_dir, "aligned")
+    model_dir = os.path.join(workspace, "model")
+    dfl.dfl_xseg_train(src_aligned, dst_aligned, model_dir)
+
+
 def main():
     import sys
 
@@ -1237,11 +1259,6 @@ def main():
         train(get_workspace())
         convert(get_workspace())
         mp4(get_workspace())
-    elif arg == '--prepare-manual':
-        prepare(get_workspace(), "manual")
-        train(get_workspace())
-        convert(get_workspace())
-        mp4(get_workspace())
     elif arg == '--prepare-dst':
         pre_extract_dst(get_workspace())
         extract_dst(get_workspace())
@@ -1250,6 +1267,16 @@ def main():
         post_extract_dst(get_workspace())
     elif arg == '--clean-trash':
         clean_trash()
+    elif arg == '--xseg-src-edit':
+        xseg_src_edit(get_workspace())
+    elif arg == '--xseg-dst-edit':
+        xseg_dst_edit(get_workspace())
+    elif arg == '--xseg-src-fetch':
+        xseg_src_fetch(get_workspace())
+    elif arg == '--xseg-dst-fetch':
+        xseg_dst_fetch(get_workspace())
+    elif arg == '--xseg-train':
+        xseg_train(get_workspace())
     elif arg == '--train':
         train(get_workspace())
         convert(get_workspace())
@@ -1277,8 +1304,8 @@ def main():
         post_extract_dst(get_workspace())
     elif arg == '--mp4':
         mp4(get_workspace())
-    else:
-        pre_extract_dst(get_workspace())
+    elif arg == '--test':
+        xseg_train(get_workspace())
 
 
 if __name__ == '__main__':
