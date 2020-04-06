@@ -711,7 +711,8 @@ def main(detector=None,
     output_debug_path = output_path.parent / (output_path.name + '_debug')
 
     if output_debug is None:
-        output_debug = io.input_bool (f"Write debug images to {output_debug_path.name}?", False)
+        # output_debug = io.input_bool (f"Write debug images to {output_debug_path.name}?", False)
+        output_debug = False
 
     if output_path.exists():
         if not manual_output_debug_fix and input_path != output_path:
