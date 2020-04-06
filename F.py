@@ -1216,6 +1216,14 @@ def xseg_src_edit(workspace):
 def xseg_src_fetch(workspace):
     src_aligned = os.path.join(workspace, "data_src/aligned")
     dfl.dfl_xseg_fetch(src_aligned)
+    xseg_path = src_aligned + "_xseg"
+    dfl.dfl_xseg_editor(xseg_path)
+    for f in os.listdir(xseg_path):
+        import shutil
+        src = os.path.join(xseg_path, f)
+        dst = os.path.join(src_aligned, f)
+        print("Move", src, dst)
+        shutil.move(src, dst)
 
 
 def xseg_dst_edit(workspace):
@@ -1228,6 +1236,14 @@ def xseg_dst_fetch(workspace):
     dst_dir = get_workspace_dst(workspace)
     dst_aligned = os.path.join(dst_dir, "aligned")
     dfl.dfl_xseg_fetch(dst_aligned)
+    xseg_path = dst_aligned + "_xseg"
+    dfl.dfl_xseg_editor(xseg_path)
+    for f in os.listdir(xseg_path):
+        import shutil
+        src = os.path.join(xseg_path, f)
+        dst = os.path.join(dst_aligned, f)
+        print("Move", src, dst)
+        shutil.move(src, dst)
 
 
 def xseg_train(workspace):
@@ -1269,18 +1285,18 @@ def main():
         clean_trash()
     elif arg == '--xseg-src-edit':
         xseg_src_edit(get_workspace())
-    elif arg == '--xseg-dst-edit':
-        xseg_dst_edit(get_workspace())
     elif arg == '--xseg-src-fetch':
         xseg_src_fetch(get_workspace())
+    elif arg == '--xseg-dst-edit':
+        xseg_dst_edit(get_workspace())
     elif arg == '--xseg-dst-fetch':
         xseg_dst_fetch(get_workspace())
     elif arg == '--xseg-train':
         xseg_train(get_workspace())
     elif arg == '--train':
         train(get_workspace())
-        convert(get_workspace())
-        mp4(get_workspace())
+        # convert(get_workspace())
+        # mp4(get_workspace())
     elif arg == '--train-quick96':
         train(get_workspace(), "Quick96")
         convert(get_workspace(), "Quick96")
@@ -1305,7 +1321,7 @@ def main():
     elif arg == '--mp4':
         mp4(get_workspace())
     elif arg == '--test':
-        xseg_train(get_workspace())
+        dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/aligned_18_19"))
 
 
 if __name__ == '__main__':
