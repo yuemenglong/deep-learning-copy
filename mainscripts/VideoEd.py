@@ -221,7 +221,8 @@ def video_from_sequence( input_dir, output_file, reference_file=None, ext=None, 
         fps = max (1, io.input_int ("Enter FPS", 25) )
 
     if not lossless and bitrate is None:
-        bitrate = max (1, io.input_int ("Bitrate of output file in MB/s", 16) )
+        # bitrate = max (1, io.input_int ("Bitrate of output file in MB/s", 16) )
+        bitrate = 16
 
     input_image_paths = pathex.get_image_paths(input_path)
 

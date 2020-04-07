@@ -250,7 +250,10 @@ class ExtractSubprocessor(Subprocessor):
                             continue
 
                         if output_debug_path is not None:
-                            LandmarksProcessor.draw_rect_landmarks (debug_image, rect, image_landmarks, face_type, image_size, transparent_mask=True)
+                            outer_points = LandmarksProcessor.draw_rect_landmarks (debug_image, rect, image_landmarks, face_type, image_size, transparent_mask=True)
+                            dist = np.sqrt(np.sum(np.square(outer_points[0] - outer_points[1])))
+                            if dist < 512:
+                                continue
 
                     output_path = final_output_path
                     if data.force_output_path is not None:
@@ -708,7 +711,8 @@ def main(detector=None,
     output_debug_path = output_path.parent / (output_path.name + '_debug')
 
     if output_debug is None:
-        output_debug = io.input_bool (f"Write debug images to {output_debug_path.name}?", False)
+        # output_debug = io.input_bool (f"Write debug images to {output_debug_path.name}?", False)
+        output_debug = False
 
     if output_path.exists():
         if not manual_output_debug_fix and input_path != output_path:
