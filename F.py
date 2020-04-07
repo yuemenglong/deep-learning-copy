@@ -1297,17 +1297,14 @@ def main():
         train(get_workspace())
         # convert(get_workspace())
         # mp4(get_workspace())
-    elif arg == '--train-quick96':
-        train(get_workspace(), "Quick96")
-        convert(get_workspace(), "Quick96")
-        mp4(get_workspace())
+    elif arg == '--train-full':
+        dfl.set_config("masked_training", "0")
+        train(get_workspace())
+        # convert(get_workspace())
+        # mp4(get_workspace())
     elif arg == '--train-dst':
         train_dst(get_workspace())
         convert_dst(get_workspace())
-        post_extract_dst(get_workspace())
-    elif arg == '--train-quick96-dst':
-        train_dst(get_workspace(), "Quick96")
-        convert(get_workspace(), "Quick96")
         post_extract_dst(get_workspace())
     elif arg == '--convert':
         convert(get_workspace())

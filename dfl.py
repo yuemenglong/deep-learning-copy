@@ -1,5 +1,28 @@
 import os
 
+_config = {}
+
+
+def load_config():
+    for line in open(get_exec_path()):
+        if not line.startswith("rem config "):
+            continue
+        line = line.split("rem config ")[1]
+        key = line.split("=")[0]
+        value = line.split("=")[1]
+        _config[key] = value
+
+
+def set_config(key, value):
+    _config[key] = value
+
+
+def get_config(key, dft_value):
+    if key in _config:
+        return _config[key]
+    else:
+        return dft_value
+
 
 def dfl_train(src_aligned, dst_aligned, model_dir, model="SAEHD"):
     cmd = "train"
@@ -135,6 +158,10 @@ def get_root_path():
     return path
 
 
+def get_exec_path():
+    return os.path.join(get_root_path(), "@exec.bat")
+
+
 def dfl_exec(cmd, args, env=""):
     import subprocess
     s = ""
@@ -155,7 +182,9 @@ def dfl_exec(cmd, args, env=""):
                 s += " ^\n    %s" % k
         else:
             s += " ^\n    %s %s" % (k, v)
-    fpath = os.path.join(get_root_path(), "@exec.bat")
+    for k in _config:
+        s += "\nrem config %s=%s" % (k, _config[k])
+    fpath = get_exec_path()
     with open(fpath, "w") as f:
         f.write(s)
     subprocess.call([fpath])
