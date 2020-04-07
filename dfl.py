@@ -239,14 +239,14 @@ def dfl_faceset_metadata_restore(input_dir):
     dfl_exec(cmd, args)
 
 
-def dfl_extract_faces(input_dir, output_dir, manual_fix=False, output_debug=False):
+def dfl_extract_faces(input_dir, output_dir, detector="s3fd", manual_fix=False, output_debug=False):
     cmd = "extract"
     args = {
         "--input-dir": input_dir,
         "--output-dir": output_dir,
         "--output-debug": output_debug,
         "--manual-fix": manual_fix,
-        "--detector": "s3fd",
+        "--detector": detector,
         "--face-type": "whole_face",
     }
     dfl_exec(cmd, args)

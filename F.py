@@ -209,7 +209,7 @@ def extract_dst(workspace):
     # 提取人脸
     input_dir = os.path.join(workspace, "data_dst")
     output_dir = os.path.join(workspace, "data_dst/aligned")
-    dfl.dfl_extract_faces(input_dir, output_dir, True)
+    dfl.dfl_extract_faces(input_dir, output_dir, manual_fix=True)
 
 
 # noinspection PyUnresolvedReferences
@@ -630,7 +630,7 @@ def manual_select(input_path, src_path=None):
             reload_src()
 
 
-def prepare(workspace, manual_fix=False):
+def prepare(workspace, detector="s3fd", manual_fix=False):
     import os
     import shutil
     for f in os.listdir(workspace):
@@ -652,8 +652,10 @@ def prepare(workspace, manual_fix=False):
         # 提取帧
         # VideoEd.extract_video(video, tmp_dir, "png", 0)
         dfl.dfl_extract_video(video, tmp_dir, 0)
+        if detector == "manual":
+            beep()
         # 提取人脸
-        dfl.dfl_extract_faces(tmp_dir, tmp_aligned, manual_fix)
+        dfl.dfl_extract_faces(tmp_dir, tmp_aligned, detector=detector, manual_fix=manual_fix)
         # 排序
         dfl.dfl_sort_by_hist(tmp_aligned)
         # 保存video
@@ -1264,6 +1266,9 @@ def main():
         extract_src()
     elif arg == '--prepare':
         prepare(get_workspace())
+        train(get_workspace())
+    elif arg == '--prepare-manual':
+        prepare(get_workspace(), detector="manual")
         train(get_workspace())
     elif arg == '--prepare-vr':
         prepare_vr(get_workspace())
