@@ -657,7 +657,8 @@ def prepare(workspace, detector="s3fd", manual_fix=False):
         # 提取人脸
         dfl.dfl_extract_faces(tmp_dir, tmp_aligned, detector=detector, manual_fix=manual_fix)
         # 排序
-        dfl.dfl_sort_by_hist(tmp_aligned)
+        if detector != "manual":
+            dfl.dfl_sort_by_hist(tmp_aligned)
         # 保存video
         shutil.copy(video, tmp_video_dir)
         # 重命名
@@ -1248,10 +1249,35 @@ def xseg_dst_fetch(workspace):
         shutil.move(src, dst)
 
 
+def xseg_dst2_edit(workspace):
+    dst_aligned = os.path.join(workspace, "data_dst/aligned")
+    dfl.dfl_xseg_editor(dst_aligned)
+
+
+def xseg_dst2_fetch(workspace):
+    dst_aligned = os.path.join(workspace, "data_dst/aligned")
+    dfl.dfl_xseg_fetch(dst_aligned)
+    xseg_path = dst_aligned + "_xseg"
+    dfl.dfl_xseg_editor(xseg_path)
+    for f in os.listdir(xseg_path):
+        import shutil
+        src = os.path.join(xseg_path, f)
+        dst = os.path.join(dst_aligned, f)
+        print("Move", src, dst)
+        shutil.move(src, dst)
+
+
 def xseg_train(workspace):
     src_aligned = os.path.join(workspace, "data_src/aligned")
     dst_dir = get_workspace_dst(workspace)
     dst_aligned = os.path.join(dst_dir, "aligned")
+    model_dir = os.path.join(workspace, "model")
+    dfl.dfl_xseg_train(src_aligned, dst_aligned, model_dir)
+
+
+def xseg_train2(workspace):
+    src_aligned = os.path.join(workspace, "data_src/aligned")
+    dst_aligned = os.path.join(workspace, "data_dst/aligned")
     model_dir = os.path.join(workspace, "model")
     dfl.dfl_xseg_train(src_aligned, dst_aligned, model_dir)
 
@@ -1270,22 +1296,15 @@ def main():
     elif arg == '--prepare-manual':
         prepare(get_workspace(), detector="manual")
         train(get_workspace())
+        dfl.set_config("masked_training", "0")
+        train(get_workspace())
     elif arg == '--prepare-vr':
         prepare_vr(get_workspace())
         train(get_workspace())
-        convert(get_workspace(), force_recover=True)
-        mp4(get_workspace())
-    elif arg == '--prepare2':
-        prepare2(get_workspace())
-        train(get_workspace())
-        convert(get_workspace())
-        mp4(get_workspace())
     elif arg == '--prepare-dst':
         pre_extract_dst(get_workspace())
         extract_dst(get_workspace())
         train_dst(get_workspace())
-        convert_dst(get_workspace())
-        post_extract_dst(get_workspace())
     elif arg == '--clean-trash':
         clean_trash()
     elif arg == '--xseg-src-edit':
@@ -1296,26 +1315,30 @@ def main():
         xseg_dst_edit(get_workspace())
     elif arg == '--xseg-dst-fetch':
         xseg_dst_fetch(get_workspace())
+    elif arg == '--xseg-dst2-edit':
+        xseg_dst2_edit(get_workspace())
+    elif arg == '--xseg-dst2-fetch':
+        xseg_dst2_fetch(get_workspace())
     elif arg == '--xseg-train':
         xseg_train(get_workspace())
+    elif arg == '--xseg-train2':
+        xseg_train2(get_workspace())
     elif arg == '--train':
         train(get_workspace())
-        # convert(get_workspace())
-        # mp4(get_workspace())
+        dfl.set_config("masked_training", "0")
+        train(get_workspace())
     elif arg == '--train-full':
         dfl.set_config("masked_training", "0")
         train(get_workspace())
-        # convert(get_workspace())
-        # mp4(get_workspace())
     elif arg == '--train-dst':
         train_dst(get_workspace())
-        convert_dst(get_workspace())
-        post_extract_dst(get_workspace())
+        dfl.set_config("masked_training", "0")
+        train_dst(get_workspace())
+    elif arg == '--train-dst-full':
+        dfl.set_config("masked_training", "0")
+        train_dst(get_workspace())
     elif arg == '--convert':
         convert(get_workspace())
-        mp4(get_workspace())
-    elif arg == '--convert-quick96':
-        convert(get_workspace(), "Quick96")
         mp4(get_workspace())
     elif arg == '--convert-dst':
         convert_dst(get_workspace())

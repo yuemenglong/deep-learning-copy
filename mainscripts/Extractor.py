@@ -494,7 +494,7 @@ class ExtractSubprocessor(Subprocessor):
                             break
                         elif self.ea.auto and len(self.ea.last_outer) > 0 and len(self.ea.last_landmarks) > 0:
                             # 根据上次的外框算出这次的x/y,以及外框大小
-                            border_ratio = 0.8
+                            border_ratio = 0.6
                             last_mid = F.mid_point_by_range(self.ea.last_landmarks)
                             last_border = np.linalg.norm(np.array(self.ea.last_outer[0]) - np.array(self.ea.last_outer[1]))
                             last_area = F.poly_area(self.ea.last_outer)
