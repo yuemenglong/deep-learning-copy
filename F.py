@@ -1346,7 +1346,7 @@ def main():
     elif arg == '--mp4':
         mp4(get_workspace())
     elif arg == '--test':
-        dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/aligned_18_19"))
+        dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/aligned_25_28"))
 
 
 if __name__ == '__main__':
