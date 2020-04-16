@@ -166,7 +166,8 @@ class InteractiveMergerSubprocessor(Subprocessor):
         session_data = None
         if self.is_interactive and self.merger_session_filepath.exists():
             io.input_skip_pending()
-            if io.input_bool ("Use saved session?", True):
+            # if io.input_bool ("Use saved session?", True):
+            if True:
                 try:
                     with open( str(self.merger_session_filepath), "rb") as f:
                         session_data = pickle.loads(f.read())
