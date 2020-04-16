@@ -31,7 +31,7 @@ def trainerThread (s2c, c2s, e,
         try:
             start_time = time.time()
 
-            save_interval_min = 15
+            save_interval_min = 5
 
             if not training_data_src_path.exists():
                 training_data_src_path.mkdir(exist_ok=True, parents=True)

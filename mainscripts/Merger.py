@@ -66,7 +66,8 @@ def main (model_class_name=None,
                                                     place_model_on_cpu=True,
                                                     run_on_cpu=run_on_cpu)
 
-        is_interactive = io.input_bool ("Use interactive merger?", True) if not io.is_colab() else False
+        # is_interactive = io.input_bool ("Use interactive merger?", True) if not io.is_colab() else False
+        is_interactive = True
 
         if not is_interactive:
             cfg.ask_settings()

@@ -144,6 +144,9 @@ class SAEHDModel(ModelBase):
         self.gan_power = gan_power = self.options['gan_power'] if not self.pretrain else 0.0
 
         masked_training = self.options['masked_training']
+        import dfl
+        dfl.load_config()
+        masked_training = dfl.get_config("masked_training", "1") == "1"
         ct_mode = self.options['ct_mode']
         if ct_mode == 'none':
             ct_mode = None
