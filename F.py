@@ -1060,7 +1060,7 @@ def fanseg(align_dir):
     Extractor.extract_fanseg(align_dir)
 
 
-def merge_dst_aligned(workspace):
+def merge_to_dst(workspace):
     import shutil
     counter = 0
     target_dst = os.path.join(workspace, "data_dst")
@@ -1290,6 +1290,8 @@ def main():
         change_workspace()
     elif arg == '--extract-src':
         extract_src()
+    elif arg == '--merge-to-dst':
+        merge_to_dst(get_workspace())
     elif arg == '--prepare':
         prepare(get_workspace())
         train(get_workspace())
@@ -1304,6 +1306,8 @@ def main():
     elif arg == '--prepare-dst':
         pre_extract_dst(get_workspace())
         extract_dst(get_workspace())
+        train_dst(get_workspace())
+        dfl.set_config("masked_training", "0")
         train_dst(get_workspace())
     elif arg == '--clean-trash':
         clean_trash()

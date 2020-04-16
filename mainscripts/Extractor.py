@@ -798,7 +798,7 @@ def main(detector=None,
         if not manual_output_debug_fix and input_path != output_path:
             output_images_paths = pathex.get_image_paths(output_path)
             if len(output_images_paths) > 0:
-                io.input(f"\n WARNING !!! \n {output_path} contains files! \n They will be deleted. \n Press enter to continue.\n")
+                # io.input(f"\n WARNING !!! \n {output_path} contains files! \n They will be deleted. \n Press enter to continue.\n")
                 for filename in output_images_paths:
                     Path(filename).unlink()
     else:
