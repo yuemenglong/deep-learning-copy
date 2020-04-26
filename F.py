@@ -4,6 +4,8 @@ from typing import Any, Callable
 import numpy as np
 from core.interact import interact as io
 
+video_exts = ['.mp4', '.avi', '.mkv']
+
 
 def beep():
     import winsound
@@ -635,7 +637,7 @@ def prepare(workspace, detector="s3fd", manual_fix=False):
     import shutil
     for f in os.listdir(workspace):
         ext = os.path.splitext(f)[-1]
-        if ext not in ['.mp4', '.avi']:
+        if ext not in video_exts:
             continue
         if f.startswith("result"):
             continue
@@ -1064,9 +1066,9 @@ def merge_to_dst(workspace):
     import shutil
     counter = 0
     target_dst = os.path.join(workspace, "data_dst")
-    if os.path.exists(target_dst):
-        shutil.rmtree(target_dst)
     target_dst_aligned = os.path.join(target_dst, "aligned")
+    if os.path.exists(target_dst_aligned):
+        shutil.rmtree(target_dst_aligned)
     os.makedirs(target_dst_aligned)
     for f in os.listdir(workspace):
         dst_path = os.path.join(workspace, f)
@@ -1295,6 +1297,8 @@ def main():
     elif arg == '--prepare':
         prepare(get_workspace())
         train(get_workspace())
+        dfl.set_config("masked_training", "0")
+        train(get_workspace())
     elif arg == '--prepare-manual':
         prepare(get_workspace(), detector="manual")
         train(get_workspace())
@@ -1350,7 +1354,7 @@ def main():
     elif arg == '--mp4':
         mp4(get_workspace())
     elif arg == '--test':
-        dfl.dfl_sort_by_hist(os.path.join(get_root_path(), "extract_workspace/aligned_25_28"))
+        dfl.dfl_sort_by_final(os.path.join(get_root_path(), "extract_workspace/aligned_ab"))
 
 
 if __name__ == '__main__':
