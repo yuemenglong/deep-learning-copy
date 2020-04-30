@@ -22,6 +22,8 @@ if __name__ == "__main__":
         def __call__(self, parser, namespace, values, option_string=None):
             setattr(namespace, self.dest, os.path.abspath(os.path.expanduser(values)))
 
+    exit_code = 0
+    
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
 
@@ -46,7 +48,7 @@ if __name__ == "__main__":
     p.add_argument('--output-dir', required=True, action=fixPathAction, dest="output_dir", help="Output directory. This is where the extracted files will be stored.")
     p.add_argument('--output-debug', action="store_true", dest="output_debug", default=None, help="Writes debug images to <output-dir>_debug\ directory.")
     p.add_argument('--no-output-debug', action="store_false", dest="output_debug", default=None, help="Don't writes debug images to <output-dir>_debug\ directory.")
-    p.add_argument('--face-type', dest="face_type", choices=['half_face', 'full_face', 'whole_face', 'head', 'full_face_no_align', 'mark_only'], default='full_face', help="Default 'full_face'. Don't change this option, currently all models uses 'full_face'")
+    p.add_argument('--face-type', dest="face_type", choices=['half_face', 'full_face', 'whole_face', 'head', 'mark_only'], default=None)
     p.add_argument('--manual-fix', action="store_true", dest="manual_fix", default=False, help="Enables manual extract only frames where faces were not recognized.")
     p.add_argument('--manual-output-debug-fix', action="store_true", dest="manual_output_debug_fix", default=False, help="Performs manual reextract input-dir frames which were deleted from [output_dir]_debug\ dir.")
     p.add_argument('--manual-window-size', type=int, dest="manual_window_size", default=1368, help="Manual fix window size. Default: 1368.")
@@ -116,6 +118,7 @@ if __name__ == "__main__":
                   'force_model_name'         : arguments.force_model_name,
                   'force_gpu_idxs'           : [ int(x) for x in arguments.force_gpu_idxs.split(',') ] if arguments.force_gpu_idxs is not None else None,
                   'cpu_only'                 : arguments.cpu_only,
+                  'silent_start'             : arguments.silent_start,
                   'execute_programs'         : [ [int(x[0]), x[1] ] for x in arguments.execute_program ],
                   'debug'                    : arguments.debug,
                   }
@@ -134,6 +137,9 @@ if __name__ == "__main__":
     p.add_argument('--force-model-name', dest="force_model_name", default=None, help="Forcing to choose model name from model/ folder.")
     p.add_argument('--cpu-only', action="store_true", dest="cpu_only", default=False, help="Train on CPU.")
     p.add_argument('--force-gpu-idxs', dest="force_gpu_idxs", default=None, help="Force to choose GPU indexes separated by comma.")
+    p.add_argument('--silent-start', action="store_true", dest="silent_start", default=False, help="Silent start. Automatically chooses Best GPU and last used model.")
+    
+    
     p.add_argument('--execute-program', dest="execute_program", default=[], action='append', nargs='+')
     p.set_defaults (func=process_train)
 
@@ -258,7 +264,9 @@ if __name__ == "__main__":
     def process_xsegeditor(arguments):
         osex.set_process_lowest_prio()
         from XSegEditor import XSegEditor
-        XSegEditor.start (Path(arguments.input_dir))
+        global exit_code
+        exit_code = XSegEditor.start (Path(arguments.input_dir))
+        
     p.add_argument('--input-dir', required=True, action=fixPathAction, dest="input_dir")
 
     p.set_defaults (func=process_xsegeditor)
@@ -274,14 +282,22 @@ if __name__ == "__main__":
     p.set_defaults (func=process_xsegapply)
     
     
-    p = xseg_parser.add_parser( "remove", help="Remove XSeg from the extracted faces.")
-
+    p = xseg_parser.add_parser( "remove", help="Remove applied XSeg masks from the extracted faces.")
     def process_xsegremove(arguments):
         osex.set_process_lowest_prio()
         from mainscripts import XSegUtil
         XSegUtil.remove_xseg (Path(arguments.input_dir) )
     p.add_argument('--input-dir', required=True, action=fixPathAction, dest="input_dir")
     p.set_defaults (func=process_xsegremove)
+    
+    
+    p = xseg_parser.add_parser( "remove_labels", help="Remove XSeg labels from the extracted faces.")
+    def process_xsegremovelabels(arguments):
+        osex.set_process_lowest_prio()
+        from mainscripts import XSegUtil
+        XSegUtil.remove_xseg_labels (Path(arguments.input_dir) )
+    p.add_argument('--input-dir', required=True, action=fixPathAction, dest="input_dir")
+    p.set_defaults (func=process_xsegremovelabels)
     
     
     p = xseg_parser.add_parser( "fetch", help="Copies faces containing XSeg polygons in <input_dir>_xseg dir.")
@@ -301,7 +317,10 @@ if __name__ == "__main__":
     arguments = parser.parse_args()
     arguments.func(arguments)
 
-    print ("Done.")
+    if exit_code == 0:
+        print ("Done.")
+        
+    exit(exit_code)
     
 '''
 import code

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import samplelib.PackedFaceset
 from core import pathex
+from core.mplib import MPSharedList
 from core.interact import interact as io
 from core.joblib import Subprocessor
 from DFLIMG import *
@@ -33,6 +34,9 @@ class SampleLoader:
 
     @staticmethod
     def load(sample_type, samples_path, subdirs=False):
+        """
+        Return MPSharedList of samples
+        """
         samples_cache = SampleLoader.samples_cache
 
         if str(samples_path) not in samples_cache.keys():
@@ -56,12 +60,12 @@ class SampleLoader:
 
                 if result is None:
                     result = SampleLoader.load_face_samples( pathex.get_image_paths(samples_path, subdirs=subdirs) )
-                samples[sample_type] = result
 
+                samples[sample_type] = MPSharedList(result)
         elif          sample_type == SampleType.FACE_TEMPORAL_SORTED:
                 result = SampleLoader.load (SampleType.FACE, samples_path)
                 result = SampleLoader.upgradeToFaceTemporalSortedSamples(result)
-                samples[sample_type] = result
+                samples[sample_type] = MPSharedList(result)
 
         return samples[sample_type]
 
@@ -70,15 +74,17 @@ class SampleLoader:
         result = FaceSamplesLoaderSubprocessor(image_paths).run()
         sample_list = []
 
-        for filename, \
-                ( face_type,
-                  shape,
-                  landmarks,
-                  seg_ie_polys,
-                  xseg_mask,
-                  eyebrows_expand_mod,
-                  source_filename,
-                ) in result:
+        for filename, data in result:
+            if data is None:
+                continue
+            ( face_type,
+              shape,
+              landmarks,
+              seg_ie_polys,
+              xseg_mask,
+              eyebrows_expand_mod,
+              source_filename ) = data
+              
             sample_list.append( Sample(filename=filename,
                                         sample_type=SampleType.FACE,
                                         face_type=FaceType.fromString (face_type),

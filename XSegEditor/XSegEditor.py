@@ -16,12 +16,13 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-from core import pathex
+from core import imagelib, pathex
 from core.cv2ex import *
 from core.imagelib import SegIEPoly, SegIEPolys, SegIEPolyType, sd
 from core.qtex import *
 from DFLIMG import *
 from localization import StringsDB, system_language
+from samplelib import PackedFaceset
 
 from .QCursorDB import QCursorDB
 from .QIconDB import QIconDB
@@ -33,6 +34,7 @@ class OpMode(IntEnum):
     DRAW_PTS = 1
     EDIT_PTS = 2
     VIEW_BAKED = 3
+    VIEW_XSEG_MASK = 4
 
 class PTEditMode(IntEnum):
     MOVE = 0
@@ -42,6 +44,10 @@ class DragType(IntEnum):
     NONE = 0
     IMAGE_LOOK = 1
     POLY_PT = 2
+
+class ViewLock(IntEnum):
+    NONE = 0
+    CENTER = 1
 
 class QUIConfig():
     @staticmethod
@@ -185,6 +191,7 @@ class QCanvasControlsLeftBar(QFrame):
         self.btn_pt_edit_mode_act = QActionEx( QIconDB.pt_edit_mode, QStringDB.btn_pt_edit_mode_tip, shortcut_in_tooltip=True, is_checkable=True)
         btn_pt_edit_mode.setDefaultAction(self.btn_pt_edit_mode_act)
         btn_pt_edit_mode.setIconSize(QUIConfig.icon_q_size)
+        #==============================================
 
         controls_bar_frame2_l = QVBoxLayout()
         controls_bar_frame2_l.addWidget ( btn_poly_type_include )
@@ -244,27 +251,46 @@ class QCanvasControlsRightBar(QFrame):
         btn_view_baked_mask.setDefaultAction(self.btn_view_baked_mask_act)
         btn_view_baked_mask.setIconSize(QUIConfig.icon_q_size)
 
+        btn_view_xseg_mask = QToolButton()
+        self.btn_view_xseg_mask_act = QActionEx( QIconDB.view_xseg, QStringDB.btn_view_xseg_mask_tip, shortcut='5', shortcut_in_tooltip=True, is_checkable=True)
+        btn_view_xseg_mask.setDefaultAction(self.btn_view_xseg_mask_act)
+        btn_view_xseg_mask.setIconSize(QUIConfig.icon_q_size)
+
         self.btn_poly_color_act_grp = QActionGroup (self)
         self.btn_poly_color_act_grp.addAction(self.btn_poly_color_red_act)
         self.btn_poly_color_act_grp.addAction(self.btn_poly_color_green_act)
         self.btn_poly_color_act_grp.addAction(self.btn_poly_color_blue_act)
         self.btn_poly_color_act_grp.addAction(self.btn_view_baked_mask_act)
+        self.btn_poly_color_act_grp.addAction(self.btn_view_xseg_mask_act)
         self.btn_poly_color_act_grp.setExclusive(True)
         #==============================================
+        btn_view_lock_center = QToolButton()
+        self.btn_view_lock_center_act = QActionEx( QIconDB.view_lock_center, QStringDB.btn_view_lock_center_tip, shortcut_in_tooltip=True, is_checkable=True)
+        btn_view_lock_center.setDefaultAction(self.btn_view_lock_center_act)
+        btn_view_lock_center.setIconSize(QUIConfig.icon_q_size)
 
         controls_bar_frame1_l = QVBoxLayout()
         controls_bar_frame1_l.addWidget ( btn_poly_color_red )
         controls_bar_frame1_l.addWidget ( btn_poly_color_green )
         controls_bar_frame1_l.addWidget ( btn_poly_color_blue )
         controls_bar_frame1_l.addWidget ( btn_view_baked_mask )
+        controls_bar_frame1_l.addWidget ( btn_view_xseg_mask )
         controls_bar_frame1 = QFrame()
         controls_bar_frame1.setFrameShape(QFrame.StyledPanel)
         controls_bar_frame1.setSizePolicy (QSizePolicy.Fixed, QSizePolicy.Fixed)
         controls_bar_frame1.setLayout(controls_bar_frame1_l)
 
+        controls_bar_frame2_l = QVBoxLayout()
+        controls_bar_frame2_l.addWidget ( btn_view_lock_center )
+        controls_bar_frame2 = QFrame()
+        controls_bar_frame2.setFrameShape(QFrame.StyledPanel)
+        controls_bar_frame2.setSizePolicy (QSizePolicy.Fixed, QSizePolicy.Fixed)
+        controls_bar_frame2.setLayout(controls_bar_frame2_l)
+
         controls_bar_l = QVBoxLayout()
         controls_bar_l.setContentsMargins(0,0,0,0)
         controls_bar_l.addWidget(controls_bar_frame1)
+        controls_bar_l.addWidget(controls_bar_frame2)
 
         self.setSizePolicy ( QSizePolicy.Fixed, QSizePolicy.Expanding )
         self.setLayout(controls_bar_l)
@@ -274,12 +300,13 @@ class QCanvasOperator(QWidget):
         super().__init__()
         self.cbar = cbar
 
-        self.set_cbar_disabled(initialize=False)
+        self.set_cbar_disabled()
 
         self.cbar.btn_poly_color_red_act.triggered.connect ( lambda : self.set_color_scheme_id(0) )
         self.cbar.btn_poly_color_green_act.triggered.connect ( lambda : self.set_color_scheme_id(1) )
         self.cbar.btn_poly_color_blue_act.triggered.connect ( lambda : self.set_color_scheme_id(2) )
-        self.cbar.btn_view_baked_mask_act.toggled.connect ( self.set_view_baked_mask )
+        self.cbar.btn_view_baked_mask_act.toggled.connect ( lambda : self.set_op_mode(OpMode.VIEW_BAKED) )
+        self.cbar.btn_view_xseg_mask_act.toggled.connect ( self.set_view_xseg_mask )
 
         self.cbar.btn_poly_type_include_act.triggered.connect ( lambda : self.set_poly_include_type(SegIEPolyType.INCLUDE) )
         self.cbar.btn_poly_type_exclude_act.triggered.connect ( lambda : self.set_poly_include_type(SegIEPolyType.EXCLUDE) )
@@ -290,6 +317,7 @@ class QCanvasOperator(QWidget):
         self.cbar.btn_delete_poly_act.triggered.connect ( lambda : self.action_delete_poly() )
 
         self.cbar.btn_pt_edit_mode_act.toggled.connect ( lambda is_checked: self.set_pt_edit_mode( PTEditMode.ADD_DEL if is_checked else PTEditMode.MOVE ) )
+        self.cbar.btn_view_lock_center_act.toggled.connect ( lambda is_checked: self.set_view_lock( ViewLock.CENTER if is_checked else ViewLock.NONE ) )
 
         self.mouse_in_widget = False
 
@@ -298,10 +326,19 @@ class QCanvasOperator(QWidget):
 
         self.qp = QPainter()
         self.initialized = False
+        self.last_state = None
 
-    def initialize(self, q_img, img_look_pt=None, view_scale=None, ie_polys=None, canvas_config=None ):
+    def initialize(self, q_img, img_look_pt=None, view_scale=None, ie_polys=None, xseg_mask=None, canvas_config=None ):
         self.q_img = q_img
         self.img_pixmap = QPixmap.fromImage(q_img)
+
+        self.xseg_mask_pixmap = None
+        if xseg_mask is not None:
+            w,h = QSize_to_np ( q_img.size() )
+            xseg_mask = cv2.resize(xseg_mask, (w,h), cv2.INTER_CUBIC)
+            xseg_mask = (imagelib.normalize_channels(xseg_mask, 1) * 255).astype(np.uint8)
+            self.xseg_mask_pixmap = QPixmap.fromImage(QImage_from_np(xseg_mask))
+
         self.img_size = QSize_to_np (self.img_pixmap.size())
 
         self.img_look_pt = img_look_pt
@@ -315,44 +352,52 @@ class QCanvasOperator(QWidget):
             canvas_config = CanvasConfig()
         self.canvas_config = canvas_config
 
+        # UI init
+        self.set_cbar_disabled()
+        self.cbar.btn_poly_color_act_grp.setDisabled(False)
+        self.cbar.btn_poly_type_act_grp.setDisabled(False)
+
+        # Initial vars
         self.current_cursor = None
-
-
         self.mouse_hull_poly = None
         self.mouse_wire_poly = None
-
         self.drag_type = DragType.NONE
-        self.op_mode = None
-        self.pt_edit_mode = None
+        self.mouse_cli_pt = np.zeros((2,), np.float32 )
 
-        if not hasattr(self, 'color_scheme_id' ):
-            self.color_scheme_id = 1
-        self.set_color_scheme_id(self.color_scheme_id)
-
+        # Initial state
         self.set_op_mode(OpMode.NONE)
-
+        self.set_color_scheme_id(1)
+        self.set_poly_include_type(SegIEPolyType.INCLUDE)
         self.set_pt_edit_mode(PTEditMode.MOVE)
-        self.set_view_baked_mask(False)
+        self.set_view_lock(ViewLock.NONE)
 
-        self.set_cbar_disabled(initialize=True)
+        # Apply last state
+        if self.last_state is not None:
+            self.set_color_scheme_id(self.last_state.color_scheme_id)
+            if self.last_state.op_mode is not None:
+                self.set_op_mode(self.last_state.op_mode)
 
-        if not hasattr(self, 'poly_include_type' ):
-            self.poly_include_type = SegIEPolyType.INCLUDE
-        self.set_poly_include_type(self.poly_include_type)
-
+        self.initialized = True
 
         self.setMouseTracking(True)
         self.update_cursor()
         self.update()
-        self.initialized = True
+
 
     def finalize(self):
         if self.initialized:
+            if self.op_mode == OpMode.DRAW_PTS:
+                self.set_op_mode(OpMode.EDIT_PTS)
+
+            self.last_state = sn(op_mode = self.op_mode if self.op_mode in [OpMode.VIEW_BAKED, OpMode.VIEW_XSEG_MASK] else None,
+                                 color_scheme_id = self.color_scheme_id,
+                               )
+
             self.img_pixmap = None
             self.update_cursor(is_finalize=True)
             self.setMouseTracking(False)
             self.setFocusPolicy(Qt.NoFocus)
-            self.set_cbar_disabled(initialize=False)
+            self.set_cbar_disabled()
             self.initialized = False
             self.update()
 
@@ -367,6 +412,9 @@ class QCanvasOperator(QWidget):
 
     def get_ie_polys(self):
         return self.ie_polys
+
+    def get_cli_center_pt(self):
+        return np.round(QSize_to_np(self.size())/2.0)
 
     def get_img_look_pt(self):
         img_look_pt = self.img_look_pt
@@ -429,10 +477,10 @@ class QCanvasOperator(QWidget):
         return None
 
     def img_to_cli_pt(self, p):
-        return (p - self.get_img_look_pt()) * self.get_view_scale() + QSize_to_np(self.size())/2.0
+        return (p - self.get_img_look_pt()) * self.get_view_scale() + self.get_cli_center_pt()# QSize_to_np(self.size())/2.0
 
     def cli_to_img_pt(self, p):
-        return (p - QSize_to_np(self.size())/2.0 ) / self.get_view_scale() + self.get_img_look_pt()
+        return (p - self.get_cli_center_pt() ) / self.get_view_scale() + self.get_img_look_pt()
 
     def img_to_cli_rect(self, rect):
         tl = QPoint_to_np(rect.topLeft())
@@ -445,77 +493,105 @@ class QCanvasOperator(QWidget):
     # ====================================== SETTERS =====================================
     # ====================================================================================
     # ====================================================================================
-
     def set_op_mode(self, op_mode, op_poly=None):
-        if op_mode != self.op_mode:
+        if not hasattr(self,'op_mode'):
+            self.op_mode = None
+            self.op_poly = None
 
+        if self.op_mode != op_mode:
+            # Finalize prev mode
             if self.op_mode == OpMode.NONE:
                 self.cbar.btn_poly_type_act_grp.setDisabled(True)
             elif self.op_mode == OpMode.DRAW_PTS:
                 self.cbar.btn_undo_pt_act.setDisabled(True)
                 self.cbar.btn_redo_pt_act.setDisabled(True)
-
+                self.cbar.btn_view_lock_center_act.setDisabled(True)
+                # Reset view_lock when exit from DRAW_PTS
+                self.set_view_lock(ViewLock.NONE)
+                # Remove unfinished poly
                 if self.op_poly.get_pts_count() < 3:
-                    # Remove unfinished poly
                     self.ie_polys.remove_poly(self.op_poly)
+
             elif self.op_mode == OpMode.EDIT_PTS:
                 self.cbar.btn_pt_edit_mode_act.setDisabled(True)
                 self.cbar.btn_delete_poly_act.setDisabled(True)
                 # Reset pt_edit_move when exit from EDIT_PTS
                 self.set_pt_edit_mode(PTEditMode.MOVE)
+            elif self.op_mode == OpMode.VIEW_BAKED:
+                self.cbar.btn_view_baked_mask_act.setChecked(False)
+            elif self.op_mode == OpMode.VIEW_XSEG_MASK:
+                self.cbar.btn_view_xseg_mask_act.setChecked(False)
 
             self.op_mode = op_mode
 
-            if self.op_mode == OpMode.NONE:
+            # Initialize new mode
+            if op_mode == OpMode.NONE:
                 self.cbar.btn_poly_type_act_grp.setDisabled(False)
-            elif self.op_mode == OpMode.DRAW_PTS:
+            elif op_mode == OpMode.DRAW_PTS:
                 self.cbar.btn_undo_pt_act.setDisabled(False)
                 self.cbar.btn_redo_pt_act.setDisabled(False)
-            elif self.op_mode == OpMode.EDIT_PTS:
+                self.cbar.btn_view_lock_center_act.setDisabled(False)
+            elif op_mode == OpMode.EDIT_PTS:
                 self.cbar.btn_pt_edit_mode_act.setDisabled(False)
                 self.cbar.btn_delete_poly_act.setDisabled(False)
-
-            if self.op_mode in [OpMode.DRAW_PTS, OpMode.EDIT_PTS]:
+            elif op_mode == OpMode.VIEW_BAKED:
+                self.cbar.btn_view_baked_mask_act.setChecked(True )
+                n = QImage_to_np ( self.q_img ).astype(np.float32) / 255.0
+                h,w,c = n.shape
+                mask = np.zeros( (h,w,1), dtype=np.float32 )
+                self.ie_polys.overlay_mask(mask)
+                n = (mask*255).astype(np.uint8)
+                self.img_baked_pixmap = QPixmap.fromImage(QImage_from_np(n))
+            elif op_mode == OpMode.VIEW_XSEG_MASK:
+                self.cbar.btn_view_xseg_mask_act.setChecked(True)
+            if op_mode in [OpMode.DRAW_PTS, OpMode.EDIT_PTS]:
                 self.mouse_op_poly_pt_id = None
                 self.mouse_op_poly_edge_id = None
                 self.mouse_op_poly_edge_id_pt = None
 
-            self.set_op_poly(op_poly)
+            self.op_poly = op_poly
+            if op_poly is not None:
+                self.update_mouse_info()
+
             self.update_cursor()
             self.update()
 
-    def set_op_poly(self, op_poly):
-        self.op_poly = op_poly
-        if op_poly is not None:
-            self.update_mouse_info()
-        self.update()
-
     def set_pt_edit_mode(self, pt_edit_mode):
-        if self.pt_edit_mode != pt_edit_mode:
+        if not hasattr(self, 'pt_edit_mode') or self.pt_edit_mode != pt_edit_mode:
             self.pt_edit_mode = pt_edit_mode
             self.update_cursor()
             self.update()
-
         self.cbar.btn_pt_edit_mode_act.setChecked( self.pt_edit_mode == PTEditMode.ADD_DEL )
 
-    def set_cbar_disabled(self, initialize):
+    def set_view_lock(self, view_lock):
+        if not hasattr(self, 'view_lock') or self.view_lock != view_lock:
+            if hasattr(self, 'view_lock') and self.view_lock != view_lock:
+                if view_lock == ViewLock.CENTER:
+                    self.img_look_pt = self.mouse_img_pt
+                    QCursor.setPos ( self.mapToGlobal( QPoint_from_np(self.img_to_cli_pt(self.img_look_pt)) ))
+
+            self.view_lock = view_lock
+            self.update()
+        self.cbar.btn_view_lock_center_act.setChecked( self.view_lock == ViewLock.CENTER )
+
+    def set_cbar_disabled(self):
         self.cbar.btn_delete_poly_act.setDisabled(True)
         self.cbar.btn_undo_pt_act.setDisabled(True)
         self.cbar.btn_redo_pt_act.setDisabled(True)
         self.cbar.btn_pt_edit_mode_act.setDisabled(True)
-
-        if initialize:
-            self.cbar.btn_poly_color_act_grp.setDisabled(False)
-            self.cbar.btn_poly_type_act_grp.setDisabled(False)
-        else:
-            self.cbar.btn_poly_color_act_grp.setDisabled(True)
-            self.cbar.btn_poly_type_act_grp.setDisabled(True)
+        self.cbar.btn_view_lock_center_act.setDisabled(True)
+        self.cbar.btn_poly_color_act_grp.setDisabled(True)
+        self.cbar.btn_poly_type_act_grp.setDisabled(True)
 
     def set_color_scheme_id(self, id):
-        if self.color_scheme_id != id:
+        if self.op_mode == OpMode.VIEW_BAKED:
+            self.set_op_mode(OpMode.NONE)
+
+        if not hasattr(self, 'color_scheme_id') or self.color_scheme_id != id:
             self.color_scheme_id = id
             self.update_cursor()
             self.update()
+
         if self.color_scheme_id == 0:
             self.cbar.btn_poly_color_red_act.setChecked( True )
         elif self.color_scheme_id == 1:
@@ -524,33 +600,23 @@ class QCanvasOperator(QWidget):
             self.cbar.btn_poly_color_blue_act.setChecked( True )
 
     def set_poly_include_type(self, poly_include_type):
-        if self.op_mode in [OpMode.NONE, OpMode.EDIT_PTS]:
-            if self.poly_include_type != poly_include_type:
-                self.poly_include_type = poly_include_type
-                self.update()
+        if not hasattr(self, 'poly_include_type' ) or \
+           ( self.poly_include_type != poly_include_type and \
+             self.op_mode in [OpMode.NONE, OpMode.EDIT_PTS] ):
+            self.poly_include_type = poly_include_type
+            self.update()
 
         self.cbar.btn_poly_type_include_act.setChecked(self.poly_include_type == SegIEPolyType.INCLUDE)
         self.cbar.btn_poly_type_exclude_act.setChecked(self.poly_include_type == SegIEPolyType.EXCLUDE)
 
-
-
-    def set_view_baked_mask(self, is_checked):
+    def set_view_xseg_mask(self, is_checked):
         if is_checked:
-            self.set_op_mode(OpMode.VIEW_BAKED)
-
-            n = QImage_to_np ( self.q_img ).astype(np.float32) / 255.0
-            h,w,c = n.shape
-
-            mask = np.zeros( (h,w,1), dtype=np.float32 )
-            self.ie_polys.overlay_mask(mask)
-
-            n = (mask*255).astype(np.uint8)
-
-            self.img_baked_pixmap = QPixmap.fromImage(QImage_from_np(n))
+            self.set_op_mode(OpMode.VIEW_XSEG_MASK)
         else:
             self.set_op_mode(OpMode.NONE)
 
-        self.cbar.btn_view_baked_mask_act.setChecked(is_checked )
+        self.cbar.btn_view_xseg_mask_act.setChecked(is_checked )
+
 
     # ====================================================================================
     # ====================================================================================
@@ -677,7 +743,9 @@ class QCanvasOperator(QWidget):
             return
         key = ev.key()
         key_mods = int(ev.modifiers())
-        if self.op_mode == OpMode.EDIT_PTS:
+        if self.op_mode == OpMode.DRAW_PTS:
+            self.set_view_lock(ViewLock.CENTER if key_mods == Qt.ShiftModifier else ViewLock.NONE )
+        elif self.op_mode == OpMode.EDIT_PTS:
             self.set_pt_edit_mode(PTEditMode.ADD_DEL if key_mods == Qt.ControlModifier else PTEditMode.MOVE )
 
     def on_keyReleaseEvent(self, ev):
@@ -685,7 +753,9 @@ class QCanvasOperator(QWidget):
             return
         key = ev.key()
         key_mods = int(ev.modifiers())
-        if self.op_mode == OpMode.EDIT_PTS:
+        if self.op_mode == OpMode.DRAW_PTS:
+            self.set_view_lock(ViewLock.CENTER if key_mods == Qt.ShiftModifier else ViewLock.NONE )
+        elif self.op_mode == OpMode.EDIT_PTS:
             self.set_pt_edit_mode(PTEditMode.ADD_DEL if key_mods == Qt.ControlModifier else PTEditMode.MOVE )
 
     def enterEvent(self, ev):
@@ -764,7 +834,6 @@ class QCanvasOperator(QWidget):
                     # other cases -> unselect poly
                     self.set_op_mode(OpMode.NONE)
 
-
         elif btn == Qt.MiddleButton:
             if self.drag_type == DragType.NONE:
                 # Start image drag
@@ -772,6 +841,7 @@ class QCanvasOperator(QWidget):
                 self.drag_cli_pt = self.mouse_cli_pt
                 self.drag_img_look_pt = self.get_img_look_pt()
                 self.update_cursor()
+
 
     def mouseReleaseEvent(self, ev):
         super().mouseReleaseEvent(ev)
@@ -799,7 +869,15 @@ class QCanvasOperator(QWidget):
         if not self.initialized:
             return
 
+        prev_mouse_cli_pt = self.mouse_cli_pt
         self.update_mouse_info(QPoint_to_np(ev.pos()))
+
+        if self.view_lock == ViewLock.CENTER:
+            if npla.norm(self.mouse_cli_pt - prev_mouse_cli_pt) >= 1:
+                self.img_look_pt = self.mouse_img_pt
+                QCursor.setPos ( self.mapToGlobal( QPoint_from_np(self.img_to_cli_pt(self.img_look_pt)) ))
+
+            self.update()
 
         if self.drag_type == DragType.IMAGE_LOOK:
             delta_pt = self.cli_to_img_pt(self.mouse_cli_pt) - self.cli_to_img_pt(self.drag_cli_pt)
@@ -809,9 +887,7 @@ class QCanvasOperator(QWidget):
         if self.op_mode == OpMode.DRAW_PTS:
             self.update()
         elif self.op_mode == OpMode.EDIT_PTS:
-
             if self.drag_type == DragType.POLY_PT:
-
                 delta_pt = self.cli_to_img_pt(self.mouse_cli_pt) - self.cli_to_img_pt(self.drag_cli_pt)
                 self.op_poly.set_point(self.drag_poly_pt_id, self.drag_poly_pt + delta_pt)
                 self.update()
@@ -855,6 +931,11 @@ class QCanvasOperator(QWidget):
             src_rect = QRect(0, 0, *self.img_size)
             dst_rect = self.img_to_cli_rect( src_rect )
             qp.drawPixmap(dst_rect, self.img_baked_pixmap, src_rect)
+        elif self.op_mode == OpMode.VIEW_XSEG_MASK:
+            if self.xseg_mask_pixmap is not None:
+                src_rect = QRect(0, 0, *self.img_size)
+                dst_rect = self.img_to_cli_rect( src_rect )
+                qp.drawPixmap(dst_rect, self.xseg_mask_pixmap, src_rect)
         else:
             if self.img_pixmap is not None:
                 src_rect = QRect(0, 0, *self.img_size)
@@ -953,9 +1034,9 @@ class QCanvasOperator(QWidget):
                 if op_mode == OpMode.NONE:
                     if poly == self.mouse_wire_poly:
                         qp.setBrush(color_scheme.poly_selected_brush)
-                else:
-                    if poly == op_poly:
-                        qp.setBrush(color_scheme.poly_selected_brush)
+                #else:
+                #    if poly == op_poly:
+                #        qp.setBrush(color_scheme.poly_selected_brush)
 
                 qp.drawPath(poly_line_path)
 
@@ -968,7 +1049,6 @@ class QCanvasOperator(QWidget):
 
         qp.end()
 
-
 class QCanvas(QFrame):
     def __init__(self):
         super().__init__()
@@ -980,17 +1060,16 @@ class QCanvas(QFrame):
                    btn_poly_color_green_act = self.canvas_control_right_bar.btn_poly_color_green_act,
                    btn_poly_color_blue_act  = self.canvas_control_right_bar.btn_poly_color_blue_act,
                    btn_view_baked_mask_act  = self.canvas_control_right_bar.btn_view_baked_mask_act,
+                   btn_view_xseg_mask_act  = self.canvas_control_right_bar.btn_view_xseg_mask_act,
                    btn_poly_color_act_grp = self.canvas_control_right_bar.btn_poly_color_act_grp,
+                   btn_view_lock_center_act = self.canvas_control_right_bar.btn_view_lock_center_act,
 
                    btn_poly_type_include_act = self.canvas_control_left_bar.btn_poly_type_include_act,
                    btn_poly_type_exclude_act = self.canvas_control_left_bar.btn_poly_type_exclude_act,
                    btn_poly_type_act_grp = self.canvas_control_left_bar.btn_poly_type_act_grp,
-
                    btn_undo_pt_act = self.canvas_control_left_bar.btn_undo_pt_act,
                    btn_redo_pt_act = self.canvas_control_left_bar.btn_redo_pt_act,
-
                    btn_delete_poly_act = self.canvas_control_left_bar.btn_delete_poly_act,
-
                    btn_pt_edit_mode_act = self.canvas_control_left_bar.btn_pt_edit_mode_act )
 
         self.op = QCanvasOperator(cbar)
@@ -1124,9 +1203,9 @@ class MainWindow(QXMainWindow):
             if img is None:
                 img = QImage_from_np(cv2_imread(image_path))
             if img is None:
-                raise Exception(f'Unable to load {image_path}')
+                io.log_err(f'Unable to load {image_path}')
         except:
-            io.log_err(f"{traceback.format_exc()}")
+            img = None
 
         return img
 
@@ -1143,27 +1222,34 @@ class MainWindow(QXMainWindow):
             return False
 
         dflimg = DFLIMG.load(image_path)
-        ie_polys = dflimg.get_seg_ie_polys()
-        q_img = self.load_QImage(image_path)
+        if not dflimg or not dflimg.has_data():
+            return False
 
-        self.canvas.op.initialize ( q_img,  ie_polys=ie_polys )
+        ie_polys = dflimg.get_seg_ie_polys()
+        xseg_mask = dflimg.get_xseg_mask()
+        q_img = self.load_QImage(image_path)
+        if q_img is None:
+            return False
+
+        self.canvas.op.initialize ( q_img,  ie_polys=ie_polys, xseg_mask=xseg_mask )
 
         self.filename_label.setText(str(image_path.name))
 
         return True
 
     def canvas_finalize(self, image_path):
-        dflimg = DFLIMG.load(image_path)
-
-        ie_polys = dflimg.get_seg_ie_polys()
-        new_ie_polys = self.canvas.op.get_ie_polys()
-
-        if not new_ie_polys.identical(ie_polys):
-            self.image_paths_has_ie_polys[image_path] = new_ie_polys.has_polys()
-            dflimg.set_seg_ie_polys( new_ie_polys )
-            dflimg.save()
-
         self.canvas.op.finalize()
+
+        if image_path.exists():
+            dflimg = DFLIMG.load(image_path)
+            ie_polys = dflimg.get_seg_ie_polys()
+            new_ie_polys = self.canvas.op.get_ie_polys()
+
+            if not new_ie_polys.identical(ie_polys):
+                self.image_paths_has_ie_polys[image_path] = new_ie_polys.has_polys()
+                dflimg.set_seg_ie_polys( new_ie_polys )
+                dflimg.save()
+
         self.filename_label.setText("")
 
     def process_prev_image(self):
@@ -1182,9 +1268,10 @@ class MainWindow(QXMainWindow):
                     break
             if len(self.image_paths) == 0:
                 break
-            
-            
-            if self.canvas_initialize(self.image_paths[0], len(self.image_paths_done) != 0 and only_has_polys):
+
+            ret = self.canvas_initialize(self.image_paths[0], len(self.image_paths_done) != 0 and only_has_polys)
+
+            if ret or len(self.image_paths_done) == 0:
                 break
 
         self.update_cached_images()
@@ -1276,6 +1363,15 @@ class MainWindow(QXMainWindow):
             self.loading_frame.resize( ev.size() )
 
 def start(input_dirpath):
+    """
+    returns exit_code
+    """
+    io.log_info("Running XSeg editor.")
+    
+    if PackedFaceset.path_contains(input_dirpath):
+        io.log_info (f'\n{input_dirpath} contains packed faceset! Unpack it first.\n')
+        return 1
+
     root_path = Path(__file__).parent
     cfg_root_path = Path(tempfile.gettempdir())
 
@@ -1305,3 +1401,4 @@ def start(input_dirpath):
     win.raise_()
 
     app.exec_()
+    return 0
