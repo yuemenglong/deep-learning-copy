@@ -1329,6 +1329,8 @@ def main():
         xseg_dst2_fetch(get_workspace())
     elif arg == '--xseg-train':
         xseg_train(get_workspace())
+        convert(get_workspace())
+        mp4(get_workspace())
     elif arg == '--xseg-train2':
         xseg_train2(get_workspace())
     elif arg == '--train':
