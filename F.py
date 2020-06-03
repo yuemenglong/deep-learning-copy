@@ -1214,7 +1214,7 @@ def prepare2(workspace):
 
 
 def xseg_src_edit(workspace):
-    src_aligned = os.path.join(workspace, "data_src/aligned")
+    src_aligned = os.path.join(workspace, "data_src/aligned_x")
     dfl.dfl_xseg_editor(src_aligned)
 
 
@@ -1270,7 +1270,7 @@ def xseg_dst2_fetch(workspace):
 
 
 def xseg_train(workspace):
-    src_aligned = os.path.join(workspace, "data_src/aligned")
+    src_aligned = os.path.join(workspace, "data_src/aligned_x")
     dst_dir = get_workspace_dst(workspace)
     dst_aligned = os.path.join(dst_dir, "aligned")
     model_dir = os.path.join(workspace, "model")
@@ -1278,7 +1278,7 @@ def xseg_train(workspace):
 
 
 def xseg_train2(workspace):
-    src_aligned = os.path.join(workspace, "data_src/aligned")
+    src_aligned = os.path.join(workspace, "data_src/aligned_x")
     dst_aligned = os.path.join(workspace, "data_dst/aligned")
     model_dir = os.path.join(workspace, "model")
     dfl.dfl_xseg_train(src_aligned, dst_aligned, model_dir)
@@ -1356,7 +1356,7 @@ def main():
     elif arg == '--mp4':
         mp4(get_workspace())
     elif arg == '--test':
-        dfl.dfl_sort_by_final(os.path.join(get_root_path(), "extract_workspace/aligned_ab"))
+        dfl.dfl_sort_by_final(os.path.join(get_root_path(), "workspace_ab/data_src/aligned2"))
 
 
 if __name__ == '__main__':
