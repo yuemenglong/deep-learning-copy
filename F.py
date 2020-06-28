@@ -1304,6 +1304,8 @@ def main():
         train(get_workspace())
         dfl.set_config("masked_training", "0")
         train(get_workspace())
+        convert(get_workspace())
+        mp4(get_workspace())
     elif arg == '--prepare-vr':
         prepare_vr(get_workspace())
         train(get_workspace())
@@ -1337,6 +1339,8 @@ def main():
         train(get_workspace())
         dfl.set_config("masked_training", "0")
         train(get_workspace())
+        convert(get_workspace())
+        mp4(get_workspace())
     elif arg == '--train-full':
         dfl.set_config("masked_training", "0")
         train(get_workspace())
