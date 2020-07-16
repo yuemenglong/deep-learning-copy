@@ -7,6 +7,7 @@ import types
 
 import colorama
 import cv2
+import numpy as np
 from tqdm import tqdm
 
 from core import stdex
@@ -197,7 +198,7 @@ class InteractBase(object):
     def add_key_event(self, wnd_name, ord_key, ctrl_pressed, alt_pressed, shift_pressed):
         if wnd_name not in self.key_events:
             self.key_events[wnd_name] = []
-        self.key_events[wnd_name] += [ (ord_key, chr(ord_key), ctrl_pressed, alt_pressed, shift_pressed) ]
+        self.key_events[wnd_name] += [ (ord_key, chr(ord_key) if ord_key <= 255 else chr(0), ctrl_pressed, alt_pressed, shift_pressed) ]
 
     def get_mouse_events(self, wnd_name):
         ar = self.mouse_events.get(wnd_name, [])
@@ -255,7 +256,7 @@ class InteractBase(object):
         print(result)
         return result
 
-    def input_int(self, s, default_value, valid_list=None, add_info=None, show_default_value=True, help_message=None):
+    def input_int(self, s, default_value, valid_range=None, valid_list=None, add_info=None, show_default_value=True, help_message=None):
         if show_default_value:
             if len(s) != 0:
                 s = f"[{default_value}] {s}"
@@ -263,15 +264,21 @@ class InteractBase(object):
                 s = f"[{default_value}]"
 
         if add_info is not None or \
+           valid_range is not None or \
            help_message is not None:
             s += " ("
 
+        if valid_range is not None:
+            s += f" {valid_range[0]}-{valid_range[1]}"
+
         if add_info is not None:
             s += f" {add_info}"
+
         if help_message is not None:
             s += " ?:help"
 
         if add_info is not None or \
+           valid_range is not None or \
            help_message is not None:
             s += " )"
 
@@ -288,9 +295,12 @@ class InteractBase(object):
                     continue
 
                 i = int(inp)
+                if valid_range is not None:
+                    i = int(np.clip(i, valid_range[0], valid_range[1]))
+
                 if (valid_list is not None) and (i not in valid_list):
-                    result = default_value
-                    break
+                    i = default_value
+
                 result = i
                 break
             except:
@@ -491,10 +501,11 @@ class InteractDesktop(InteractBase):
 
         if has_windows or has_capture_keys:
             wait_key_time = max(1, int(sleep_time*1000) )
-            ord_key = cv2.waitKey(wait_key_time)
+            ord_key = cv2.waitKeyEx(wait_key_time)
+            
             shift_pressed = False
             if ord_key != -1:
-                chr_key = chr(ord_key)
+                chr_key = chr(ord_key) if ord_key <= 255 else chr(0)
 
                 if chr_key >= 'A' and chr_key <= 'Z':
                     shift_pressed = True
