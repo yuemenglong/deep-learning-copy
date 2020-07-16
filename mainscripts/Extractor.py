@@ -22,6 +22,8 @@ from core.leras import nn
 from core import pathex
 from core.cv2ex import *
 from DFLIMG import *
+import F
+from mainscripts.ExtractorAuto import ExtractorAuto
 
 DEBUG = False
 
@@ -348,6 +350,7 @@ class ExtractSubprocessor(Subprocessor):
         self.result = []
 
         self.devices = ExtractSubprocessor.get_devices_for_config(self.type, device_config)
+        self.ea = ExtractorAuto()
 
         super().__init__('Extractor', ExtractSubprocessor.Cli,
                              999999 if type == 'landmarks-manual' or DEBUG else 120)
@@ -467,6 +470,7 @@ class ExtractSubprocessor(Subprocessor):
                     (h,w,c) = self.image.shape
                     while True:
                         io.process_messages(0.0001)
+                        self.ea.loop()
 
                         if not self.force_landmarks:
                             new_x = self.x
@@ -492,9 +496,10 @@ class ExtractSubprocessor(Subprocessor):
                                     self.rect_locked = not self.rect_locked
                                     self.extract_needed = True
                             elif ev == io.EVENT_RBUTTONDOWN:
-                                self.force_landmarks = not self.force_landmarks
-                                if self.force_landmarks:
-                                    self.rect_locked = False
+                                self.ea.right_btn_down = True
+                                # self.force_landmarks = not self.force_landmarks
+                                # if self.force_landmarks:
+                                #     self.rect_locked = False
                             elif not self.rect_locked:
                                 new_x = np.clip (x, 0, w-1) / self.view_scale
                                 new_y = np.clip (y, 0, h-1) / self.view_scale
@@ -502,7 +507,79 @@ class ExtractSubprocessor(Subprocessor):
                         key_events = io.get_key_events(self.wnd_name)
                         key, chr_key, ctrl_pressed, alt_pressed, shift_pressed = key_events[-1] if len(key_events) > 0 else (0,0,False,False,False)
 
-                        if key == ord('\r') or key == ord('\n'):
+                        if self.ea.right_btn_down and self.rect_locked:
+                            is_frame_done = True
+                            data_rects.append(self.rect)
+                            data_landmarks.append(self.landmarks)
+                            self.ea.last_outer = self.ea.cur_outer
+                            self.ea.last_landmarks = self.ea.cur_landmarks
+                            self.ea.auto = True
+                            break
+                        elif key == ord('s'):
+                            self.ea.auto = False
+                            break
+                        elif self.ea.auto and len(self.ea.last_outer) > 0 and len(self.ea.last_landmarks) > 0:
+                            # 根据上次的外框算出这次的x/y,以及外框大小
+                            border_ratio = 0.6
+                            last_mid = F.mid_point_by_range(self.ea.last_landmarks)
+                            last_border = np.linalg.norm(
+                                np.array(self.ea.last_outer[0]) - np.array(self.ea.last_outer[1]))
+                            last_area = F.poly_area(self.ea.last_outer)
+                            x, y = last_mid
+                            new_x = np.clip(x, 0, w - 1) / self.view_scale
+                            new_y = np.clip(y, 0, h - 1) / self.view_scale
+                            new_rect_size = last_border / 2 / self.view_scale * border_ratio
+                            # make sure rect and landmarks have been refreshed
+                            if len(self.ea.cur_outer) != 0:
+                                # 根据本次外框大小算是否valid，通过边长，面积，角度
+                                # temp_mid = F.mid_point(self.temp_outer)
+                                cur_mid = F.mid_point_by_range(self.ea.cur_landmarks)
+                                dist = np.linalg.norm(np.array(cur_mid) - np.array(last_mid))
+                                dist_r = dist / last_border
+                                temp_area = F.poly_area(self.ea.cur_outer)
+                                area_r = temp_area / last_area
+                                v0 = np.array(last_mid) - np.array(self.ea.last_outer[0])
+                                v1 = np.array(cur_mid) - np.array(self.ea.cur_outer[0])
+                                angle = math.fabs(F.angle_between(v0, v1))
+                                if dist_r < 0.5 and 0.5 < area_r < 1.5 and angle < 0.7:
+                                    is_frame_done = True
+                                    self.ea.last_outer = self.ea.cur_outer
+                                    self.ea.last_landmarks = self.ea.cur_landmarks
+                                    data_rects.append(self.rect)
+                                    data_landmarks.append(self.landmarks)
+                                    self.ea.auto = True
+                                    break
+                                elif self.x != new_x or self.y != new_y:
+                                    # 可以在等一轮更新后试一下
+                                    pass
+                                else:
+                                    self.ea.auto = False
+                                    F.beep()
+                        elif key == ord('n') and len(self.result) > 0:
+                            # go prev frame without save and clear result
+                            self.rect_locked = False
+                            n = 10 if shift_pressed else 1
+                            while n > 0 and len(self.result) > 0:
+                                self.input_data.insert(0, self.result.pop())
+                                self.input_data[0].rects.clear()
+                                self.input_data[0].landmarks.clear()
+                                io.progress_bar_inc(-1)
+                                n -= 1
+                            # 直接无视之前的结果，重新标注
+                            self.extract_needed = True
+                            break
+                        elif key == ord('m') and len(self.input_data) > 0:
+                            # go next frame without save
+                            self.rect_locked = False
+                            n = 10 if shift_pressed else 1
+                            while n > 0 and len(self.input_data) > 0:
+                                self.result.append(self.input_data.pop(0))
+                                io.progress_bar_inc(1)
+                                n -= 1
+                            # 直接无视之前的结果，重新标注
+                            self.extract_needed = True
+                            break
+                        elif key == ord('\r') or key == ord('\n'):
                             #confirm frame
                             is_frame_done = True
                             data_rects.append (self.rect)
@@ -608,6 +685,7 @@ class ExtractSubprocessor(Subprocessor):
                     io.progress_bar_inc(1)
                     self.extract_needed = True
                     self.rect_locked = False
+                    self.ea.cur_outer = []
         else:
             if len (self.input_data) > 0:
                 return self.input_data.pop(0)
@@ -647,7 +725,9 @@ class ExtractSubprocessor(Subprocessor):
             view_landmarks = LandmarksProcessor.transform_points (view_landmarks, mat)
 
         landmarks_color = (255,255,0) if self.rect_locked else (0,255,0)
-        LandmarksProcessor.draw_rect_landmarks (image, view_rect, view_landmarks, self.face_type, self.image_size, landmarks_color=landmarks_color)
+        # LandmarksProcessor.draw_rect_landmarks (image, view_rect, view_landmarks, self.face_type, self.image_size, landmarks_color=landmarks_color)
+        self.ea.cur_outer = LandmarksProcessor.draw_rect_landmarks (image, view_rect, view_landmarks, self.face_type, self.image_size, landmarks_color=landmarks_color)
+        self.ea.cur_landmarks = view_landmarks
         self.extract_needed = False
 
         io.show_image (self.wnd_name, image)
