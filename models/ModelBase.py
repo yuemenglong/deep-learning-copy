@@ -388,7 +388,7 @@ class ModelBase(object):
         bckp_filename_list = [ self.get_strpath_storage_for_file(filename) for _, filename in self.get_model_filename_list() ]
         bckp_filename_list += [ str(self.get_summary_path()), str(self.model_data_path) ]
         
-        for i in range(24,0,-1):
+        for i in range(2,0,-1):
             idx_str = '%.2d' % i
             next_idx_str = '%.2d' % (i+1)
 
@@ -396,7 +396,7 @@ class ModelBase(object):
             next_idx_packup_path = self.autobackups_path / next_idx_str
 
             if idx_backup_path.exists():
-                if i == 24:
+                if i == 2:
                     pathex.delete_all_files(idx_backup_path)
                 else:
                     next_idx_packup_path.mkdir(exist_ok=True)
