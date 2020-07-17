@@ -190,20 +190,26 @@ def dfl_exec(cmd, args, env=""):
     subprocess.call([fpath])
 
 
-def dfl_load_img(path):
+def dfl_img_load(path):
     from pathlib import Path
-    from DFLIMG import DFLPNG
     from DFLIMG import DFLJPG
     filepath = Path(path)
-    if filepath.suffix == '.png':
-        dflimg = DFLPNG.load(str(filepath))
-    elif filepath.suffix == '.jpg':
+    if filepath.suffix == '.jpg':
         dflimg = DFLJPG.load(str(filepath))
     else:
         dflimg = None
     if dflimg is None:
         print("%s is not a dfl image file" % (filepath.name))
     return dflimg
+
+
+def dfl_img_area(dfl_img):
+    source_rect = dfl_img.get_source_rect()
+    from core import mathlib
+    import numpy as np
+    rect_area = mathlib.polygon_area(np.array(source_rect[[0, 2, 2, 0]]).astype(np.float32),
+                                     np.array(source_rect[[1, 1, 3, 3]]).astype(np.float32))
+    return rect_area
 
 
 def dfl_estimate_pitch_yaw_roll(dfl_img):

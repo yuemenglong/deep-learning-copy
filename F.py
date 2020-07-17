@@ -502,7 +502,7 @@ def manual_select(input_path, src_path=None):
     for f in io.progress_bar_generator(os.listdir(input_path), "Loading"):
         if f.endswith(".jpg") or f.endswith(".png"):
             fpath = os.path.join(input_path, f)
-            dfl_img = dfl.dfl_load_img(fpath)
+            dfl_img = dfl.dfl_img_load(fpath)
             p, y, _ = dfl.dfl_estimate_pitch_yaw_roll(dfl_img)
             fno = int(f.split(".")[0])
             img_list.append([fno, p, y])
@@ -535,7 +535,7 @@ def manual_select(input_path, src_path=None):
             for f in io.progress_bar_generator(os.listdir(src_path), "Loading"):
                 if f.endswith(".jpg") or f.endswith(".png"):
                     fpath = os.path.join(src_path, f)
-                    dfl_img = dfl.dfl_load_img(fpath)
+                    dfl_img = dfl.dfl_img_load(fpath)
                     p, y, _ = dfl.dfl_estimate_pitch_yaw_roll(dfl_img)
                     src_img_list.append([fno, p, y])
                     src_img_list.append([fno, p, -y])
@@ -973,7 +973,7 @@ def select(exists_path, pool_path, div=200):
     for f in io.progress_bar_generator(os.listdir(exists_path), "Existing Imgs"):
         if f.endswith(".png") or f.endswith("jpg"):
             img_path = os.path.join(exists_path, f)
-            dfl_img = dfl.dfl_load_img(img_path)
+            dfl_img = dfl.dfl_img_load(img_path)
             pitch, yaw, _ = dfl.dfl_estimate_pitch_yaw_roll(dfl_img)
             pitch = trans(pitch)
             yaw = trans(yaw)
@@ -986,7 +986,7 @@ def select(exists_path, pool_path, div=200):
     for f in io.progress_bar_generator(pool_files, os.path.basename(pool_path)):
         if f.endswith(".png") or f.endswith(".jpg"):
             img_path = os.path.join(pool_path, f)
-            dfl_img = dfl.dfl_load_img(img_path)
+            dfl_img = dfl.dfl_img_load(img_path)
             pitch, yaw, _ = dfl.dfl_estimate_pitch_yaw_roll(dfl_img)
             pitch = trans(pitch)
             yaw = trans(yaw)
@@ -1360,7 +1360,14 @@ def main():
     elif arg == '--mp4':
         mp4(get_workspace())
     elif arg == '--test':
-        dfl.dfl_sort_by_final(os.path.join(get_root_path(), "workspace_ab/data_src/aligned2"))
+        root = get_root_path()
+        aligned_root = os.path.join(root, "workspace_ab/data_src/aligned")
+        for f in os.listdir(aligned_root):
+            if not f.endswith(".jpg"):
+                continue
+            img_path = os.path.join(aligned_root, f)
+            img = dfl.dfl_img_load(img_path)
+            area = dfl.dfl_img_area(img)
 
 
 if __name__ == '__main__':
