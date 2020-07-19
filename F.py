@@ -4,7 +4,12 @@ from typing import Any, Callable
 import numpy as np
 from core.interact import interact as io
 
-video_exts = ['.mp4', '.avi', '.mkv', 'webm']
+video_exts = ['.mp4', '.avi', '.mkv', '.webm', ".mov"]
+
+
+def testExt(f):
+    ext = os.path.splitext(f)[-1]
+    return ext.lower() in video_exts
 
 
 def beep():
@@ -636,10 +641,10 @@ def prepare(workspace, detector="s3fd", manual_fix=False):
     import os
     import shutil
     for f in os.listdir(workspace):
-        ext = os.path.splitext(f)[-1]
-        if ext not in video_exts:
-            continue
         if f.startswith("result"):
+            continue
+        ext = os.path.splitext(f)[-1]
+        if ext.lower() not in video_exts:
             continue
         # 获取所有的data_dst文件
         tmp_dir = os.path.join(workspace, "_tmp")
@@ -650,7 +655,8 @@ def prepare(workspace, detector="s3fd", manual_fix=False):
         if not os.path.exists(tmp_dir):
             os.mkdir(tmp_dir)
             os.mkdir(tmp_video_dir)
-        video = os.path.join(workspace, f)
+        video_name = f
+        video = os.path.join(workspace, video_name)
         # 提取帧
         # VideoEd.extract_video(video, tmp_dir, "png", 0)
         dfl.dfl_extract_video(video, tmp_dir, 0)
@@ -671,7 +677,10 @@ def prepare(workspace, detector="s3fd", manual_fix=False):
         data_trash = os.path.join(workspace, "../trash_workspace")
         if not os.path.exists(data_trash):
             os.mkdir(data_trash)
-        shutil.move(video, data_trash)
+        trash_video = os.path.join(data_trash, video_name)
+        if os.path.exists(trash_video):
+            os.remove(trash_video)
+        shutil.move(video, trash_video)
     beep()
 
 
@@ -768,7 +777,8 @@ def convert(workspace, model="SAEHD", force_recover=False):
         data_dst_video = os.path.join(data_dst, "video")
         refer_path = None
         for v in os.listdir(data_dst_video):
-            if v.split(".")[-1] in ["mp4", "avi", "wmv", "mkv"]:
+            # if v.split(".")[-1] in ["mp4", "avi", "wmv", "mkv"]:
+            if testExt(v):
                 refer_path = os.path.join(data_dst_video, v)
                 break
         if not refer_path:
@@ -894,7 +904,8 @@ def mp4(workspace):
         data_dst_video = os.path.join(data_dst, "video")
         refer_path = None
         for v in os.listdir(data_dst_video):
-            if v.split(".")[-1] in ["mp4", "avi", "wmv", "mkv"]:
+            # if v.split(".")[-1] in ["mp4", "avi", "wmv", "mkv"]:
+            if testExt(v):
                 refer_path = os.path.join(data_dst_video, v)
                 break
         if not refer_path:
