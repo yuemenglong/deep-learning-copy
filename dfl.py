@@ -287,5 +287,23 @@ def dfl_xseg_fetch(input_dir):
     dfl_exec(cmd, args)
 
 
+def dfl_xseg_apply(input_dir, model_dir):
+    cmd = "xseg apply"
+    args = {
+        "--input-dir": input_dir,
+        "--model-dir": model_dir,
+    }
+    dfl_exec(cmd, args)
+
+
+def dfl_xseg_remove(input_dir, model_dir):
+    cmd = "xseg apply"
+    args = {
+        "--input-dir": input_dir,
+        "--model-dir": model_dir,
+    }
+    dfl_exec(cmd, args)
+
+
 def dfl_xseg_train(src_aligned, dst_aligned, model_dir):
     dfl_train(src_aligned, dst_aligned, model_dir, "XSeg")

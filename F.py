@@ -4,7 +4,7 @@ from typing import Any, Callable
 import numpy as np
 from core.interact import interact as io
 
-video_exts = ['.mp4', '.avi', '.mkv', '.webm', ".mov"]
+video_exts = ['.mp4', '.avi', '.mkv', '.webm', ".mov", ".mpeg"]
 
 
 def testExt(f):
@@ -1242,6 +1242,18 @@ def xseg_src_fetch(workspace):
         shutil.move(src, dst)
 
 
+def xseg_src_apply(workspace):
+    src_aligned = os.path.join(workspace, "data_src/aligned_x")
+    model_dir = os.path.join(workspace, "model")
+    dfl.dfl_xseg_apply(src_aligned, model_dir)
+
+
+def xseg_dst_apply(workspace):
+    src_aligned = os.path.join(get_workspace_dst(workspace), "aligned")
+    model_dir = os.path.join(workspace, "model")
+    dfl.dfl_xseg_apply(src_aligned, model_dir)
+
+
 def xseg_dst_edit(workspace):
     dst_dir = get_workspace_dst(workspace)
     dst_aligned = os.path.join(dst_dir, "aligned")
@@ -1330,20 +1342,24 @@ def main():
         clean_trash()
     elif arg == '--xseg-src-edit':
         xseg_src_edit(get_workspace())
-    elif arg == '--xseg-src-fetch':
-        xseg_src_fetch(get_workspace())
     elif arg == '--xseg-dst-edit':
         xseg_dst_edit(get_workspace())
+    elif arg == '--xseg-src-fetch':
+        xseg_src_fetch(get_workspace())
     elif arg == '--xseg-dst-fetch':
         xseg_dst_fetch(get_workspace())
+    elif arg == '--xseg-src-apply':
+        xseg_src_apply(get_workspace())
+    elif arg == '--xseg-dst-apply':
+        xseg_dst_apply(get_workspace())
     elif arg == '--xseg-dst2-edit':
         xseg_dst2_edit(get_workspace())
     elif arg == '--xseg-dst2-fetch':
         xseg_dst2_fetch(get_workspace())
     elif arg == '--xseg-train':
         xseg_train(get_workspace())
-        convert(get_workspace())
-        mp4(get_workspace())
+        # convert(get_workspace())
+        # mp4(get_workspace())
     elif arg == '--xseg-train2':
         xseg_train2(get_workspace())
     elif arg == '--train':
@@ -1371,14 +1387,16 @@ def main():
     elif arg == '--mp4':
         mp4(get_workspace())
     elif arg == '--test':
-        root = get_root_path()
-        aligned_root = os.path.join(root, "workspace_ab/data_src/aligned")
-        for f in os.listdir(aligned_root):
-            if not f.endswith(".jpg"):
-                continue
-            img_path = os.path.join(aligned_root, f)
-            img = dfl.dfl_img_load(img_path)
-            area = dfl.dfl_img_area(img)
+        dfl.dfl_xseg_apply(os.path.join(get_workspace_dst(), "aligned"),
+                           os.path.join(get_workspace(), "model"))
+        # root = get_root_path()
+        # aligned_root = os.path.join(root, "workspace_ab/data_src/aligned")
+        # for f in os.listdir(aligned_root):
+        #     if not f.endswith(".jpg"):
+        #         continue
+        #     img_path = os.path.join(aligned_root, f)
+        #     img = dfl.dfl_img_load(img_path)
+        #     area = dfl.dfl_img_area(img)
 
 
 if __name__ == '__main__':
