@@ -4,7 +4,7 @@ from typing import Any, Callable
 import numpy as np
 from core.interact import interact as io
 
-video_exts = ['.mp4', '.avi', '.mkv', '.webm', ".mov", ".mpeg"]
+video_exts = ['.mp4', '.avi', '.mkv', '.webm', ".mov", ".mpeg", ".wmv"]
 
 
 def testExt(f):
@@ -1153,8 +1153,10 @@ def clean_trash():
 
 
 def pre_extract_dst(workspace):
+    import shutil
     merged = os.path.join(workspace, "data_dst/merged")
     merged_res = os.path.join(workspace, "data_merged")
+    aligned = os.path.join(workspace, "data_dst/aligned")
     if not os.path.exists(merged):
         return
     if not os.path.exists(merged_res):
@@ -1164,8 +1166,8 @@ def pre_extract_dst(workspace):
         if os.path.isdir(src):
             continue
         dst = os.path.join(merged_res, "%s_%s" % (get_time_str(), f))
-        import shutil
         shutil.move(src, dst)
+    shutil.rmtree(aligned)
     pass
 
 
@@ -1292,6 +1294,12 @@ def xseg_dst2_fetch(workspace):
         shutil.move(src, dst)
 
 
+def xseg_dst2_apply(workspace):
+    aligned = os.path.join(workspace, "data_dst/aligned")
+    model_dir = os.path.join(workspace, "model")
+    dfl.dfl_xseg_apply(aligned, model_dir)
+
+
 def xseg_train(workspace):
     src_aligned = os.path.join(workspace, "data_src/aligned_x")
     dst_dir = get_workspace_dst(workspace)
@@ -1319,6 +1327,8 @@ def main():
         merge_to_dst(get_workspace())
     elif arg == '--prepare':
         prepare(get_workspace())
+    elif arg == '--prepare-train':
+        prepare(get_workspace())
         train(get_workspace())
         dfl.set_config("masked_training", "0")
         train(get_workspace())
@@ -1338,6 +1348,8 @@ def main():
         train_dst(get_workspace())
         dfl.set_config("masked_training", "0")
         train_dst(get_workspace())
+        convert_dst(get_workspace())
+        post_extract_dst(get_workspace())
     elif arg == '--clean-trash':
         clean_trash()
     elif arg == '--xseg-src-edit':
@@ -1356,6 +1368,8 @@ def main():
         xseg_dst2_edit(get_workspace())
     elif arg == '--xseg-dst2-fetch':
         xseg_dst2_fetch(get_workspace())
+    elif arg == '--xseg-dst2-apply':
+        xseg_dst2_apply(get_workspace())
     elif arg == '--xseg-train':
         xseg_train(get_workspace())
         # convert(get_workspace())
