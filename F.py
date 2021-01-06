@@ -1178,11 +1178,15 @@ def post_extract_dst(workspace):
         return
     if not os.path.exists(orig):
         os.mkdir(orig)
+    # 原图存入orig,加上时间戳的文件夹
+    time_str = get_time_str()
+    time_dir = os.path.join(orig, time_str)
+    os.mkdir(time_dir)
     for f in os.listdir(data_dst):
         src = os.path.join(data_dst, f)
         if os.path.isdir(src):
             continue
-        dst = os.path.join(orig, f)
+        dst = os.path.join(time_dir, f)
         import shutil
         shutil.move(src, dst)
     pass
@@ -1401,16 +1405,7 @@ def main():
     elif arg == '--mp4':
         mp4(get_workspace())
     elif arg == '--test':
-        dfl.dfl_xseg_apply(os.path.join(get_workspace_dst(), "aligned"),
-                           os.path.join(get_workspace(), "model"))
-        # root = get_root_path()
-        # aligned_root = os.path.join(root, "workspace_ab/data_src/aligned")
-        # for f in os.listdir(aligned_root):
-        #     if not f.endswith(".jpg"):
-        #         continue
-        #     img_path = os.path.join(aligned_root, f)
-        #     img = dfl.dfl_img_load(img_path)
-        #     area = dfl.dfl_img_area(img)
+        post_extract_dst(get_workspace())
 
 
 if __name__ == '__main__':
