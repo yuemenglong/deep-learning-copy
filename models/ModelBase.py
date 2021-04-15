@@ -391,7 +391,8 @@ class ModelBase(object):
         pathex.write_bytes_safe (self.model_data_path, pickle.dumps(model_data) )
 
         if self.autobackup_hour != 0:
-            diff_hour = int ( (time.time() - self.autobackup_start_time) // 3600 )
+            # diff_hour = int ( (time.time() - self.autobackup_start_time) // 3600 )
+            diff_hour = int ( (time.time() - self.autobackup_start_time) // 900 )
 
             if diff_hour > 0 and diff_hour % self.autobackup_hour == 0:
                 self.autobackup_start_time += self.autobackup_hour*3600
