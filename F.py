@@ -4,7 +4,7 @@ from typing import Any, Callable
 import numpy as np
 from core.interact import interact as io
 
-video_exts = ['.mp4', '.avi', '.mkv', '.webm', ".mov", ".mpeg", ".wmv"]
+video_exts = ['.mp4', '.avi', '.mkv', '.webm', ".mov", ".mpeg", ".wmv", ".MP4", ".gif"]
 
 
 def testExt(f):
@@ -161,8 +161,6 @@ def extract_src():
     extract_workspace = os.path.join(root_dir, "extract_workspace")
     target_dir = os.path.join(extract_workspace, "aligned_")
 
-    valid_exts = [".mp4", ".avi", ".wmv", ".mkv", ".ts"]
-
     fps = io.input_int("Enter FPS ( ?:help skip:fullfps ) : ", 0,
                        help_message="How many frames of every second of the video will be extracted.")
 
@@ -170,7 +168,7 @@ def extract_src():
         if os.path.isdir(os.path.join(extract_workspace, file)):
             return False
         ext = os.path.splitext(file)[-1]
-        if ext not in valid_exts:
+        if ext not in video_exts:
             return False
         return True
 
@@ -206,6 +204,17 @@ def extract_src():
         io.log_info("@@@@@  Finish %s, %d / %d" % (file, pos, len(files)))
         os.remove(os.path.join(extract_workspace, file))
         os.rmdir(output_dir)
+    # 做完后排序
+    # io.log_info("@@@@@  Sort By Hist")
+    # dfl.dfl_sort_by_hist(target_dir)
+    # beep()
+    sort_src()
+
+
+def sort_src():
+    root_dir = get_root_path()
+    extract_workspace = os.path.join(root_dir, "extract_workspace")
+    target_dir = os.path.join(extract_workspace, "aligned_")
     # 做完后排序
     io.log_info("@@@@@  Sort By Hist")
     dfl.dfl_sort_by_hist(target_dir)
@@ -1327,8 +1336,16 @@ def main():
         change_workspace()
     elif arg == '--extract-src':
         extract_src()
-    elif arg == '--merge-to-dst':
+    elif arg == '--sort-src':
+        sort_src()
+    elif arg == '--prepare-merge-train':
+        prepare(get_workspace())
         merge_to_dst(get_workspace())
+        train_dst(get_workspace())
+        dfl.set_config("masked_training", "0")
+        train_dst(get_workspace())
+        convert(get_workspace())
+        mp4(get_workspace())
     elif arg == '--prepare':
         prepare(get_workspace())
     elif arg == '--prepare-train':
