@@ -4,7 +4,7 @@ from typing import Any, Callable
 import numpy as np
 from core.interact import interact as io
 
-video_exts = ['.mp4', '.avi', '.mkv', '.webm', ".mov", ".mpeg", ".wmv", ".MP4", ".gif"]
+video_exts = ['.mp4', '.avi', '.mkv', '.webm', ".mov", ".mpeg", ".wmv", ".MP4", ".gif", ".ts", ".m2t"]
 
 
 def testExt(f):
@@ -168,7 +168,7 @@ def extract_src():
         if os.path.isdir(os.path.join(extract_workspace, file)):
             return False
         ext = os.path.splitext(file)[-1]
-        if ext not in video_exts:
+        if ext.lower() not in video_exts:
             return False
         return True
 
@@ -219,6 +219,17 @@ def sort_src():
     io.log_info("@@@@@  Sort By Hist")
     dfl.dfl_sort_by_hist(target_dir)
     beep()
+
+
+def sort_src_by_final():
+    # workspace = get_workspace()
+    # src_aligned = os.path.join(workspace, "data_src/aligned")
+    root_dir = get_root_path()
+    extract_workspace = os.path.join(root_dir, "extract_workspace")
+    target_dir = os.path.join(extract_workspace, "aligned_")
+    # 做完后排序
+    io.log_info("@@@@@  Sort By Final")
+    dfl.dfl_sort_by_final(target_dir)
 
 
 def extract_dst(workspace):
@@ -1328,6 +1339,28 @@ def xseg_train2(workspace):
     dfl.dfl_xseg_train(src_aligned, dst_aligned, model_dir)
 
 
+def fix_remove_dst(workspace):
+    import shutil
+    import os
+    counter = 0
+    target_dst = os.path.join(workspace, "data_dst")
+    target_dst_aligned = os.path.join(target_dst, "aligned")
+    for f in os.listdir(workspace):
+        dst_path = os.path.join(workspace, f)
+        if os.path.isdir(dst_path) and f.startswith("data_dst_"):
+            counter += 1
+            dst_aligned = os.path.join(dst_path, "aligned")
+            for img in io.progress_bar_generator(os.listdir(dst_aligned), "Process"):
+                if img.endswith(".png") or img.endswith(".jpg"):
+                    img_path = os.path.join(dst_aligned, img)
+                    base_name = os.path.basename(img_path)
+                    dst_img_path = os.path.join(target_dst_aligned, "%d_%s" % (counter, base_name))
+                    # shutil.copy(img_path, dst_img_path)
+                    if not os.path.exists(dst_img_path):
+                        print("Remove " + img_path)
+                        os.remove(img_path)
+
+
 def main():
     import sys
 
@@ -1338,12 +1371,15 @@ def main():
         extract_src()
     elif arg == '--sort-src':
         sort_src()
+    elif arg == '--sort-src-final':
+        sort_src_by_final()
     elif arg == '--prepare-merge-train':
         prepare(get_workspace())
         merge_to_dst(get_workspace())
         train_dst(get_workspace())
         dfl.set_config("masked_training", "0")
         train_dst(get_workspace())
+        fix_remove_dst(get_workspace())
         convert(get_workspace())
         mp4(get_workspace())
     elif arg == '--prepare':
