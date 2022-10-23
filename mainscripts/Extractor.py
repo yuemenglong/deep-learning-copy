@@ -849,19 +849,22 @@ def main(detector=None,
 
     continue_extraction = False
     if not manual_output_debug_fix and len(output_images_paths) > 0:
-        if len(output_images_paths) > 128:
-            continue_extraction = io.input_bool ("Continue extraction?", True, help_message="Extraction can be continued, but you must specify the same options again.")
+        continue_extraction = True # 总是删除原来的
+        for filename in output_images_paths:
+            Path(filename).unlink()
+        # if len(output_images_paths) > 128:
+        #     continue_extraction = io.input_bool ("Continue extraction?", True, help_message="Extraction can be continued, but you must specify the same options again.")
 
-        if len(output_images_paths) > 128 and continue_extraction:
-            try:
-                input_image_paths = input_image_paths[ [ Path(x).stem for x in input_image_paths ].index ( Path(output_images_paths[-128]).stem.split('_')[0] ) : ]
-            except:
-                io.log_err("Error in fetching the last index. Extraction cannot be continued.")
-                return
-        elif input_path != output_path:
-                io.input(f"\n WARNING !!! \n {output_path} contains files! \n They will be deleted. \n Press enter to continue.\n")
-                for filename in output_images_paths:
-                    Path(filename).unlink()
+        # if len(output_images_paths) > 128 and continue_extraction:
+        #     try:
+        #         input_image_paths = input_image_paths[ [ Path(x).stem for x in input_image_paths ].index ( Path(output_images_paths[-128]).stem.split('_')[0] ) : ]
+        #     except:
+        #         io.log_err("Error in fetching the last index. Extraction cannot be continued.")
+        #         return
+        # elif input_path != output_path:
+        #         io.input(f"\n WARNING !!! \n {output_path} contains files! \n They will be deleted. \n Press enter to continue.\n")
+        #         for filename in output_images_paths:
+        #             Path(filename).unlink()
 
     device_config = nn.DeviceConfig.GPUIndexes( force_gpu_idxs or nn.ask_choose_device_idxs(choose_only_one=detector=='manual', suggest_all_gpu=True) ) \
                     if not cpu_only else nn.DeviceConfig.CPU()
