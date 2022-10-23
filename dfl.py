@@ -254,7 +254,7 @@ def dfl_extract_faces(input_dir, output_dir, detector="s3fd", manual_fix=False, 
         "--manual-fix": manual_fix,
         "--detector": detector,
         "--face-type": "whole_face",
-        "--max-faces-from-image": 3,
+        "--max-faces-from-image": 5,
         "--image-size": 512,
         "--jpeg-quality": 90,
         # p.add_argument('--output-debug', action="store_true", dest="output_debug", default=None, help="Writes debug images to <output-dir>_debug\ directory.")
