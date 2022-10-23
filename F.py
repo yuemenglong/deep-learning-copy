@@ -4,7 +4,7 @@ from typing import Any, Callable
 import numpy as np
 from core.interact import interact as io
 
-video_exts = ['.mp4', '.avi', '.mkv', '.webm', ".mov", ".mpeg", ".wmv", ".MP4", ".gif", ".ts", ".m2t"]
+video_exts = ['.mp4', '.avi', '.mkv', '.webm', ".mov", ".mpeg", ".wmv", ".MP4", ".gif", ".ts", ".m2t", ".mts"]
 
 
 def testExt(f):
