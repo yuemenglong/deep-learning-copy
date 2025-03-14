@@ -70,7 +70,7 @@ if __name__ == "__main__":
 
     p = subparsers.add_parser( "sort", help="Sort faces in a directory.")
     p.add_argument('--input-dir', required=True, action=fixPathAction, dest="input_dir", help="Input directory. A directory containing the files you wish to process.")
-    p.add_argument('--by', dest="sort_by_method", default=None, choices=("blur", "face-yaw", "face-pitch", "face-source-rect-size", "hist", "hist-dissim", "brightness", "hue", "black", "origname", "oneface", "final", "final-faster", "absdiff"), help="Method of sorting. 'origname' sort by original filename to recover original sequence." )
+    p.add_argument('--by', dest="sort_by_method", default=None, choices=("blur", "motion-blur", "face-yaw", "face-pitch", "face-source-rect-size", "hist", "hist-dissim", "brightness", "hue", "black", "origname", "oneface", "final-by-blur", "final-by-size", "absdiff"), help="Method of sorting. 'origname' sort by original filename to recover original sequence." )
     p.set_defaults (func=process_sort)
 
     def process_util(arguments):
@@ -98,6 +98,10 @@ if __name__ == "__main__":
             io.log_info ("Performing faceset unpacking...\r\n")
             from samplelib import PackedFaceset
             PackedFaceset.unpack( Path(arguments.input_dir) )
+            
+        if arguments.export_faceset_mask:
+            io.log_info ("Exporting faceset mask..\r\n")
+            Util.export_faceset_mask( Path(arguments.input_dir) )
 
     p = subparsers.add_parser( "util", help="Utilities.")
     p.add_argument('--input-dir', required=True, action=fixPathAction, dest="input_dir", help="Input directory. A directory containing the files you wish to process.")
@@ -107,6 +111,7 @@ if __name__ == "__main__":
     p.add_argument('--restore-faceset-metadata', action="store_true", dest="restore_faceset_metadata", default=False, help="Restore faceset metadata to file. Image filenames must be the same as used with save.")
     p.add_argument('--pack-faceset', action="store_true", dest="pack_faceset", default=False, help="")
     p.add_argument('--unpack-faceset', action="store_true", dest="unpack_faceset", default=False, help="")
+    p.add_argument('--export-faceset-mask', action="store_true", dest="export_faceset_mask", default=False, help="")
 
     p.set_defaults (func=process_util)
 
@@ -145,9 +150,18 @@ if __name__ == "__main__":
     p.add_argument('--force-gpu-idxs', dest="force_gpu_idxs", default=None, help="Force to choose GPU indexes separated by comma.")
     p.add_argument('--silent-start', action="store_true", dest="silent_start", default=False, help="Silent start. Automatically chooses Best GPU and last used model.")
     
-    
     p.add_argument('--execute-program', dest="execute_program", default=[], action='append', nargs='+')
     p.set_defaults (func=process_train)
+    
+    def process_exportdfm(arguments):
+        osex.set_process_lowest_prio()
+        from mainscripts import ExportDFM
+        ExportDFM.main(model_class_name = arguments.model_name, saved_models_path = Path(arguments.model_dir))
+
+    p = subparsers.add_parser( "exportdfm", help="Export model to use in DeepFaceLive.")
+    p.add_argument('--model-dir', required=True, action=fixPathAction, dest="model_dir", help="Saved models dir.")
+    p.add_argument('--model', required=True, dest="model_name", choices=pathex.get_all_dir_names_startswith ( Path(__file__).parent / 'models' , 'Model_'), help="Model class name.")
+    p.set_defaults (func=process_exportdfm)
 
     def process_merge(arguments):
         osex.set_process_lowest_prio()
@@ -253,10 +267,20 @@ if __name__ == "__main__":
 
     p.set_defaults(func=process_faceset_enhancer)
     
+    
+    p = facesettool_parser.add_parser ("resize", help="Resize DFL faceset.")
+    p.add_argument('--input-dir', required=True, action=fixPathAction, dest="input_dir", help="Input directory of aligned faces.")
+
+    def process_faceset_resizer(arguments):
+        osex.set_process_lowest_prio()
+        from mainscripts import FacesetResizer
+        FacesetResizer.process_folder ( Path(arguments.input_dir) )
+    p.set_defaults(func=process_faceset_resizer)
+
     def process_dev_test(arguments):
         osex.set_process_lowest_prio()
         from mainscripts import dev_misc
-        dev_misc.dev_test( arguments.input_dir )
+        dev_misc.dev_gen_mask_files( arguments.input_dir )
 
     p = subparsers.add_parser( "dev_test", help="")
     p.add_argument('--input-dir', required=True, action=fixPathAction, dest="input_dir")

@@ -46,7 +46,9 @@ class Saveable():
             raise Exception("name must be defined.")
 
         name = self.name
-        for w, w_val in zip(weights, nn.tf_sess.run (weights)):
+
+        for w in weights:
+            w_val = nn.tf_sess.run (w).copy()
             w_name_split = w.name.split('/', 1)
             if name != w_name_split[0]:
                 raise Exception("weight first name != Saveable.name")
@@ -76,28 +78,31 @@ class Saveable():
         if self.name is None:
             raise Exception("name must be defined.")
 
-        tuples = []
-        for w in weights:
-            w_name_split = w.name.split('/')
-            if self.name != w_name_split[0]:
-                raise Exception("weight first name != Saveable.name")
+        try:
+            tuples = []
+            for w in weights:
+                w_name_split = w.name.split('/')
+                if self.name != w_name_split[0]:
+                    raise Exception("weight first name != Saveable.name")
 
-            sub_w_name = "/".join(w_name_split[1:])
+                sub_w_name = "/".join(w_name_split[1:])
 
-            w_val = d.get(sub_w_name, None)
+                w_val = d.get(sub_w_name, None)
 
-            if w_val is None:
-                #io.log_err(f"Weight {w.name} was not loaded from file {filename}")
-                tuples.append ( (w, w.initializer) )
-            else:
-                w_val = np.reshape( w_val, w.shape.as_list() )
-                tuples.append ( (w, w_val) )
+                if w_val is None:
+                    #io.log_err(f"Weight {w.name} was not loaded from file {filename}")
+                    tuples.append ( (w, w.initializer) )
+                else:
+                    w_val = np.reshape( w_val, w.shape.as_list() )
+                    tuples.append ( (w, w_val) )
 
-        nn.batch_set_value(tuples)
+            nn.batch_set_value(tuples)
+        except:
+            return False
 
         return True
 
     def init_weights(self):
         nn.init_weights(self.get_weights())
-    
+
 nn.Saveable = Saveable

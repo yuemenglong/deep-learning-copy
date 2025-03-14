@@ -29,9 +29,9 @@ class SampleProcessor(object):
 
     class FaceMaskType(IntEnum):
         NONE          = 0
-        FULL_FACE      = 1  #mask all hull as grayscale
-        EYES     = 2  #mask eyes hull as grayscale
-        FULL_FACE_EYES = 3  #combo all + eyes as grayscale
+        FULL_FACE      = 1  # mask all hull as grayscale
+        EYES           = 2  # mask eyes hull as grayscale
+        EYES_MOUTH     = 3  # eyes and mouse
 
     class Options(object):
         def __init__(self, random_flip = True, rotation_range=[-10,10], scale_range=[-0.05, 0.05], tx_range=[-0.05, 0.05], ty_range=[-0.05, 0.05] ):
@@ -47,10 +47,11 @@ class SampleProcessor(object):
         SPCT = SampleProcessor.ChannelType
         SPFMT = SampleProcessor.FaceMaskType
 
-        sample_rnd_seed = np.random.randint(0x80000000)
-
+        
         outputs = []
         for sample in samples:
+            sample_rnd_seed = np.random.randint(0x80000000)
+            
             sample_face_type = sample.face_type
             sample_bgr = sample.load_bgr()
             sample_landmarks = sample.landmarks
@@ -71,43 +72,46 @@ class SampleProcessor(object):
             def get_eyes_mask():
                 eyes_mask = LandmarksProcessor.get_image_eye_mask (sample_bgr.shape, sample_landmarks)
                 return np.clip(eyes_mask, 0, 1)
-
+            
+            def get_eyes_mouth_mask():                
+                eyes_mask = LandmarksProcessor.get_image_eye_mask (sample_bgr.shape, sample_landmarks)
+                mouth_mask = LandmarksProcessor.get_image_mouth_mask (sample_bgr.shape, sample_landmarks)
+                mask = eyes_mask + mouth_mask
+                return np.clip(mask, 0, 1)
+                
             is_face_sample = sample_landmarks is not None
 
             if debug and is_face_sample:
                 LandmarksProcessor.draw_landmarks (sample_bgr, sample_landmarks, (0, 1, 0))
-        
-            params_per_resolution = {}            
-            warp_rnd_state = np.random.RandomState (sample_rnd_seed-1)            
-            for opts in output_sample_types:
-                resolution = opts.get('resolution', None)
-                if resolution is None:
-                    continue
-                params_per_resolution[resolution] = imagelib.gen_warp_params(resolution, 
-                                                                             sample_process_options.random_flip, 
-                                                                             rotation_range=sample_process_options.rotation_range, 
-                                                                             scale_range=sample_process_options.scale_range, 
-                                                                             tx_range=sample_process_options.tx_range, 
-                                                                             ty_range=sample_process_options.ty_range, 
-                                                                             rnd_state=warp_rnd_state)
 
             outputs_sample = []
             for opts in output_sample_types:
+                resolution     = opts.get('resolution', 0)
                 sample_type    = opts.get('sample_type', SPST.NONE)
                 channel_type   = opts.get('channel_type', SPCT.NONE)                
-                resolution     = opts.get('resolution', 0)
                 nearest_resize_to = opts.get('nearest_resize_to', None)
                 warp           = opts.get('warp', False)
                 transform      = opts.get('transform', False)
-                motion_blur    = opts.get('motion_blur', None)
-                gaussian_blur  = opts.get('gaussian_blur', None)
-                random_bilinear_resize = opts.get('random_bilinear_resize', None)
-                random_rgb_levels = opts.get('random_rgb_levels', False)
-                random_hsv_shift = opts.get('random_hsv_shift', False)
-                random_circle_mask = opts.get('random_circle_mask', False)
+                random_hsv_shift_amount = opts.get('random_hsv_shift_amount', 0)
                 normalize_tanh = opts.get('normalize_tanh', False)
                 ct_mode        = opts.get('ct_mode', None)
                 data_format    = opts.get('data_format', 'NHWC')
+                
+                rnd_seed_shift      = opts.get('rnd_seed_shift', 0)
+                warp_rnd_seed_shift = opts.get('warp_rnd_seed_shift', rnd_seed_shift)
+                
+                rnd_state      = np.random.RandomState (sample_rnd_seed+rnd_seed_shift)
+                warp_rnd_state = np.random.RandomState (sample_rnd_seed+warp_rnd_seed_shift)
+                
+                warp_params = imagelib.gen_warp_params(resolution, 
+                                                       sample_process_options.random_flip, 
+                                                       rotation_range=sample_process_options.rotation_range, 
+                                                       scale_range=sample_process_options.scale_range, 
+                                                       tx_range=sample_process_options.tx_range, 
+                                                       ty_range=sample_process_options.ty_range, 
+                                                       rnd_state=rnd_state,
+                                                       warp_rnd_state=warp_rnd_state,
+                                                       )
                 
                 if sample_type == SPST.FACE_MASK or sample_type == SPST.IMAGE: 
                     border_replicate = False
@@ -135,17 +139,19 @@ class SampleProcessor(object):
                             img = get_full_face_mask()
                         elif face_mask_type == SPFMT.EYES:
                             img = get_eyes_mask()
-                        elif face_mask_type == SPFMT.FULL_FACE_EYES:
-                            img = get_full_face_mask()                            
-                            img += get_eyes_mask()*img
+                        elif face_mask_type == SPFMT.EYES_MOUTH:
+                            mask = get_full_face_mask().copy()
+                            mask[mask != 0.0] = 1.0                            
+                            img = get_eyes_mouth_mask()*mask
                         else:
                             img = np.zeros ( sample_bgr.shape[0:2]+(1,), dtype=np.float32)
 
                         if sample_face_type == FaceType.MARK_ONLY:
+                            raise NotImplementedError()
                             mat  = LandmarksProcessor.get_transform_mat (sample_landmarks, warp_resolution, face_type)
                             img = cv2.warpAffine( img, mat, (warp_resolution, warp_resolution), flags=cv2.INTER_LINEAR )
                             
-                            img = imagelib.warp_by_params (params_per_resolution[resolution], img, warp, transform, can_flip=True, border_replicate=border_replicate, cv2_inter=cv2.INTER_LINEAR)
+                            img = imagelib.warp_by_params (warp_params, img, warp, transform, can_flip=True, border_replicate=border_replicate, cv2_inter=cv2.INTER_LINEAR)
                             img = cv2.resize( img, (resolution,resolution), interpolation=cv2.INTER_LINEAR )
                         else:
                             if face_type != sample_face_type:
@@ -155,8 +161,13 @@ class SampleProcessor(object):
                                 if w != resolution:
                                     img = cv2.resize( img, (resolution, resolution), interpolation=cv2.INTER_LINEAR )
                                 
-                            img = imagelib.warp_by_params (params_per_resolution[resolution], img, warp, transform, can_flip=True, border_replicate=border_replicate, cv2_inter=cv2.INTER_LINEAR)
+                            img = imagelib.warp_by_params (warp_params, img, warp, transform, can_flip=True, border_replicate=border_replicate, cv2_inter=cv2.INTER_LINEAR)
 
+                        if face_mask_type == SPFMT.EYES_MOUTH:
+                            div = img.max()
+                            if div != 0.0:
+                                img = img / div # normalize to 1.0 after warp
+                            
                         if len(img.shape) == 2:
                             img = img[...,None]
                             
@@ -167,15 +178,6 @@ class SampleProcessor(object):
 
                     elif sample_type == SPST.FACE_IMAGE:
                         img = sample_bgr                      
-                        
-                        if random_rgb_levels:
-                            random_mask = sd.random_circle_faded ([w,w], rnd_state=np.random.RandomState (sample_rnd_seed) ) if random_circle_mask else None
-                            img = imagelib.apply_random_rgb_levels(img, mask=random_mask, rnd_state=np.random.RandomState (sample_rnd_seed) )
-
-                        if random_hsv_shift:
-                            random_mask = sd.random_circle_faded ([w,w], rnd_state=np.random.RandomState (sample_rnd_seed+1) ) if random_circle_mask else None
-                            img = imagelib.apply_random_hsv_shift(img, mask=random_mask, rnd_state=np.random.RandomState (sample_rnd_seed+1) )
-
                             
                         if face_type != sample_face_type:
                             mat = LandmarksProcessor.get_transform_mat (sample_landmarks, resolution, face_type)
@@ -189,29 +191,20 @@ class SampleProcessor(object):
                             if ct_sample_bgr is None:
                                ct_sample_bgr = ct_sample.load_bgr()
                             img = imagelib.color_transfer (ct_mode, img, cv2.resize( ct_sample_bgr, (resolution,resolution), interpolation=cv2.INTER_LINEAR ) )
-
                         
-                        img  = imagelib.warp_by_params (params_per_resolution[resolution], img,  warp, transform, can_flip=True, border_replicate=border_replicate)
+                        if random_hsv_shift_amount != 0:
+                            a = random_hsv_shift_amount
+                            h_amount = max(1, int(360*a*0.5))
+                            img_h, img_s, img_v = cv2.split(cv2.cvtColor(img, cv2.COLOR_BGR2HSV))
+                            img_h = (img_h + rnd_state.randint(-h_amount, h_amount+1) ) % 360
+                            img_s = np.clip (img_s + (rnd_state.random()-0.5)*a, 0, 1 )
+                            img_v = np.clip (img_v + (rnd_state.random()-0.5)*a, 0, 1 )
+                            img = np.clip( cv2.cvtColor(cv2.merge([img_h, img_s, img_v]), cv2.COLOR_HSV2BGR) , 0, 1 )
+
+                        img  = imagelib.warp_by_params (warp_params, img,  warp, transform, can_flip=True, border_replicate=border_replicate)
   
                         img = np.clip(img.astype(np.float32), 0, 1)
-   
 
-                        
-                        
-                        if motion_blur is not None:                            
-                            random_mask = sd.random_circle_faded ([resolution,resolution], rnd_state=np.random.RandomState (sample_rnd_seed+2)) if random_circle_mask else None
-                            img = imagelib.apply_random_motion_blur(img, *motion_blur, mask=random_mask,rnd_state=np.random.RandomState (sample_rnd_seed+2) )
-
-                        if gaussian_blur is not None:
-                            random_mask = sd.random_circle_faded ([resolution,resolution], rnd_state=np.random.RandomState (sample_rnd_seed+3)) if random_circle_mask else None
-                            img = imagelib.apply_random_gaussian_blur(img, *gaussian_blur, mask=random_mask,rnd_state=np.random.RandomState (sample_rnd_seed+3) )
-                                
-                        if random_bilinear_resize is not None:
-                            random_mask = sd.random_circle_faded ([resolution,resolution], rnd_state=np.random.RandomState (sample_rnd_seed+4)) if random_circle_mask else None
-                            img = imagelib.apply_random_bilinear_resize(img, *random_bilinear_resize, mask=random_mask,rnd_state=np.random.RandomState (sample_rnd_seed+4) )
-                            
-                             
-                            
                         # Transform from BGR to desired channel_type
                         if channel_type == SPCT.BGR:
                             out_sample = img
@@ -231,7 +224,7 @@ class SampleProcessor(object):
                         out_sample = np.transpose(out_sample, (2,0,1) )
                 elif sample_type == SPST.IMAGE:
                     img = sample_bgr      
-                    img  = imagelib.warp_by_params (params_per_resolution[resolution], img,  warp, transform, can_flip=True, border_replicate=True)
+                    img  = imagelib.warp_by_params (warp_params, img,  warp, transform, can_flip=True, border_replicate=True)
                     img  = cv2.resize( img,  (resolution, resolution), interpolation=cv2.INTER_CUBIC )
                     out_sample = img
                     
@@ -246,7 +239,7 @@ class SampleProcessor(object):
                     out_sample = l
                 elif sample_type == SPST.PITCH_YAW_ROLL or sample_type == SPST.PITCH_YAW_ROLL_SIGMOID:
                     pitch,yaw,roll = sample.get_pitch_yaw_roll()
-                    if params_per_resolution[resolution]['flip']:
+                    if warp_params['flip']:
                         yaw = -yaw
 
                     if sample_type == SPST.PITCH_YAW_ROLL_SIGMOID:
@@ -263,65 +256,3 @@ class SampleProcessor(object):
 
         return outputs
 
-"""
-
-        STRUCT        = 4  #mask structure as grayscale
-                           elif face_mask_type == SPFMT.STRUCT:
-                            if sample.eyebrows_expand_mod is not None:
-                                img = LandmarksProcessor.get_face_struct_mask (sample_bgr.shape, sample_landmarks, eyebrows_expand_mod=sample.eyebrows_expand_mod )
-                            else:
-                                img = LandmarksProcessor.get_face_struct_mask (sample_bgr.shape, sample_landmarks)
-     
-        
-        
-        close_sample = sample.close_target_list[ np.random.randint(0, len(sample.close_target_list)) ] if sample.close_target_list is not None else None
-        close_sample_bgr = close_sample.load_bgr() if close_sample is not None else None
-
-        if debug and close_sample_bgr is not None:
-            LandmarksProcessor.draw_landmarks (close_sample_bgr, close_sample.landmarks, (0, 1, 0))
-        RANDOM_CLOSE               = 0x00000040, #currently unused
-        MORPH_TO_RANDOM_CLOSE      = 0x00000080, #currently unused
-
-if f & SPTF.RANDOM_CLOSE != 0:
-                img_type += 10
-            elif f & SPTF.MORPH_TO_RANDOM_CLOSE != 0:
-                img_type += 20
-if img_type >= 10 and img_type <= 19: #RANDOM_CLOSE
-    img_type -= 10
-    img = close_sample_bgr
-    cur_sample = close_sample
-
-elif img_type >= 20 and img_type <= 29: #MORPH_TO_RANDOM_CLOSE
-    img_type -= 20
-    res = sample.shape[0]
-
-    s_landmarks = sample.landmarks.copy()
-    d_landmarks = close_sample.landmarks.copy()
-    idxs = list(range(len(s_landmarks)))
-    #remove landmarks near boundaries
-    for i in idxs[:]:
-        s_l = s_landmarks[i]
-        d_l = d_landmarks[i]
-        if s_l[0] < 5 or s_l[1] < 5 or s_l[0] >= res-5 or s_l[1] >= res-5 or \
-            d_l[0] < 5 or d_l[1] < 5 or d_l[0] >= res-5 or d_l[1] >= res-5:
-            idxs.remove(i)
-    #remove landmarks that close to each other in 5 dist
-    for landmarks in [s_landmarks, d_landmarks]:
-        for i in idxs[:]:
-            s_l = landmarks[i]
-            for j in idxs[:]:
-                if i == j:
-                    continue
-                s_l_2 = landmarks[j]
-                diff_l = np.abs(s_l - s_l_2)
-                if np.sqrt(diff_l.dot(diff_l)) < 5:
-                    idxs.remove(i)
-                    break
-    s_landmarks = s_landmarks[idxs]
-    d_landmarks = d_landmarks[idxs]
-    s_landmarks = np.concatenate ( [s_landmarks, [ [0,0], [ res // 2, 0], [ res-1, 0], [0, res//2], [res-1, res//2] ,[0,res-1] ,[res//2, res-1] ,[res-1,res-1] ] ] )
-    d_landmarks = np.concatenate ( [d_landmarks, [ [0,0], [ res // 2, 0], [ res-1, 0], [0, res//2], [res-1, res//2] ,[0,res-1] ,[res//2, res-1] ,[res-1,res-1] ] ] )
-    img = imagelib.morph_by_points (sample_bgr, s_landmarks, d_landmarks)
-    cur_sample = close_sample
-else:
-    """

@@ -29,29 +29,31 @@ class XSegNet(object):
         
         nn.initialize(data_format=data_format)
         tf = nn.tf
-
+        
+        model_name = f'{name}_{resolution}'
+        self.model_filename_list = []
+        
         with tf.device ('/CPU:0'):
             #Place holders on CPU
             self.input_t  = tf.placeholder (nn.floatx, nn.get4Dshape(resolution,resolution,3) )
             self.target_t = tf.placeholder (nn.floatx, nn.get4Dshape(resolution,resolution,1) )
 
         # Initializing model classes
-        with tf.device ('/CPU:0' if place_model_on_cpu else '/GPU:0'):
+        with tf.device ('/CPU:0' if place_model_on_cpu else nn.tf_default_device_name):
             self.model = nn.XSeg(3, 32, 1, name=name)
             self.model_weights = self.model.get_weights()
+            if training:
+                if optimizer is None:
+                    raise ValueError("Optimizer should be provided for training mode.")                
+                self.opt = optimizer              
+                self.opt.initialize_variables (self.model_weights, vars_on_cpu=place_model_on_cpu)                    
+                self.model_filename_list += [ [self.opt, f'{model_name}_opt.npy' ] ]
+                
+        
+        self.model_filename_list += [ [self.model, f'{model_name}.npy'] ]
 
-        model_name = f'{name}_{resolution}'
-        self.model_filename_list = [ [self.model, f'{model_name}.npy'] ]
-
-        if training:
-            if optimizer is None:
-                raise ValueError("Optimizer should be provided for training mode.")
-
-            self.opt = optimizer
-            self.opt.initialize_variables (self.model_weights, vars_on_cpu=place_model_on_cpu)
-            self.model_filename_list += [ [self.opt, f'{model_name}_opt.npy' ] ]
-        else:
-            with tf.device ('/CPU:0' if run_on_cpu else '/GPU:0'):
+        if not training:
+            with tf.device ('/CPU:0' if run_on_cpu else nn.tf_default_device_name):
                 _, pred = self.model(self.input_t)
 
             def net_run(input_np):
@@ -79,8 +81,8 @@ class XSegNet(object):
     def get_resolution(self):
         return self.resolution
         
-    def flow(self, x):
-        return self.model(x)
+    def flow(self, x, pretrain=False):
+        return self.model(x, pretrain=pretrain)
 
     def get_weights(self):
         return self.model_weights

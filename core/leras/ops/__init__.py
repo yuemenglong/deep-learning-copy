@@ -108,10 +108,15 @@ nn.gelu = gelu
 
 def upsample2d(x, size=2):
     if nn.data_format == "NCHW":
-        b,c,h,w = x.shape.as_list()
-        x = tf.reshape (x, (-1,c,h,1,w,1) )
-        x = tf.tile(x, (1,1,1,size,1,size) )
-        x = tf.reshape (x, (-1,c,h*size,w*size) )
+        x = tf.transpose(x, (0,2,3,1))
+        x = tf.image.resize_nearest_neighbor(x, (x.shape[1]*size, x.shape[2]*size) )
+        x = tf.transpose(x, (0,3,1,2))
+        
+        
+        # b,c,h,w = x.shape.as_list()
+        # x = tf.reshape (x, (-1,c,h,1,w,1) )
+        # x = tf.tile(x, (1,1,1,size,1,size) )
+        # x = tf.reshape (x, (-1,c,h*size,w*size) )
         return x
     else:
         return tf.image.resize_nearest_neighbor(x, (x.shape[1]*size, x.shape[2]*size) )
@@ -140,7 +145,7 @@ nn.resize2d_bilinear = resize2d_bilinear
 def resize2d_nearest(x, size=2):
     if size in [-1,0,1]:
         return x
-        
+
 
     if size > 0:
         raise Exception("")
@@ -150,7 +155,7 @@ def resize2d_nearest(x, size=2):
         else:
             x = x[:,::-size,::-size,:]
     return x
-        
+
     h = x.shape[nn.conv2d_spatial_axes[0]].value
     w = x.shape[nn.conv2d_spatial_axes[1]].value
 
@@ -204,7 +209,7 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
         seed = np.random.randint(10e6)
     return array_ops.where(
         random_ops.random_uniform(shape, dtype=tf.float16, seed=seed) < p,
-        array_ops.ones(shape, dtype=dtype), array_ops.zeros(shape, dtype=dtype))
+             array_ops.ones(shape, dtype=dtype), array_ops.zeros(shape, dtype=dtype))
 nn.random_binomial = random_binomial
 
 def gaussian_blur(input, radius=2.0):
@@ -212,7 +217,9 @@ def gaussian_blur(input, radius=2.0):
         return np.exp(-(float(x) - float(mu)) ** 2 / (2 * sigma ** 2))
 
     def make_kernel(sigma):
-        kernel_size = max(3, int(2 * 2 * sigma + 1))
+        kernel_size = max(3, int(2 * 2 * sigma))
+        if kernel_size % 2 == 0:
+            kernel_size += 1
         mean = np.floor(0.5 * kernel_size)
         kernel_1d = np.array([gaussian(x, mean, sigma) for x in range(kernel_size)])
         np_kernel = np.outer(kernel_1d, kernel_1d).astype(np.float32)
@@ -268,9 +275,9 @@ def dssim(img1,img2, max_val, filter_size=11, filter_sigma=1.5, k1=0.01, k2=0.03
         img_dtype = img1.dtype
         img1 = tf.cast(img1, tf.float32)
         img2 = tf.cast(img2, tf.float32)
-    
+
     filter_size = max(1, filter_size)
-    
+
     kernel = np.arange(0, filter_size, dtype=np.float32)
     kernel -= (filter_size - 1 ) / 2.0
     kernel = kernel**2
@@ -333,7 +340,17 @@ def depth_to_space(x, size):
         x = tf.reshape(x, (-1, oh, ow, oc, ))
         return x
     else:
-        return tf.depth_to_space(x, size, data_format=nn.data_format)
+        cfg = nn.getCurrentDeviceConfig()
+        if not cfg.cpu_only:
+            return tf.depth_to_space(x, size, data_format=nn.data_format)
+        b,c,h,w = x.shape.as_list()
+        oh, ow = h * size, w * size
+        oc = c // (size * size)
+
+        x = tf.reshape(x, (-1, size, size, oc, h, w, ) )
+        x = tf.transpose(x, (0, 3, 4, 1, 5, 2))
+        x = tf.reshape(x, (-1, oc, oh, ow))
+        return x
 nn.depth_to_space = depth_to_space
 
 def rgb_to_lab(srgb):
@@ -366,6 +383,23 @@ def rgb_to_lab(srgb):
     return tf.reshape(lab_pixels, tf.shape(srgb))
 nn.rgb_to_lab = rgb_to_lab
 
+def total_variation_mse(images):
+    """
+    Same as generic total_variation, but MSE diff instead of MAE
+    """
+    pixel_dif1 = images[:, 1:, :, :] - images[:, :-1, :, :]
+    pixel_dif2 = images[:, :, 1:, :] - images[:, :, :-1, :]
+    
+    tot_var = ( tf.reduce_sum(tf.square(pixel_dif1), axis=[1,2,3]) +
+                tf.reduce_sum(tf.square(pixel_dif2), axis=[1,2,3]) )
+    return tot_var
+nn.total_variation_mse = total_variation_mse
+
+
+def pixel_norm(x, axes):
+    return x * tf.rsqrt(tf.reduce_mean(tf.square(x), axis=axes, keepdims=True) + 1e-06)
+nn.pixel_norm = pixel_norm
+        
 """
 def tf_suppress_lower_mean(t, eps=0.00001):
     if t.shape.ndims != 1:
@@ -376,3 +410,69 @@ def tf_suppress_lower_mean(t, eps=0.00001):
     q = q * (t/eps)
     return q
 """
+
+
+
+def _get_pixel_value(img, x, y):
+    shape = tf.shape(x)
+    batch_size = shape[0]
+    height = shape[1]
+    width = shape[2]
+
+    batch_idx = tf.range(0, batch_size)
+    batch_idx = tf.reshape(batch_idx, (batch_size, 1, 1))
+    b = tf.tile(batch_idx, (1, height, width))
+
+    indices = tf.stack([b, y, x], 3)
+    
+    return tf.gather_nd(img, indices)
+    
+def bilinear_sampler(img, x, y):
+    H = tf.shape(img)[1]
+    W = tf.shape(img)[2]
+    H_MAX = tf.cast(H - 1, tf.int32)
+    W_MAX = tf.cast(W - 1, tf.int32)
+
+    # grab 4 nearest corner points for each (x_i, y_i)
+    x0 = tf.cast(tf.floor(x), tf.int32)
+    x1 = x0 + 1
+    y0 = tf.cast(tf.floor(y), tf.int32)
+    y1 = y0 + 1
+
+    # clip to range [0, H-1/W-1] to not violate img boundaries
+    x0 = tf.clip_by_value(x0, 0, W_MAX)
+    x1 = tf.clip_by_value(x1, 0, W_MAX)
+    y0 = tf.clip_by_value(y0, 0, H_MAX)
+    y1 = tf.clip_by_value(y1, 0, H_MAX)
+
+    # get pixel value at corner coords
+    Ia = _get_pixel_value(img, x0, y0)
+    Ib = _get_pixel_value(img, x0, y1)
+    Ic = _get_pixel_value(img, x1, y0)
+    Id = _get_pixel_value(img, x1, y1)
+
+    # recast as float for delta calculation
+    x0 = tf.cast(x0, tf.float32)
+    x1 = tf.cast(x1, tf.float32)
+    y0 = tf.cast(y0, tf.float32)
+    y1 = tf.cast(y1, tf.float32)
+
+    # calculate deltas
+    wa = (x1-x) * (y1-y)
+    wb = (x1-x) * (y-y0)
+    wc = (x-x0) * (y1-y)
+    wd = (x-x0) * (y-y0)
+
+    # add dimension for addition
+    wa = tf.expand_dims(wa, axis=3)
+    wb = tf.expand_dims(wb, axis=3)
+    wc = tf.expand_dims(wc, axis=3)
+    wd = tf.expand_dims(wd, axis=3)
+
+    # compute output
+    out = tf.add_n([wa*Ia, wb*Ib, wc*Ic, wd*Id])
+
+    return out
+    
+nn.bilinear_sampler = bilinear_sampler
+

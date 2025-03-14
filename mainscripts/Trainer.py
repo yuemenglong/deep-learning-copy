@@ -1,4 +1,5 @@
-﻿import sys
+﻿import os
+import sys
 import traceback
 import queue
 import threading
@@ -54,8 +55,7 @@ def trainerThread (s2c, c2s, e,
                         force_gpu_idxs=force_gpu_idxs,
                         cpu_only=cpu_only,
                         silent_start=silent_start,
-                        debug=debug,
-                        )
+                        debug=debug)
 
             is_reached_goal = model.is_reached_iter_goal()
 
@@ -120,6 +120,12 @@ def trainerThread (s2c, c2s, e,
                             io.log_info("Trying to do the first iteration. If an error occurs, reduce the model parameters.")
                             io.log_info("")
 
+                            if sys.platform[0:3] == 'win':
+                                io.log_info("!!!")
+                                io.log_info("Windows 10 users IMPORTANT notice. You should set this setting in order to work correctly.")
+                                io.log_info("https://i.imgur.com/B7cmDCB.jpg")
+                                io.log_info("!!!")
+
                         iter, iter_time = model.train_one_iter()
 
                         loss_history = model.get_loss_history()
@@ -158,8 +164,12 @@ def trainerThread (s2c, c2s, e,
                             is_reached_goal = True
                             io.log_info ('You can use preview now.')
 
-                if not is_reached_goal and (time.time() - last_save_time) >= save_interval_min*60:
+                need_save = False
+                while time.time() - last_save_time >= save_interval_min*60:
                     last_save_time += save_interval_min*60
+                    need_save = True
+
+                if not is_reached_goal and need_save:
                     model_save()
                     send_preview()
 

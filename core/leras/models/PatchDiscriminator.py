@@ -94,7 +94,7 @@ class UNetPatchDiscriminator(nn.ModelBase):
             ts *= s
         return rf
 
-    def find_archi(self, target_patch_size, max_layers=6):
+    def find_archi(self, target_patch_size, max_layers=9):
         """
         Find the best configuration of layers using only 3x3 convs for target patch size
         """
@@ -106,12 +106,12 @@ class UNetPatchDiscriminator(nn.ModelBase):
 
                 layers = []
                 sum_st = 0
+                layers.append ( [3, 2])
+                sum_st += 2
                 for i in range(layers_count-1):
                     st = 1 + (1 if val & (1 << i) !=0 else 0 )
                     layers.append ( [3, st ])
-                    sum_st += st
-                layers.append ( [3, 2])
-                sum_st += 2
+                    sum_st += st                
 
                 rf = self.calc_receptive_field_size(layers)
 
@@ -130,11 +130,14 @@ class UNetPatchDiscriminator(nn.ModelBase):
         q=x[np.abs(np.array(x)-target_patch_size).argmin()]
         return s[q][2]
 
-    def on_build(self, patch_size, in_ch):
+    def on_build(self, patch_size, in_ch, base_ch = 16, use_fp16 = False):
+        self.use_fp16 = use_fp16
+        conv_dtype = tf.float16 if use_fp16 else tf.float32 
+        
         class ResidualBlock(nn.ModelBase):
             def on_build(self, ch, kernel_size=3 ):
-                self.conv1 = nn.Conv2D( ch, ch, kernel_size=kernel_size, padding='SAME')
-                self.conv2 = nn.Conv2D( ch, ch, kernel_size=kernel_size, padding='SAME')
+                self.conv1 = nn.Conv2D( ch, ch, kernel_size=kernel_size, padding='SAME', dtype=conv_dtype)
+                self.conv2 = nn.Conv2D( ch, ch, kernel_size=kernel_size, padding='SAME', dtype=conv_dtype)
 
             def forward(self, inp):
                 x = self.conv1(inp)
@@ -145,47 +148,47 @@ class UNetPatchDiscriminator(nn.ModelBase):
 
         prev_ch = in_ch
         self.convs = []
-        self.res = []
         self.upconvs = []
-        self.upres = []
         layers = self.find_archi(patch_size)
-        base_ch = 16
-
+        
         level_chs = { i-1:v for i,v in enumerate([ min( base_ch * (2**i), 512 ) for i in range(len(layers)+1)]) }
 
-        self.in_conv = nn.Conv2D( in_ch, level_chs[-1], kernel_size=1, padding='VALID')
+        self.in_conv = nn.Conv2D( in_ch, level_chs[-1], kernel_size=1, padding='VALID', dtype=conv_dtype)
 
         for i, (kernel_size, strides) in enumerate(layers):
-            self.convs.append ( nn.Conv2D( level_chs[i-1], level_chs[i], kernel_size=kernel_size, strides=strides, padding='SAME') )
+            self.convs.append ( nn.Conv2D( level_chs[i-1], level_chs[i], kernel_size=kernel_size, strides=strides, padding='SAME', dtype=conv_dtype) )
 
-            self.res.append ( ResidualBlock(level_chs[i]) )
+            self.upconvs.insert (0, nn.Conv2DTranspose( level_chs[i]*(2 if i != len(layers)-1 else 1), level_chs[i-1], kernel_size=kernel_size, strides=strides, padding='SAME', dtype=conv_dtype) )
 
-            self.upconvs.insert (0, nn.Conv2DTranspose( level_chs[i]*(2 if i != len(layers)-1 else 1), level_chs[i-1], kernel_size=kernel_size, strides=strides, padding='SAME') )
+        self.out_conv = nn.Conv2D( level_chs[-1]*2, 1, kernel_size=1, padding='VALID', dtype=conv_dtype)
 
-            self.upres.insert (0, ResidualBlock(level_chs[i-1]*2) )
-
-        self.out_conv = nn.Conv2D( level_chs[-1]*2, 1, kernel_size=1, padding='VALID')
-
-        self.center_out  =  nn.Conv2D( level_chs[len(layers)-1], 1, kernel_size=1, padding='VALID')
-        self.center_conv =  nn.Conv2D( level_chs[len(layers)-1], level_chs[len(layers)-1], kernel_size=1, padding='VALID')
+        self.center_out  =  nn.Conv2D( level_chs[len(layers)-1], 1, kernel_size=1, padding='VALID', dtype=conv_dtype)
+        self.center_conv =  nn.Conv2D( level_chs[len(layers)-1], level_chs[len(layers)-1], kernel_size=1, padding='VALID', dtype=conv_dtype)
 
 
     def forward(self, x):
-        x = tf.nn.leaky_relu( self.in_conv(x), 0.1 )
+        if self.use_fp16:
+            x = tf.cast(x, tf.float16)
+            
+        x = tf.nn.leaky_relu( self.in_conv(x), 0.2 )
 
         encs = []
-        for conv, res in zip(self.convs, self.res):
+        for conv in self.convs:
             encs.insert(0, x)
-            x = tf.nn.leaky_relu( conv(x), 0.1 )
-            x = res(x)
+            x = tf.nn.leaky_relu( conv(x), 0.2 )
+            
+        center_out, x = self.center_out(x), tf.nn.leaky_relu( self.center_conv(x), 0.2 )
 
-        center_out, x = self.center_out(x), self.center_conv(x)
-
-        for i, (upconv, enc, upres) in enumerate(zip(self.upconvs, encs, self.upres)):
-            x = tf.nn.leaky_relu( upconv(x), 0.1 )
+        for i, (upconv, enc) in enumerate(zip(self.upconvs, encs)):
+            x = tf.nn.leaky_relu( upconv(x), 0.2 )
             x = tf.concat( [enc, x], axis=nn.conv2d_ch_axis)
-            x = upres(x)
 
-        return center_out, self.out_conv(x)
+        x = self.out_conv(x)
+        
+        if self.use_fp16:
+            center_out = tf.cast(center_out, tf.float32)
+            x = tf.cast(x, tf.float32)
+
+        return center_out, x
 
 nn.UNetPatchDiscriminator = UNetPatchDiscriminator
