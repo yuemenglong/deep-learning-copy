@@ -245,7 +245,7 @@ def dfl_faceset_metadata_restore(input_dir):
     dfl_exec(cmd, args)
 
 
-def dfl_extract_faces(input_dir, output_dir, detector="s3fd", manual_fix=False, output_debug=False):
+def dfl_extract_faces(input_dir, output_dir, detector="s3fd", image_size=512, manual_fix=False, output_debug=False):
     cmd = "extract"
     args = {
         "--input-dir": input_dir,
@@ -255,7 +255,7 @@ def dfl_extract_faces(input_dir, output_dir, detector="s3fd", manual_fix=False, 
         "--detector": detector,
         "--face-type": "whole_face",
         "--max-faces-from-image": 5,
-        "--image-size": 512,
+        "--image-size": image_size,
         "--jpeg-quality": 90,
         # p.add_argument('--output-debug', action="store_true", dest="output_debug", default=None, help="Writes debug images to <output-dir>_debug\ directory.")
         # p.add_argument('--no-output-debug', action="store_false", dest="output_debug", default=None, help="Don't writes debug images to <output-dir>_debug\ directory.")

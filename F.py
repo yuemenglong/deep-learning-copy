@@ -211,6 +211,21 @@ def extract_src():
     sort_src()
 
 
+def extract_img_high():
+    import os
+    import shutil
+
+    root_dir = get_root_path()
+    extract_workspace = os.path.join(root_dir, "extract_workspace")
+    input_dir = extract_workspace
+    output_dir = os.path.join(extract_workspace, "extract_image_high")
+    if os.path.exists(output_dir):
+        shutil.rmtree(output_dir)
+    os.makedirs(output_dir)
+    dfl.dfl_extract_faces(input_dir, output_dir, image_size=1024, output_debug=True)
+    dfl.dfl_sort_by_hist(output_dir)
+
+
 def sort_src():
     root_dir = get_root_path()
     extract_workspace = os.path.join(root_dir, "extract_workspace")
@@ -1369,6 +1384,8 @@ def main():
         change_workspace()
     elif arg == '--extract-src':
         extract_src()
+    elif arg == '--extract-img-high':
+        extract_img_high()
     elif arg == '--sort-src':
         sort_src()
     elif arg == '--sort-src-final':
