@@ -1376,6 +1376,100 @@ def fix_remove_dst(workspace):
                         os.remove(img_path)
 
 
+def extract_src_folder(input_folder=None):
+    import os
+    import shutil
+    from pathlib import Path
+    import time
+
+    if not input_folder:
+        input_folder = os.path.join(get_root_path(), "extract_workspace", "_extract_folder")
+
+    # 获取当前时间并格式化
+    current_time_str = time.strftime('%Y%m%d_%H%M%S', time.localtime(time.time()))
+    output_folder = f"{input_folder}_out_{current_time_str}"
+
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    aligned_folder = os.path.join(output_folder, "aligned")
+    if not os.path.exists(aligned_folder):
+        os.makedirs(aligned_folder)
+
+    image_files = []
+    for item in Path(input_folder).rglob('*'):
+        if item.is_dir():
+            continue
+
+        # 检查是否为支持的视频格式
+        if item.suffix.lower() in video_exts:
+            print(f"Processing video: {item}")
+            # 提取视频帧
+            temp_frame_folder = os.path.join(output_folder, "temp_frames")
+            if os.path.exists(temp_frame_folder):
+                shutil.rmtree(temp_frame_folder)  # 清理临时文件夹
+            os.makedirs(temp_frame_folder)
+
+            dfl.dfl_extract_video(str(item), temp_frame_folder, 0)  # 提取所有帧
+
+            # 提取人脸
+            temp_aligned_folder = os.path.join(output_folder, "temp_aligned")
+            if os.path.exists(temp_aligned_folder):
+                shutil.rmtree(temp_aligned_folder)
+            os.makedirs(temp_aligned_folder)
+
+            dfl.dfl_extract_faces(temp_frame_folder, temp_aligned_folder, output_debug=True)
+
+            # 将提取的人脸移动到最终的 aligned 文件夹，并添加时间戳
+            ts = get_time_str()
+            for face_file in os.listdir(temp_aligned_folder):
+                src_path = os.path.join(temp_aligned_folder, face_file)
+                dst_path = os.path.join(aligned_folder, f"{ts}_{face_file}")
+                shutil.move(src_path, dst_path)
+
+            # 清理临时文件夹
+            shutil.rmtree(temp_frame_folder)
+            shutil.rmtree(temp_aligned_folder)
+
+        # 检查是否为支持的图片格式
+        elif item.suffix.lower() in ['.jpg', '.jpeg', '.png', '.bmp', '.gif']:
+            print(f"Found image: {item}")
+            image_files.append(item)
+
+    # 处理所有收集到的图片文件
+    if image_files:
+        temp_image_folder = os.path.join(output_folder, "temp_image")
+        os.makedirs(temp_image_folder, exist_ok=True)
+
+        # 将所有图片移动到临时文件夹，并重命名
+        for idx, item in enumerate(image_files):
+            new_name = f"{idx}_{item.name}"
+            temp_image_path = os.path.join(temp_image_folder, new_name)
+            shutil.copy(str(item), temp_image_path)
+
+        # 提取人脸
+        temp_aligned_folder = os.path.join(output_folder, "temp_aligned")
+        if os.path.exists(temp_aligned_folder):
+            shutil.rmtree(temp_aligned_folder)
+        os.makedirs(temp_aligned_folder)
+
+        dfl.dfl_extract_faces(temp_image_folder, temp_aligned_folder)
+        print(temp_image_folder)
+        print(temp_aligned_folder)
+
+        # 将提取的人脸移动到最终的 aligned 文件夹，并添加时间戳
+        ts = get_time_str()
+        for face_file in os.listdir(temp_aligned_folder):
+            src_path = os.path.join(temp_aligned_folder, face_file)
+            dst_path = os.path.join(aligned_folder, f"{ts}_{face_file}")
+            shutil.move(src_path, dst_path)
+
+        shutil.rmtree(temp_image_folder)
+        shutil.rmtree(temp_aligned_folder)
+
+    dfl.dfl_sort_by_hist(aligned_folder)
+
+
 def main():
     import sys
 
@@ -1384,6 +1478,8 @@ def main():
         change_workspace()
     elif arg == '--extract-src':
         extract_src()
+    elif arg == '--extract-src-folder':
+        extract_src_folder()
     elif arg == '--extract-img-high':
         extract_img_high()
     elif arg == '--sort-src':
