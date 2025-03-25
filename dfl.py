@@ -58,6 +58,24 @@ def dfl_sort_by_hist(input_dir):
     dfl_exec(cmd, args)
 
 
+def dfl_sort_by_face_yaw(input_dir):
+    cmd = "sort"
+    args = {
+        "--input-dir": input_dir,
+        "--by": "face-yaw",
+    }
+    dfl_exec(cmd, args)
+
+
+def dfl_sort_by_face_pitch(input_dir):
+    cmd = "sort"
+    args = {
+        "--input-dir": input_dir,
+        "--by": "face-pitch",
+    }
+    dfl_exec(cmd, args)
+
+
 def dfl_sort_by_final(input_dir):
     cmd = "sort"
     args = {
