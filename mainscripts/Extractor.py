@@ -301,10 +301,10 @@ class ExtractSubprocessor(Subprocessor):
                 if type == 'landmarks-manual':
                     return [ (0, 'CPU', 'CPU', 0 ) ]
                 else:
-                    return [ (i, 'CPU', 'CPU%d' % (i), 0 ) for i in range( min(8, multiprocessing.cpu_count() // 2) ) ]
+                    return [ (i, 'CPU', 'CPU%d' % (i), 0 ) for i in range( min(32, multiprocessing.cpu_count() // 1) ) ]
 
         elif type == 'final':
-            return [ (i, 'CPU', 'CPU%d' % (i), 0 ) for i in (range(min(8, multiprocessing.cpu_count())) if not DEBUG else [0]) ]
+            return [ (i, 'CPU', 'CPU%d' % (i), 0 ) for i in (range(min(32, multiprocessing.cpu_count())) if not DEBUG else [0]) ]
 
     def __init__(self, input_data, type, image_size=None, jpeg_quality=None, face_type=None, output_debug_path=None, manual_window_size=0, max_faces_from_image=0, final_output_path=None, device_config=None):
         if type == 'landmarks-manual':
