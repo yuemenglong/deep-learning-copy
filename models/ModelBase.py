@@ -403,8 +403,8 @@ class ModelBase(object):
         pathex.write_bytes_safe (self.model_data_path, pickle.dumps(model_data) )
 
         if self.autobackup_hour != 0:
-            # diff_hour = int ( (time.time() - self.autobackup_start_time) // 3600 )
-            diff_hour = int ( (time.time() - self.autobackup_start_time) // 900 )
+            diff_hour = int ( (time.time() - self.autobackup_start_time) // 3600 )
+            # diff_hour = int ( (time.time() - self.autobackup_start_time) // 900 )
 
             if diff_hour > 0 and diff_hour % self.autobackup_hour == 0:
                 self.autobackup_start_time += self.autobackup_hour*3600
@@ -419,7 +419,8 @@ class ModelBase(object):
         bckp_filename_list = [ self.get_strpath_storage_for_file(filename) for _, filename in self.get_model_filename_list() ]
         bckp_filename_list += [ str(self.get_summary_path()), str(self.model_data_path) ]
 
-        for i in range(2,0,-1):
+        num_backups_to_keep = 24
+        for i in range(num_backups_to_keep,0,-1):
             idx_str = '%.2d' % i
             next_idx_str = '%.2d' % (i+1)
 
@@ -427,7 +428,7 @@ class ModelBase(object):
             next_idx_packup_path = self.autobackups_path / next_idx_str
 
             if idx_backup_path.exists():
-                if i == 2:
+                if i == num_backups_to_keep:
                     pathex.delete_all_files(idx_backup_path)
                 else:
                     next_idx_packup_path.mkdir(exist_ok=True)
