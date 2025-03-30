@@ -1268,7 +1268,12 @@ class MainWindow(QXMainWindow):
 
         self.canvas.op.initialize ( img,  ie_polys=ie_polys, xseg_mask=xseg_mask )
 
-        self.filename_label.setText(f"{image_path.name}")
+        # Calculate current position and total count
+        current_index = len(self.image_paths_done) + 1
+        total_count = len(self.image_paths_done) + len(self.image_paths)
+        
+        # Display filename with progress information
+        self.filename_label.setText(f"{image_path.name} [{current_index}/{total_count}]")
 
         return True
 
