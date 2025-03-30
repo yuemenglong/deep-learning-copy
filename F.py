@@ -1266,7 +1266,11 @@ def prepare2(workspace):
 
 
 def xseg_src_edit(workspace):
-    src_aligned = os.path.join(workspace, "data_src/aligned_x")
+    src_aligned = os.path.join(workspace, "data_src/aligned")
+    src_aligned_x = os.path.join(workspace, "data_src/aligned_x")
+    import shutil
+    if not os.path.exists(src_aligned_x):
+        shutil.copytree(src_aligned, src_aligned_x)
     dfl.dfl_xseg_editor(src_aligned)
 
 
