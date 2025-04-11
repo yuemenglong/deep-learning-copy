@@ -247,6 +247,17 @@ def sort_src_by_final():
     dfl.dfl_sort_by_final(target_dir)
 
 
+def sort_src_by_yaw():
+    # workspace = get_workspace()
+    # src_aligned = os.path.join(workspace, "data_src/aligned")
+    root_dir = get_root_path()
+    extract_workspace = os.path.join(root_dir, "extract_workspace")
+    target_dir = os.path.join(extract_workspace, "aligned_")
+    # 做完后排序
+    io.log_info("@@@@@  dfl_sort_by_face_yaw")
+    dfl.dfl_sort_by_face_yaw(target_dir)
+
+
 def extract_dst(workspace):
     # 提取人脸
     input_dir = os.path.join(workspace, "data_dst")
@@ -1485,6 +1496,8 @@ def main():
         sort_src()
     elif arg == '--sort-src-final':
         sort_src_by_final()
+    elif arg == '--sort-src-yaw':
+        sort_src_by_yaw()
     elif arg == '--prepare-merge-train':
         prepare(get_workspace())
         merge_to_dst(get_workspace())
