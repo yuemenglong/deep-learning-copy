@@ -1276,6 +1276,10 @@ def prepare2(workspace):
     dfl.dfl_extract_faces(merged, aligned)
 
 
+def get_xseg_model_dir():
+    return os.path.join(get_root_path(), "xseg_model")
+
+
 def xseg_src_edit(workspace):
     src_aligned = os.path.join(workspace, "data_src/aligned")
     dfl.dfl_xseg_editor(src_aligned)
@@ -1296,13 +1300,13 @@ def xseg_src_fetch(workspace):
 
 def xseg_src_apply(workspace):
     src_aligned = os.path.join(workspace, "data_src/aligned")
-    model_dir = os.path.join(workspace, "model")
+    model_dir = get_xseg_model_dir()
     dfl.dfl_xseg_apply(src_aligned, model_dir)
 
 
 def xseg_dst_apply(workspace):
     dst_aligned = os.path.join(get_workspace_dst(workspace), "aligned")
-    model_dir = os.path.join(workspace, "model")
+    model_dir = get_xseg_model_dir()
     dfl.dfl_xseg_apply(dst_aligned, model_dir)
 
 
@@ -1345,7 +1349,7 @@ def xseg_dst2_fetch(workspace):
 
 def xseg_dst2_apply(workspace):
     aligned = os.path.join(workspace, "data_dst/aligned")
-    model_dir = os.path.join(workspace, "model")
+    model_dir = get_xseg_model_dir()
     dfl.dfl_xseg_apply(aligned, model_dir)
 
 
@@ -1353,14 +1357,14 @@ def xseg_train(workspace):
     src_aligned = os.path.join(workspace, "data_src/aligned")
     dst_dir = get_workspace_dst(workspace)
     dst_aligned = os.path.join(dst_dir, "aligned")
-    model_dir = os.path.join(get_root_path(), "xseg_model")
+    model_dir = get_xseg_model_dir()
     dfl.dfl_xseg_train(src_aligned, dst_aligned, model_dir)
 
 
 def xseg_train2(workspace):
     src_aligned = os.path.join(workspace, "data_src/aligned")
     dst_aligned = os.path.join(workspace, "data_dst/aligned")
-    model_dir = os.path.join(get_root_path(), "xseg_model")
+    model_dir = get_xseg_model_dir()
     dfl.dfl_xseg_train(src_aligned, dst_aligned, model_dir)
 
 
