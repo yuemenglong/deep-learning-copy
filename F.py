@@ -720,7 +720,7 @@ def prepare(workspace, detector="s3fd", manual_fix=False):
         dst_dir = os.path.join(workspace, "data_dst_%s_%s" % (get_time_str(), fname))
         shutil.move(tmp_dir, dst_dir)
         # 移动video
-        data_trash = os.path.join(workspace, "../trash_workspace")
+        data_trash = os.path.join(workspace, "../trash_video")
         if not os.path.exists(data_trash):
             os.mkdir(data_trash)
         trash_video = os.path.join(data_trash, video_name)
