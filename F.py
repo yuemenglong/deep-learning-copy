@@ -1353,14 +1353,14 @@ def xseg_train(workspace):
     src_aligned = os.path.join(workspace, "data_src/aligned")
     dst_dir = get_workspace_dst(workspace)
     dst_aligned = os.path.join(dst_dir, "aligned")
-    model_dir = os.path.join(workspace, "model")
+    model_dir = os.path.join(get_root_path(), "xseg_model")
     dfl.dfl_xseg_train(src_aligned, dst_aligned, model_dir)
 
 
 def xseg_train2(workspace):
     src_aligned = os.path.join(workspace, "data_src/aligned")
     dst_aligned = os.path.join(workspace, "data_dst/aligned")
-    model_dir = os.path.join(workspace, "model")
+    model_dir = os.path.join(get_root_path(), "xseg_model")
     dfl.dfl_xseg_train(src_aligned, dst_aligned, model_dir)
 
 
