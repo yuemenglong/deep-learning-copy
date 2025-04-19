@@ -58,10 +58,20 @@ def main (model_class_name=None,
         predictor_func = MPFunc(predictor_func)
 
         run_on_cpu = len(nn.getCurrentDeviceConfig().devices) == 0
+        # xseg_model_common=saved_models_path/../../xseg_model
+        # 如果xseg_model_common存在，且里面有文件，则使用xseg_model_common
+        import os
+        xseg_model_path = saved_models_path
+        xseg_model_common = os.path.join(saved_models_path, '../../xseg_model')
+        if os.path.exists(xseg_model_common):
+            if len(os.listdir(xseg_model_common)) > 0:
+                xseg_model_common = Path(xseg_model_common)
+                xseg_model_path = xseg_model_common
+        print(f"xseg_model_path: {xseg_model_path}")
         xseg_256_extract_func = MPClassFuncOnDemand(XSegNet, 'extract',
                                                     name='XSeg',
                                                     resolution=256,
-                                                    weights_file_root=saved_models_path,
+                                                    weights_file_root=xseg_model_path,
                                                     place_model_on_cpu=True,
                                                     run_on_cpu=run_on_cpu)
 
@@ -74,7 +84,7 @@ def main (model_class_name=None,
 
         if not is_interactive:
             cfg.ask_settings()
-            
+
         # subprocess_count = io.input_int("Number of workers?", max(8, multiprocessing.cpu_count()),
         #                                 valid_range=[1, multiprocessing.cpu_count()], help_message="Specify the number of threads to process. A low value may affect performance. A high value may result in memory error. The value may not be greater than CPU cores." )
         subprocess_count = 32
