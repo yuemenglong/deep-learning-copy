@@ -1530,8 +1530,8 @@ def main():
     elif arg == '--prepare-train':
         prepare(get_workspace())
         train(get_workspace())
-        dfl.set_config("masked_training", "0")
-        train(get_workspace())
+        # dfl.set_config("masked_training", "0")
+        # train(get_workspace())
     elif arg == '--prepare-manual':
         prepare(get_workspace(), detector="manual")
         train(get_workspace())
