@@ -1285,6 +1285,20 @@ def xseg_src_edit(workspace):
     dfl.dfl_xseg_editor(src_aligned)
 
 
+def xseg_src_edit_exists(workspace):
+    src_aligned = os.path.join(workspace, "data_src/aligned")
+    dfl.dfl_xseg_fetch(src_aligned)
+    src_aligned_xseg = os.path.join(workspace, "data_src/aligned_xseg")
+    dfl.dfl_xseg_editor(src_aligned_xseg)
+    # 将src_aligned_xseg里的所有文件复制回src_aligned
+    for f in os.listdir(src_aligned_xseg):
+        import shutil
+        src = os.path.join(src_aligned_xseg, f)
+        dst = os.path.join(src_aligned, f)
+        print("Move", src, dst)
+        shutil.move(src, dst)
+
+
 def xseg_src_fetch(workspace):
     src_aligned = os.path.join(workspace, "data_src/aligned")
     dfl.dfl_xseg_fetch(src_aligned)
@@ -1540,6 +1554,8 @@ def main():
         clean_trash()
     elif arg == '--xseg-src-edit':
         xseg_src_edit(get_workspace())
+    elif arg == '--xseg-src-edit-exists':
+        xseg_src_edit_exists(get_workspace())
     elif arg == '--xseg-dst-edit':
         xseg_dst_edit(get_workspace())
     elif arg == '--xseg-src-fetch':
