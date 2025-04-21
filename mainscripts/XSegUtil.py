@@ -129,7 +129,8 @@ def fetch_xseg(input_path):
     
     io.log_info(f'Files copied: {len(files_copied)}')
     
-    is_delete = io.input_bool (f"\r\nDelete original files?", True)
+    # is_delete = io.input_bool(f"\r\nDelete original files?", True)
+    is_delete = False
     if is_delete:
         for filepath in files_copied:
             Path(filepath).unlink()
